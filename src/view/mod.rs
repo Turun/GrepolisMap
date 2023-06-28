@@ -76,7 +76,7 @@ impl View {
                 for town in &self.ui_data.towns_all {
                     painter.circle_filled(
                         egui::pos2(town.y as f32, town.x as f32),
-                        10.0,
+                        2.0,
                         egui::Color32::from_rgb(25, 200, 100),
                     )
                 }
