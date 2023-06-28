@@ -280,6 +280,9 @@ impl View {
                                 &selection
                             ));
                         selection.state = SelectionState::Loading;
+                        for constraint in selection.constraints.iter_mut() {
+                            constraint.drop_down_values = Vec::new();
+                        }
                     }
                     ui.separator();
                 }

@@ -139,7 +139,12 @@ impl Database {
             ",
             ct_table, ct_property
         ));
-        for (index, constraint) in selection.constraints.iter().enumerate() {
+        for (index, constraint) in selection
+            .constraints
+            .iter()
+            .filter(|c| !c.value.is_empty())
+            .enumerate()
+        {
             statement_text += &format!(
                 " AND {}.{} {} ?{}",
                 constraint.constraint_type.table(),
@@ -148,6 +153,11 @@ impl Database {
                 index + 1
             );
         }
+        if constraint_type.is_string() {
+            statement_text += &*format!(" ORDER BY LOWER({0}.{1})", ct_table, ct_property);
+        } else {
+            statement_text += &*format!(" ORDER BY {0}.{1}", ct_table, ct_property);
+        }
 
         // building a list of &dyn turned out to be very much non trivial.
         // we can't cast our stuff to &dyn in  a for loop, because the compiler
@@ -155,7 +165,7 @@ impl Database {
         // return early from the outer function in a map statement. so it's a bit
         // of both for now
         let mut query_parameters: Vec<EitherOr> = Vec::new();
-        for constraint in &selection.constraints {
+        for constraint in selection.constraints.iter().filter(|c| !c.value.is_empty()) {
             if constraint.constraint_type.is_string() {
                 query_parameters.push(EitherOr::A(constraint.value.clone()));
             } else {
