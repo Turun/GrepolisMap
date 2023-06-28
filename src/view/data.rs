@@ -1,14 +1,29 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-use crate::message::Town;
+use crate::message::{Town, TownConstraint};
+
+pub struct DefaultTownGroup {
+    pub enabled: bool,
+    pub color: egui::Color32,
+}
 
 /// contains all the data required to draw the ui.
 pub struct Data {
     pub server_id: String,
     pub canvas: Option<CanvasData>,
+
     pub drop_down_string: String,
-    pub towns_all: Vec<Town>,
-    pub towns_shown: Vec<Town>,
+
+    pub settings_all: DefaultTownGroup,
+    pub settings_ghosts: DefaultTownGroup,
+
+    pub selections: Vec<TownConstraint>,
+
+    pub all_towns: Vec<Town>,
+    pub ghost_towns: Vec<Town>,
+
+    pub name_players: Vec<String>,
+    pub name_alliances: Vec<String>,
 }
 
 impl Default for Data {
@@ -17,8 +32,19 @@ impl Default for Data {
             server_id: String::from("de99"),
             canvas: None,
             drop_down_string: String::new(),
-            towns_all: Vec::new(),
-            towns_shown: Vec::new(),
+            all_towns: Vec::new(),
+            ghost_towns: Vec::new(),
+            selections: Vec::new(),
+            settings_ghosts: DefaultTownGroup {
+                enabled: true,
+                color: egui::Color32::RED,
+            },
+            settings_all: DefaultTownGroup {
+                enabled: true,
+                color: egui::Color32::from_rgb(48, 48, 48),
+            },
+            name_players: Vec::new(),
+            name_alliances: Vec::new(),
         }
     }
 }
@@ -66,5 +92,40 @@ impl CanvasData {
         T: Mul<f32, Output = T>,
     {
         return world * self.zoom;
+    }
+}
+
+pub struct ViewPortFilter {
+    world_l: f32,
+    world_r: f32,
+    world_b: f32,
+    world_t: f32,
+}
+
+impl ViewPortFilter {
+    pub fn new(canvas: &CanvasData, screen_rect: egui::Rect) -> Self {
+        let top_left = canvas.screen_to_world(screen_rect.left_top().to_vec2());
+        let bot_right = canvas.screen_to_world(screen_rect.right_bottom().to_vec2());
+        Self {
+            world_l: top_left.x,
+            world_r: bot_right.x,
+            world_t: top_left.y,
+            world_b: bot_right.y,
+        }
+    }
+
+    pub fn town_in_viewport(&self, town: &Town) -> bool {
+        self.world_l < town.x
+            && town.x < self.world_r
+            && self.world_t < town.y
+            && town.y < self.world_b
+    }
+
+    pub fn x_in_viewport(&self, x: f32) -> bool {
+        self.world_l < x && x < self.world_r
+    }
+
+    pub fn y_in_viewport(&self, y: f32) -> bool {
+        self.world_t < y && y < self.world_b
     }
 }

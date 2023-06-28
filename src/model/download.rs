@@ -74,6 +74,26 @@ impl Database {
         return rows;
     }
 
+    pub fn get_player_names(&self) -> Vec<String> {
+        // TODO
+        Vec::new()
+    }
+
+    pub fn get_alliance_names(&self) -> Vec<String> {
+        // TODO
+        Vec::new()
+    }
+
+    pub fn get_towns_for_player(&self, player_name: &str) -> Vec<Town> {
+        // TODO
+        Vec::new()
+    }
+
+    pub fn get_towns_for_alliance(&self, alliance_name: &str) -> Vec<Town> {
+        // TODO
+        Vec::new()
+    }
+
     pub fn create_for_world(
         server_id: &str,
         sender: mpsc::Sender<MessageToView>,
