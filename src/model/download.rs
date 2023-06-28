@@ -1,9 +1,9 @@
 /// this takes care of fetching the data and putting it into a database
-use std::{f32::consts, future::Future, sync::mpsc};
+use std::{future::Future, sync::mpsc};
 use tokio;
 
 use reqwest;
-use rusqlite;
+use rusqlite::{self, types::ToSqlOutput, ToSql};
 
 use crate::message::{ConstraintType, MessageToView, Progress, Town, TownConstraint};
 
@@ -31,6 +31,20 @@ fn make_client() -> reqwest::Client {
 
 pub struct Database {
     connection: rusqlite::Connection,
+}
+
+enum EitherOr {
+    A(String),
+    B(usize),
+}
+
+impl ToSql for EitherOr {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        match self {
+            EitherOr::A(value) => value.to_sql(),
+            EitherOr::B(value) => value.to_sql(),
+        }
+    }
 }
 
 impl Database {
@@ -117,73 +131,46 @@ impl Database {
                 LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
                 WHERE islands.type = offsets.type",
         );
-        for constraint in &selection.constraints {
-            // if constraint.value.is_empty() {
-            //     return Vec::new();
-            // }
+        for (index, constraint) in selection.constraints.iter().enumerate() {
             statement_text += &format!(
-                " AND {}.{} {} {}",
+                " AND {}.{} {} ?{}",
                 constraint.constraint_type.table(),
                 constraint.constraint_type.property(),
                 constraint.comparator,
-                if constraint.constraint_type.is_string() {
-                    format!("\"{}\"", constraint.value)
-                } else {
-                    constraint.value.clone()
-                }
+                index + 1
             );
         }
+
+        // building a list of &dyn turned out to be very much non trivial.
+        // we can't cast our stuff to &dyn in  a for loop, because the compiler
+        // can't prove that we hold onto it for long enough, but we also can't
+        // return early from the outer function in a map statement. so it's a bit
+        // of both for now
+        let mut query_parameters: Vec<EitherOr> = Vec::new();
+        for constraint in &selection.constraints {
+            if constraint.constraint_type.is_string() {
+                query_parameters.push(EitherOr::A(constraint.value.clone()));
+            } else {
+                let opt_parsed = constraint.value.parse::<usize>();
+                if let Ok(parsed) = opt_parsed {
+                    query_parameters.push(EitherOr::B(parsed));
+                } else {
+                    return Vec::new();
+                }
+            }
+        }
+
+        let query_parameters: Vec<&dyn ToSql> = query_parameters
+            .iter()
+            .map(|param| param as &dyn ToSql)
+            .collect();
 
         let mut statement = self
             .connection
             .prepare(&statement_text)
-            .expect("Failed to get towns from database (build statement)");
-        let rows = statement
-            .query([])
-            .expect("Failed to get towns from the database (perform query)")
-            .mapped(|row| Town::from(row))
-            .map(|town_option| town_option.expect("Failed to create a town from row"))
-            .collect();
-        return rows;
-    }
-
-    pub fn get_towns_for_player(&self, player_name: &str) -> Vec<Town> {
-        let mut statement = self
-            .connection
-            .prepare(
-                "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
-                towns 
-                LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
-                LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
-                LEFT JOIN players ON (towns.player_id = players.player_id)
-                LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
-                WHERE islands.type = offsets.type AND players.name = ?1",
-            )
             .expect("Failed to get ghost towns from database (build statement)");
         let rows = statement
-            .query([player_name])
-            .expect("Failed to get ghost towns from the database (perform query)")
-            .mapped(|row| Town::from(row))
-            .map(|town_option| town_option.expect("Failed to create a town from row"))
-            .collect();
-        return rows;
-    }
-
-    pub fn get_towns_for_alliance(&self, alliance_name: &str) -> Vec<Town> {
-        let mut statement = self
-            .connection
-            .prepare(
-                "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
-                towns 
-                LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
-                LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
-                LEFT JOIN players ON (towns.player_id = players.player_id)
-                LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
-                WHERE islands.type = offsets.type AND alliances.name = ?1",
-            )
-            .expect("Failed to get ghost towns from database (build statement)");
-        let rows = statement
-            .query([alliance_name])
+            .query(query_parameters.as_slice())
             .expect("Failed to get ghost towns from the database (perform query)")
             .mapped(|row| Town::from(row))
             .map(|town_option| town_option.expect("Failed to create a town from row"))

@@ -1,7 +1,5 @@
 use core::fmt;
 use rusqlite::Row;
-use std::{default, f32::consts};
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use uuid;
 
@@ -38,7 +36,12 @@ impl fmt::Display for MessageToView {
                 write!(f, "MessageToView::GhostTowns({} towns)", towns.len())
             }
             MessageToView::DropDownValues(constraint_type, values) => {
-                write!(f, "MessageToView::DropDownValues({} entries)", values.len())
+                write!(
+                    f,
+                    "MessageToView::DropDownValues({}: {} entries)",
+                    constraint_type,
+                    values.len()
+                )
             }
         }
     }

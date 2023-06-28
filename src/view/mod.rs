@@ -153,7 +153,7 @@ impl View {
                     // TODO advanced selection
                     // show all towns that fulfill X and Y and Y
                     // where each XYZ is (alliance/player/island/town).property lt/eq/gt/ne input
-                    let first_row_response = ui.horizontal(|ui| {
+                    let _first_row_response = ui.horizontal(|ui| {
                         ui.color_edit_button_srgba(&mut selection.color);
                         if ui.button("↑").clicked() {
                             change = Some(Change::MoveUp(index));
