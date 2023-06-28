@@ -8,7 +8,7 @@ use egui::{FontData, ProgressBar, Shape, Ui};
 
 use crate::message::{
     Change, Comparator, Constraint, ConstraintState, ConstraintType, MessageToModel, MessageToView,
-    Progress, Server, Town, TownConstraint,
+    Progress, Server, Town, TownSelection,
 };
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
@@ -144,15 +144,11 @@ impl View {
                 });
                 ui.separator();
                 if ui.button("Add Towns").clicked() {
-                    self.ui_data.selections.push(TownConstraint::new());
+                    self.ui_data.selections.push(TownSelection::new());
                 }
                 ui.separator();
                 let mut change: Option<Change> = None;
                 for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
-                    // TODO A way to reorder the list of selections
-                    // TODO advanced selection
-                    // show all towns that fulfill X and Y and Y
-                    // where each XYZ is (alliance/player/island/town).property lt/eq/gt/ne input
                     let _first_row_response = ui.horizontal(|ui| {
                         ui.color_edit_button_srgba(&mut selection.color);
                         if ui.button("↑").clicked() {
@@ -169,10 +165,14 @@ impl View {
                         }
                     });
 
+                    // let num_constraints = selection.constraints.len();
                     let mut request_update = false;
+                    // let mut add_constraint = false;
                     for (cindex, constraint) in selection.constraints.iter_mut().enumerate() {
+                        // TODO a way to reorder the constraints
+                        // TODO a way to remove a constraint ("-") button at the beginning of the line
                         ui.horizontal(|ui| {
-                            ui.label("and");
+                            ui.label("and"); // TODO: move that to the end of the line, and if this constraint is the last one, make a button "+" instead
                             egui::ComboBox::from_id_source(format!(
                                 "ComboxBox {}/{} Type",
                                 index, cindex
@@ -188,6 +188,7 @@ impl View {
                                     );
                                 }
                             });
+
                             egui::ComboBox::from_id_source(format!(
                                 "ComboxBox {}/{} Comparator",
                                 index, cindex
@@ -213,8 +214,18 @@ impl View {
                             if ui.add(ddb).changed() {
                                 request_update = true;
                             };
+                            // if cindex + 1 == num_constraints {
+                            //     if ui.button("+").clicked() {
+                            //         add_constraint = true;
+                            //     }
+                            // } else {
+                            //     ui.label("and");
+                            // }
                         });
                     }
+                    // if add_constraint {
+                    //     selection.constraints.push(Constraint::default());
+                    // }
                     if request_update {
                         self.channel_presenter_tx
                             .send(MessageToModel::FetchTowns(selection.clone()))

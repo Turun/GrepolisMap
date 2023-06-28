@@ -1,6 +1,6 @@
 //the entry point for model
 
-use crate::message::{ConstraintType, Town, TownConstraint};
+use crate::message::{ConstraintType, Town, TownSelection};
 
 pub mod download;
 mod offset_data;
@@ -21,7 +21,7 @@ impl Model {
         }
     }
 
-    pub fn get_towns_for_selection(&self, constraint: &TownConstraint) -> Vec<Town> {
+    pub fn get_towns_for_selection(&self, constraint: &TownSelection) -> Vec<Town> {
         match self {
             Model::Uninitialized => return Vec::new(),
             Model::Loaded { db, ctx: _ctx } => db.get_towns_for_constraint(constraint),

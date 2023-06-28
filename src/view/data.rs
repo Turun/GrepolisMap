@@ -3,7 +3,7 @@ use std::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::message::{ConstraintType, Town, TownConstraint};
+use crate::message::{ConstraintType, Town, TownSelection};
 
 #[derive(Clone)]
 pub struct DefaultTownGroup {
@@ -19,7 +19,7 @@ pub struct Data {
     pub settings_all: DefaultTownGroup,
     pub settings_ghosts: DefaultTownGroup,
 
-    pub selections: Vec<TownConstraint>,
+    pub selections: Vec<TownSelection>,
 
     pub all_towns: Vec<Town>,
     pub ghost_towns: Vec<Town>,

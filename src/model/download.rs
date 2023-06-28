@@ -5,7 +5,7 @@ use tokio;
 use reqwest;
 use rusqlite::{self, types::ToSqlOutput, ToSql};
 
-use crate::message::{ConstraintType, MessageToView, Progress, Town, TownConstraint};
+use crate::message::{ConstraintType, MessageToView, Progress, Town, TownSelection};
 
 use super::offset_data;
 
@@ -121,7 +121,7 @@ impl Database {
         return rows;
     }
 
-    pub fn get_towns_for_constraint(&self, selection: &TownConstraint) -> Vec<Town> {
+    pub fn get_towns_for_constraint(&self, selection: &TownSelection) -> Vec<Town> {
         let mut statement_text = String::from(
             "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
                 towns 

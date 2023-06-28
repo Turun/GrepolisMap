@@ -13,7 +13,7 @@ pub enum MessageToView {
     AllTowns(Vec<Town>),
     GhostTowns(Vec<Town>),
     DropDownValues(ConstraintType, Vec<String>),
-    TownList(TownConstraint, Vec<Town>),
+    TownList(TownSelection, Vec<Town>),
 }
 
 impl fmt::Display for MessageToView {
@@ -52,7 +52,7 @@ pub enum MessageToModel {
     FetchAll,
     FetchGhosts,
     FetchDropDownValues(ConstraintType),
-    FetchTowns(TownConstraint),
+    FetchTowns(TownSelection),
 }
 
 impl fmt::Display for MessageToModel {
@@ -133,7 +133,7 @@ pub enum Change {
 }
 
 #[derive(Debug, Clone)]
-pub struct TownConstraint {
+pub struct TownSelection {
     uuid: uuid::Uuid,
     pub state: ConstraintState,
     pub constraints: Vec<Constraint>,
@@ -146,6 +146,10 @@ pub struct Constraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
     pub value: String,
+    // TODO: we could give each constraint a list of towns, which are the possible values
+    // for the dropdown, given that all other constraints of the selection are already applied.
+    // these would be updated each time the list of towns for the total changes as well.
+    // (but cache it, because it could become an expensive operation and rarely changes)
 }
 
 impl Default for Constraint {
@@ -292,25 +296,25 @@ pub enum ConstraintState {
     Finished,
 }
 
-impl TownConstraint {
+impl TownSelection {
     pub fn new() -> Self {
         Self {
             uuid: uuid::Uuid::new_v4(),
             state: ConstraintState::Finished,
             towns: Vec::new(),
-            constraints: Vec::new(),
+            constraints: vec![Constraint::default()],
             color: egui::Color32::GREEN,
         }
     }
 }
 
-impl PartialEq<TownConstraint> for &mut TownConstraint {
-    fn eq(&self, other: &TownConstraint) -> bool {
+impl PartialEq<TownSelection> for &mut TownSelection {
+    fn eq(&self, other: &TownSelection) -> bool {
         self.uuid == other.uuid
     }
 }
 
-impl fmt::Display for TownConstraint {
+impl fmt::Display for TownSelection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
