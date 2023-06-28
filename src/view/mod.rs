@@ -164,6 +164,8 @@ impl View {
 
                         // TODO list the number of cities in this selection here
 
+                        ui.label(format!("{} Towns", selection.towns.len()));
+
                         if selection.state == SelectionState::Loading {
                             ui.spinner();
                         }
@@ -173,13 +175,7 @@ impl View {
                     let mut request_update = selection.state == SelectionState::NewlyCreated; // A newly created one must request an update immediately to fill its ddv list
                     let mut constraint_change = None;
                     for (cindex, constraint) in selection.constraints.iter_mut().enumerate() {
-                        // TODO a way to reorder the constraints
-                        // TODO a way to remove a constraint ("-") button at the beginning of the line
-                        // TODO if any of the comboboxes are changed, trigger an update
                         ui.horizontal(|ui| {
-                            ui.label("and"); // TODO: move that to the end of the line, and if this constraint is the last one, make a button "+" instead
-
-                            // TODO make the comboboxes correctly sized
                             let _inner_response = egui::ComboBox::from_id_source(format!(
                                 "ComboxBox {index}/{cindex} Type"
                             ))

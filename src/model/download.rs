@@ -14,12 +14,9 @@ where
     U: reqwest::IntoUrl + std::fmt::Display,
 {
     let url_text = format!("{url}");
-    println!("dl 1 {url_text}");
     let result = client.get(url).send()?;
-    println!("dl 2 {url_text}");
     println!("Got status {} for url {}", result.status(), url_text);
     let text = result.text()?;
-    println!("dl 3 {url_text}");
 
     Ok(text)
 }
