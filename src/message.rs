@@ -5,8 +5,8 @@ use rusqlite::Row;
 
 #[derive(Debug)]
 pub enum MessageToView {
-    GotServer,
-    TownList(Vec<Town>),
+    GotServer(Vec<Town>),
+    TownList(TownSelection, Vec<Town>),
 }
 
 #[derive(Debug)]
@@ -23,16 +23,17 @@ pub struct Server {
 #[derive(Debug)]
 pub struct Town {
     id: i32,
-    player_id: i32,
-    name: String,
-    x: i16,
-    y: i16,
-    slot_number: u8,
-    points: u16,
+    player_id: Option<i32>,
+    pub name: String,
+    pub x: i16,
+    pub y: i16,
+    pub slot_number: u8,
+    pub points: u16,
 }
 
 impl Town {
     pub fn from(row: &Row) -> Result<Self, rusqlite::Error> {
+        // println!("{:?} {:?}", row, row.get::<usize, i32>(0));
         Ok(Self {
             id: row.get(0)?,
             player_id: row.get(1)?,
@@ -45,13 +46,9 @@ impl Town {
     }
 }
 
-pub enum State {
-    Uninitialized,
-    Show(TownSelection),
-}
-
 #[derive(Debug)]
 pub enum TownSelection {
+    None,
     All,
     Ghosts,
     Selected(Vec<TownConstraint>),

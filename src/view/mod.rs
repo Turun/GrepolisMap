@@ -6,7 +6,7 @@ use std::sync::Arc;
 use egui::Stroke;
 use std::sync::mpsc;
 
-use crate::message::{MessageToModel, MessageToView, Server};
+use crate::message::{MessageToModel, MessageToView, Server, TownSelection};
 use crate::view::data::Data;
 use crate::view::state::State;
 
@@ -73,11 +73,19 @@ impl View {
                 let size = response.rect;
 
                 // cities have a diameter of .25 units, approximately
-                painter.circle_filled(
-                    self.ui_data.canvas.center,
-                    self.ui_data.canvas.zoom.x,
-                    egui::Color32::from_rgb(25, 200, 100),
-                );
+                for town in &self.ui_data.towns_all {
+                    painter.circle_filled(
+                        egui::pos2(town.y as f32, town.x as f32),
+                        10.0,
+                        egui::Color32::from_rgb(25, 200, 100),
+                    )
+                }
+
+                // painter.circle_filled(
+                //     self.ui_data.canvas.center,
+                //     self.ui_data.canvas.zoom.x,
+                //     egui::Color32::from_rgb(25, 200, 100),
+                // );
                 self.ui_data.canvas.center += response.drag_delta();
                 let scroll_delta = ctx.input(|input| input.scroll_delta.y);
                 self.ui_data.canvas.zoom += egui::vec2(scroll_delta, scroll_delta);
@@ -92,6 +100,21 @@ impl View {
 
 impl eframe::App for View {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if let Ok(message) = self.channel_presenter_rx.try_recv() {
+            match message {
+                MessageToView::GotServer(all_towns) => {
+                    self.ui_state = State::Show(TownSelection::None);
+                    self.ui_data.towns_all = all_towns;
+                    self.channel_presenter_tx
+                        .send(MessageToModel::FetchTowns(TownSelection::Ghosts))
+                        .expect("Failed to send message to model: TownSelection::Ghosts");
+                }
+                MessageToView::TownList(selection, town_list) => {
+                    self.ui_state = State::Show(selection);
+                    self.ui_data.towns_shown = town_list;
+                }
+            }
+        }
         let state = &self.ui_state;
         match state {
             State::Uninitialized => self.ui_uninitialized(ctx),

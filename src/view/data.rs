@@ -1,7 +1,11 @@
+use crate::message::Town;
+
 /// contains all the data required to draw the ui.
 pub struct Data {
     pub server_id: String,
     pub canvas: CanvasData,
+    pub towns_all: Vec<Town>,
+    pub towns_shown: Vec<Town>,
 }
 
 impl Default for Data {
@@ -15,6 +19,8 @@ impl Default for Data {
                     y: 1000.0,
                 },
             },
+            towns_all: Vec::new(),
+            towns_shown: Vec::new(),
         }
     }
 }

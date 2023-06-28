@@ -14,6 +14,7 @@ impl Model {
         match self {
             Model::Uninitialized => return Vec::new(),
             Model::Loaded { db } => match selection {
+                TownSelection::None => return Vec::new(),
                 TownSelection::All => return db.get_all_towns(),
                 TownSelection::Ghosts => return db.get_ghost_towns(),
                 TownSelection::Selected(_) => todo!(),
