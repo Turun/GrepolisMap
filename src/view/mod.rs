@@ -230,12 +230,14 @@ impl View {
                             if cindex + 1 == num_constraints {
                                 if ui.button("+").clicked() {
                                     constraint_change = Some(Change::Add);
+                                    request_update = true;
                                 }
                             } else {
                                 ui.label("and");
                             }
                             if ui.button("-").clicked() {
                                 constraint_change = Some(Change::Remove(cindex));
+                                request_update = true;
                             }
                             if ui.button("↑").clicked() {
                                 constraint_change = Some(Change::MoveUp(cindex));
@@ -539,6 +541,7 @@ impl eframe::App for View {
                     self.ui_data.ghost_towns = towns;
                 }
                 MessageToView::DropDownValues(constraint_type, values) => {
+                    // TODO give every constraint its own list of dd values. They must be updated each time the other constraints in the selection are changed
                     let _old_value = self.ui_data.dropdown_values.insert(constraint_type, values);
                 }
                 MessageToView::Loading(progress) => {
