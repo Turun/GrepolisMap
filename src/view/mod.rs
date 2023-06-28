@@ -159,6 +159,10 @@ impl View {
                         if ui.button("↓").clicked() {
                             change = Some(Change::MoveDown(index));
                         }
+
+                        if selection.state == ConstraintState::Loading {
+                            ui.spinner();
+                        }
                     });
 
                     let num_constraints = selection.constraints.len();
@@ -233,7 +237,12 @@ impl View {
                             if ui.button("-").clicked() {
                                 constraint_change = Some(Change::Remove(cindex));
                             }
-                            // TODO: up down
+                            if ui.button("↑").clicked() {
+                                constraint_change = Some(Change::MoveUp(cindex));
+                            }
+                            if ui.button("↓").clicked() {
+                                constraint_change = Some(Change::MoveDown(cindex));
+                            }
                         });
                     }
 
@@ -265,12 +274,6 @@ impl View {
                             ));
                         selection.state = ConstraintState::Loading;
                     }
-
-                    ui.horizontal(|ui| {
-                        if selection.state == ConstraintState::Loading {
-                            ui.spinner();
-                        }
-                    });
                     ui.separator();
                 }
 
