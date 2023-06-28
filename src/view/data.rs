@@ -6,6 +6,7 @@ use crate::message::Town;
 pub struct Data {
     pub server_id: String,
     pub canvas: Option<CanvasData>,
+    pub drop_down_string: String,
     pub towns_all: Vec<Town>,
     pub towns_shown: Vec<Town>,
 }
@@ -15,6 +16,7 @@ impl Default for Data {
         Self {
             server_id: String::from("de99"),
             canvas: None,
+            drop_down_string: String::new(),
             towns_all: Vec::new(),
             towns_shown: Vec::new(),
         }

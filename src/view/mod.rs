@@ -3,11 +3,10 @@ pub(crate) mod state;
 
 use std::sync::mpsc;
 
-use egui::{ProgressBar, Shape};
+use egui::{ProgressBar, Shape, Ui};
+use egui_dropdown::DropDownBox;
 
-use crate::message::{
-    MessageToModel, MessageToView, Progress, Server, Town, TownConstraint, TownSelection,
-};
+use crate::message::{MessageToModel, MessageToView, Progress, Server, Town, TownSelection};
 use crate::view::data::{CanvasData, Data};
 use crate::view::state::State;
 
@@ -37,24 +36,28 @@ impl View {
         );
     }
 
+    fn ui_server_input(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Server ID");
+            ui.text_edit_singleline(&mut self.ui_data.server_id);
+        });
+        if ui
+            .add(egui::Button::new("Load Data for this Server"))
+            .clicked()
+        {
+            self.ui_state = State::Uninitialized(Progress::None);
+            self.channel_presenter_tx
+                .send(MessageToModel::SetServer(Server {
+                    id: self.ui_data.server_id.clone(),
+                }))
+                .expect("Failed to send the SetServer Message to the backend");
+        }
+    }
+
     fn ui_uninitialized(&mut self, ctx: &egui::Context, progress: Progress) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Server ID");
-                    ui.text_edit_singleline(&mut self.ui_data.server_id);
-                });
-                if ui
-                    .add(egui::Button::new("Load Data for this Server"))
-                    .clicked()
-                {
-                    self.channel_presenter_tx
-                        .send(MessageToModel::SetServer(Server {
-                            id: self.ui_data.server_id.clone(),
-                        }))
-                        .expect("Failed to send the SetServer Message to the backend");
-                }
-
+                self.ui_server_input(ui);
                 match progress {
                     Progress::None => {}
                     Progress::Started => {
@@ -83,8 +86,24 @@ impl View {
     fn ui_init(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {
-                ui.heading(String::from("Server:") + &self.ui_data.server_id);
-            })
+                self.ui_server_input(ui);
+                ui.label(format!("Towns Total: {}", self.ui_data.towns_all.len()));
+                ui.label(format!(
+                    "Towns Selected: {}",
+                    self.ui_data.towns_shown.len()
+                ));
+                ui.separator();
+                ui.add(DropDownBox::from_iter(
+                    self.ui_data
+                        .towns_all
+                        .iter()
+                        .map(|town| town.name.to_owned())
+                        .collect::<Vec<String>>(),
+                    "dropdown box",
+                    &mut self.ui_data.drop_down_string,
+                    |ui, text| ui.selectable_label(false, text),
+                ));
+            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -197,13 +216,13 @@ impl View {
                         if town.player_id == Some(1495649) {
                             egui::Color32::WHITE
                         } else {
-                            egui::Color32::from_rgb(25, 200, 100)
-                            // egui::Color32::TRANSPARENT
+                            // egui::Color32::DARK_GRAY.gamma_multiply(0.5)
+                            egui::Color32::from_rgb(48, 48, 48)
                         },
                     );
                 }
 
-                // DRAW GHOST TOWNS
+                // DRAW SELECTED TOWNS
                 for town in &visible_towns_shown {
                     painter.circle_filled(
                         canvas_data
