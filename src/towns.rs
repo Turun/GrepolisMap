@@ -39,25 +39,33 @@ pub enum Change {
     Remove(usize),
     MoveDown(usize),
 }
-
-#[derive(Debug, Clone)]
-pub struct TownSelection {
-    uuid: uuid::Uuid,
-    pub state: SelectionState,
-    pub constraints: Vec<Constraint>,
-    pub color: egui::Color32,
-    pub towns: Vec<Town>,
-}
-
 #[derive(Debug, Clone)]
 pub struct Constraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
     pub value: String,
-    // TODO: we could give each constraint a list of towns, which are the possible values
-    // for the dropdown, given that all other constraints of the selection are already applied.
-    // these would be updated each time the list of towns for the total changes as well.
-    // (but cache it, because it could become an expensive operation and rarely changes)
+    pub drop_down_values: Vec<String>,
+}
+
+impl Constraint {
+    pub fn partial_clone(&self) -> Self {
+        Self {
+            constraint_type: self.constraint_type.clone(),
+            comparator: self.comparator.clone(),
+            value: self.value.clone(),
+            drop_down_values: Vec::new(),
+        }
+    }
+}
+
+impl fmt::Display for Constraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Constraint({} {} {})",
+            self.constraint_type, self.comparator, self.value
+        )
+    }
 }
 
 impl Default for Constraint {
@@ -66,7 +74,17 @@ impl Default for Constraint {
             constraint_type: ConstraintType::PlayerName,
             comparator: Comparator::Equal,
             value: String::from(""),
+            drop_down_values: Vec::new(),
         }
+    }
+}
+
+impl Eq for Constraint {}
+impl PartialEq for Constraint {
+    fn eq(&self, other: &Self) -> bool {
+        return self.constraint_type == other.constraint_type
+            && self.comparator == other.comparator
+            && self.value == other.value;
     }
 }
 
@@ -204,6 +222,30 @@ pub enum SelectionState {
     Finished,
 }
 
+#[derive(Debug, Clone)]
+pub struct TownSelection {
+    uuid: uuid::Uuid,
+    pub state: SelectionState,
+    pub constraints: Vec<Constraint>,
+    pub color: egui::Color32,
+    pub towns: Vec<Town>,
+}
+
+impl TownSelection {
+    /// Clone the TownSelection, but without the list of towns. Less memory
+    /// required and we can reconstruct the list of towns anyway, if given
+    /// the list of constraints.
+    pub fn partial_clone(&self) -> Self {
+        Self {
+            towns: Vec::new(),
+            uuid: self.uuid.clone(),
+            state: self.state.clone(),
+            constraints: self.constraints.clone(),
+            color: self.color.clone(),
+        }
+    }
+}
+
 impl Default for TownSelection {
     fn default() -> Self {
         Self {
@@ -226,7 +268,7 @@ impl fmt::Display for TownSelection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "TownConstraint({} constraints, {} towns)",
+            "TownSelection({} constraints, {} towns)",
             self.constraints.len(),
             self.towns.len()
         )

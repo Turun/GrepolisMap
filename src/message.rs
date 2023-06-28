@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::towns::{ConstraintType, Town, TownSelection};
+use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
 
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene
@@ -12,7 +12,8 @@ pub enum MessageToView {
     AllTowns(Vec<Town>),
     GhostTowns(Vec<Town>),
     DropDownValues(ConstraintType, Vec<String>),
-    TownList(TownSelection, Vec<Town>),
+    TownListSelection(TownSelection, Vec<Town>),
+    TownListConstraint(Constraint, TownSelection, Vec<String>),
 }
 
 impl fmt::Display for MessageToView {
@@ -21,12 +22,21 @@ impl fmt::Display for MessageToView {
             MessageToView::GotServer => {
                 write!(f, "MessageToView::GotServer",)
             }
-            MessageToView::TownList(selection, towns) => write!(
+            MessageToView::TownListSelection(selection, towns) => write!(
                 f,
                 "MessageToView::TownList({}, {} towns)",
                 selection,
                 towns.len()
             ),
+            MessageToView::TownListConstraint(constraint, selection, towns) => {
+                write!(
+                    f,
+                    "MessageToView::TownListConstraint({}, {}, {} towns)",
+                    constraint,
+                    selection,
+                    towns.len()
+                )
+            }
             MessageToView::Loading(progress) => write!(f, "MessageToView::Loading({:?})", progress),
             MessageToView::AllTowns(towns) => {
                 write!(f, "MessageToView::AllTowns({} towns)", towns.len())

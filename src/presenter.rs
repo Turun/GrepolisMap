@@ -55,8 +55,25 @@ impl Presenter {
                 MessageToModel::FetchTowns(selection) => {
                     let towns = self.model.get_towns_for_selection(&selection);
                     self.channel_tx
-                        .send(MessageToView::TownList(selection, towns))
+                        .send(MessageToView::TownListSelection(
+                            selection.partial_clone(),
+                            towns,
+                        ))
                         .expect("Failed to send town list to view");
+                    if selection.constraints.len() >= 2 {
+                        for constraint in &selection.constraints {
+                            let constraint_towns = self
+                                .model
+                                .get_towns_for_constraint_with_selection(&constraint, &selection);
+                            self.channel_tx
+                                .send(MessageToView::TownListConstraint(
+                                    constraint.partial_clone(),
+                                    selection.partial_clone(),
+                                    constraint_towns,
+                                ))
+                                .expect("Failed to send town list to view");
+                        }
+                    }
                 }
             }
 

@@ -215,11 +215,16 @@ impl View {
                             });
 
                             let empty_vec: Vec<String> = Vec::new();
-                            let ddb = DropDownBox::from_iter(
+                            let drop_down_items = if constraint.drop_down_values.is_empty() {
                                 self.ui_data
                                     .dropdown_values
                                     .get(&constraint.constraint_type)
-                                    .unwrap_or(&empty_vec),
+                                    .unwrap_or(&empty_vec)
+                            } else {
+                                &constraint.drop_down_values
+                            };
+                            let ddb = DropDownBox::from_iter(
+                                drop_down_items,
                                 format!("ComboBox {}/{} Value", index, cindex),
                                 &mut constraint.value,
                                 |ui, text| ui.selectable_label(false, text),
@@ -269,7 +274,7 @@ impl View {
 
                     if request_update {
                         self.channel_presenter_tx
-                            .send(MessageToModel::FetchTowns(selection.clone()))
+                            .send(MessageToModel::FetchTowns(selection.partial_clone()))
                             .expect(&format!(
                                 "Failed to send Message to Model for Selection {}",
                                 &selection
@@ -518,18 +523,41 @@ impl eframe::App for View {
                             ));
                     }
                 }
-                MessageToView::TownList(constraint, town_list) => {
+                MessageToView::TownListSelection(selection, town_list) => {
                     self.ui_state = State::Show;
                     let optional_selection = self
                         .ui_data
                         .selections
                         .iter_mut()
-                        .find(|element| *element == constraint);
+                        .find(|element| *element == selection);
                     if let Some(selection) = optional_selection {
                         selection.towns = town_list;
                         selection.state = SelectionState::Finished;
                     } else {
-                        println!("No existing selection found for {}", constraint);
+                        println!("No existing selection found for {}", selection);
+                    }
+                }
+                MessageToView::TownListConstraint(constraint, selection, towns) => {
+                    self.ui_state = State::Show;
+                    let optional_selection = self
+                        .ui_data
+                        .selections
+                        .iter_mut()
+                        .find(|element| *element == selection);
+                    if let Some(selection) = optional_selection {
+                        let optional_constraint =
+                            selection.constraints.iter_mut().find(|c| **c == constraint);
+                        if let Some(constraint) = optional_constraint {
+                            constraint.drop_down_values = towns;
+                            // TODO do we need to keep track of state, or is the state encoded in the variable here?
+                        } else {
+                            println!(
+                                "No existing constraint {} found in selection {}",
+                                constraint, selection
+                            );
+                        }
+                    } else {
+                        println!("No existing selection found for {}", selection);
                     }
                 }
                 MessageToView::AllTowns(towns) => {

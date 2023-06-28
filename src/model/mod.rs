@@ -1,6 +1,5 @@
 //the entry point for model
-
-use crate::towns::{ConstraintType, Town, TownSelection};
+use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
 
 pub mod download;
 mod offset_data;
@@ -21,10 +20,31 @@ impl Model {
         }
     }
 
-    pub fn get_towns_for_selection(&self, constraint: &TownSelection) -> Vec<Town> {
+    pub fn get_towns_for_selection(&self, selection: &TownSelection) -> Vec<Town> {
         match self {
             Model::Uninitialized => return Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => db.get_towns_for_constraint(constraint),
+            Model::Loaded { db, ctx: _ctx } => db.get_towns_for_selection(selection),
+        }
+    }
+
+    pub fn get_towns_for_constraint_with_selection(
+        &self,
+        constraint: &Constraint,
+        selection: &TownSelection,
+    ) -> Vec<String> {
+        let mut selection = selection.partial_clone();
+        let index_opt = selection.constraints.iter().position(|c| c == constraint);
+        if let Some(index) = index_opt {
+            selection.constraints.swap_remove(index);
+            match self {
+                Model::Uninitialized => return Vec::new(),
+                Model::Loaded { db, ctx: _ctx } => db.get_names_for_constraint_type_in_selection(
+                    &constraint.constraint_type,
+                    &selection,
+                ),
+            }
+        } else {
+            return Vec::new();
         }
     }
 
