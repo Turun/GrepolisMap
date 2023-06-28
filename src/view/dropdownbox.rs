@@ -77,8 +77,8 @@ impl<'a, V: AsRef<str>, I: Iterator<Item = V>> Widget for DropDownBox<'a, V, I> 
                     if mat[0].0 == 0 {
                         // matching the start of the string
                         let mut job = LayoutJob::default();
-                        job.append(mat[0].1, 0.0, emphasize.clone());
                         let mut cursor = mat[0].0 + mat[0].1.len();
+                        job.append(&s[0..cursor], 0.0, emphasize.clone());
                         for (index, text) in mat.iter().skip(1) {
                             job.append(&s[cursor..*index], 0.0, TextFormat::default());
                             cursor = index + text.len();
@@ -88,8 +88,8 @@ impl<'a, V: AsRef<str>, I: Iterator<Item = V>> Widget for DropDownBox<'a, V, I> 
                         first.push((s.to_string(), job));
                     } else {
                         // matching somewhere in the string, but not the start
-                        let mut job = LayoutJob::default();
                         let mut cursor = 0;
+                        let mut job = LayoutJob::default();
                         for (index, text) in &mat {
                             job.append(&s[cursor..*index], 0.0, TextFormat::default());
                             cursor = index + text.len();
@@ -113,6 +113,9 @@ impl<'a, V: AsRef<str>, I: Iterator<Item = V>> Widget for DropDownBox<'a, V, I> 
                         body.rows(text_height, combined.len(), |row_index, mut row| {
                             row.col(|ui| {
                                 let (text, layoutjob) = combined[row_index].clone();
+                                // TODO: it would be nice if the clickable area is always the same size.
+                                //  at the moment this is impossible, because SelectableLabel simply does
+                                // not implement a way to set the width
                                 if ui.selectable_label(false, layoutjob).clicked() {
                                     *buf = text;
                                     changed = true;
