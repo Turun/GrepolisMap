@@ -132,6 +132,7 @@ impl Town {
 pub struct TownConstraint {
     // TODO more flexible constraints: e.g. any player not in Alliance X, Y, or Z, with Player Points between 123 and 345
     uuid: uuid::Uuid,
+    pub state: ConstraintState,
     pub from_type: FromType,
     pub color: egui::Color32,
     pub value: String,
@@ -144,10 +145,17 @@ pub enum FromType {
     Alliance,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ConstraintState {
+    Loading,
+    Finished,
+}
+
 impl TownConstraint {
     pub fn new(from_type: FromType, color: egui::Color32, value: String) -> Self {
         Self {
             uuid: uuid::Uuid::new_v4(),
+            state: ConstraintState::Finished,
             from_type,
             color,
             value,
