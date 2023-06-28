@@ -75,13 +75,31 @@ impl Database {
     }
 
     pub fn get_player_names(&self) -> Vec<String> {
-        // TODO
-        Vec::new()
+        let mut statement = self
+            .connection
+            .prepare("SELECT players.name from players")
+            .expect("Failed to get player names from database (build statement)");
+        let rows = statement
+            .query([])
+            .expect("Failed to get player names from the database (perform query)")
+            .mapped(|row| row.get(0))
+            .map(|name_option| name_option.expect("Failed to collect player names from rows"))
+            .collect();
+        return rows;
     }
 
     pub fn get_alliance_names(&self) -> Vec<String> {
-        // TODO
-        Vec::new()
+        let mut statement = self
+            .connection
+            .prepare("SELECT alliances.name from alliances")
+            .expect("Failed to get alliance names from database (build statement)");
+        let rows = statement
+            .query([])
+            .expect("Failed to get alliance names from the database (perform query)")
+            .mapped(|row| row.get(0))
+            .map(|name_option| name_option.expect("Failed to collect alliance names from rows"))
+            .collect();
+        return rows;
     }
 
     pub fn get_towns_for_player(&self, player_name: &str) -> Vec<Town> {
