@@ -51,6 +51,7 @@ impl fmt::Display for MessageToModel {
 #[derive(Debug, Clone)]
 pub enum Progress {
     None,
+    Started,
     IslandOffsets,
     Alliances,
     Players,
@@ -76,10 +77,13 @@ pub struct Town {
 
 impl Town {
     pub fn from(row: &Row) -> Result<Self, rusqlite::Error> {
+        let name = form_urlencoded::parse(row.get::<usize, String>(2)?.as_bytes())
+            .map(|(key, val)| [key, val].concat())
+            .collect::<String>();
         Ok(Self {
             id: row.get(0)?,
             player_id: row.get(1)?,
-            name: row.get(2)?,
+            name,
             x: row.get::<usize, f32>(3)? + row.get::<usize, f32>(7)? / 125.0,
             y: row.get::<usize, f32>(4)? + row.get::<usize, f32>(8)? / 125.0,
             slot_number: row.get(5)?,

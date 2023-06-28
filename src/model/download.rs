@@ -112,7 +112,7 @@ impl Database {
         );
 
         sender
-            .send(MessageToView::Loading(Progress::None))
+            .send(MessageToView::Loading(Progress::Started))
             .expect("Failed to send progressupdate 1 to view");
         Database::create_table_offsets(&mut conn).await?;
         sender
