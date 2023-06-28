@@ -19,7 +19,7 @@ impl<'a, V: AsRef<str>, I: Iterator<Item = V>> DropDownBox<'a, V, I> {
     ) -> Self {
         Self {
             popup_id: Id::new(id_source),
-            opt_it: opt_it.map(|val| val.into_iter()),
+            opt_it: opt_it.map(IntoIterator::into_iter),
             buf,
         }
     }
@@ -90,7 +90,7 @@ impl<'a, V: AsRef<str>, I: Iterator<Item = V>> Widget for DropDownBox<'a, V, I> 
                         // matching somewhere in the string, but not the start
                         let mut job = LayoutJob::default();
                         let mut cursor = 0;
-                        for (index, text) in mat.iter() {
+                        for (index, text) in &mat {
                             job.append(&s[cursor..*index], 0.0, TextFormat::default());
                             cursor = index + text.len();
                             job.append(&s[*index..cursor], 0.0, emphasize.clone());
@@ -116,7 +116,7 @@ impl<'a, V: AsRef<str>, I: Iterator<Item = V>> Widget for DropDownBox<'a, V, I> 
                                 if ui.selectable_label(false, layoutjob).clicked() {
                                     *buf = text;
                                     changed = true;
-                                    ui.memory_mut(|m| m.close_popup());
+                                    ui.memory_mut(egui::Memory::close_popup);
                                 }
                             });
                         });

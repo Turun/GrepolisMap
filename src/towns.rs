@@ -75,7 +75,7 @@ impl Default for Constraint {
             uuid: uuid::Uuid::new_v4(),
             constraint_type: ConstraintType::PlayerName,
             comparator: Comparator::Equal,
-            value: String::from(""),
+            value: String::new(),
             drop_down_values: None,
         }
     }
@@ -231,7 +231,7 @@ pub struct TownSelection {
 }
 
 impl TownSelection {
-    /// Clone the TownSelection, but without the list of towns. Less memory
+    /// Clone the `TownSelection`, but without the list of towns. Less memory
     /// required and we can reconstruct the list of towns anyway, if given
     /// the list of constraints.
     pub fn partial_clone(&self) -> Self {

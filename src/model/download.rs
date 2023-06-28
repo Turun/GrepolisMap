@@ -130,7 +130,7 @@ impl Database {
                     Ok(format!("{}", value))
                 }
             })
-            .map(|result| result.unwrap())
+            .map(Result::unwrap)
             .collect();
 
         rows
@@ -211,7 +211,7 @@ impl Database {
                     }
                 }
             })
-            .filter_map(|result| result.ok())
+            .filter_map(Result::ok)
             .collect();
 
         rows
@@ -318,7 +318,7 @@ impl Database {
             .send(MessageToView::Loading(Progress::Started))
             .expect("Failed to send progressupdate 1 to view");
         ctx.request_repaint();
-        Database::create_table_offsets(&mut conn).await?;
+        Database::create_table_offsets(&mut conn);
         sender
             .send(MessageToView::Loading(Progress::IslandOffsets))
             .expect("Failed to send progressupdate 2 to view");
@@ -561,9 +561,7 @@ impl Database {
             .expect("Failed to commit transaction for table islands");
         Ok(())
     }
-    async fn create_table_offsets(
-        connection: &mut rusqlite::Connection,
-    ) -> Result<(), rusqlite::Error> {
+    fn create_table_offsets(connection: &mut rusqlite::Connection) {
         connection
             .execute(
                 "CREATE TABLE offsets(
@@ -596,6 +594,5 @@ impl Database {
         transaction
             .commit()
             .expect("Failed to commit transaction for table offsets");
-        Ok(())
     }
 }

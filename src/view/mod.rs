@@ -285,7 +285,7 @@ impl View {
                                 &selection
                             ));
                         selection.state = SelectionState::Loading;
-                        for constraint in selection.constraints.iter_mut() {
+                        for constraint in &mut selection.constraints {
                             constraint.drop_down_values = None;
                         }
                     }
@@ -304,7 +304,7 @@ impl View {
                         }
                         Change::MoveDown(index) => {
                             if index + 1 < self.ui_data.selections.len() {
-                                self.ui_data.selections.swap(index, index + 1)
+                                self.ui_data.selections.swap(index, index + 1);
                             }
                         }
                         Change::Add => {
@@ -378,7 +378,7 @@ impl View {
                     .collect();
 
                 // DRAW GRID
-                for i in (0..=10).map(|i| i as f32 * 100.0) {
+                for i in (0u16..=10).map(|i| f32::from(i) * 100.0) {
                     // vertical
                     let one = canvas_data.world_to_screen(egui::vec2(0.0, i)).to_pos2();
                     let two = canvas_data.world_to_screen(egui::vec2(1000.0, i)).to_pos2();
@@ -391,8 +391,8 @@ impl View {
                         .line_segment([one, two], egui::Stroke::new(2.0, egui::Color32::DARK_GRAY));
                 }
                 if canvas_data.zoom > 5.0 {
-                    for i in (0..=100)
-                        .map(|i| i as f32 * 10.0)
+                    for i in (0u16..=100)
+                        .map(|i| f32::from(i) * 10.0)
                         .filter(|&i| filter.x_in_viewport(i) || filter.y_in_viewport(i))
                     {
                         // vertical
@@ -599,6 +599,6 @@ impl eframe::App for View {
         }
 
         // make sure we process messages from the backend every once in a while
-        ctx.request_repaint_after(Duration::from_millis(500))
+        ctx.request_repaint_after(Duration::from_millis(500));
     }
 }

@@ -1,3 +1,6 @@
+#![allow(clippy::expect_fun_call)]
+#![warn(clippy::uninlined_format_args)]
+
 mod message;
 mod model;
 mod presenter;

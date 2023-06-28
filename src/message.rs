@@ -5,6 +5,7 @@ use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum MessageToView {
     Loading(Progress),
@@ -56,6 +57,7 @@ impl fmt::Display for MessageToView {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub enum MessageToModel {
     SetServer(Server, egui::Context),
     FetchAll,
@@ -90,7 +92,7 @@ impl fmt::Display for MessageToModel {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Progress {
     None,
     Started,

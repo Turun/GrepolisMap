@@ -48,6 +48,7 @@ impl Default for Data {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub struct CanvasData {
     /// distance from top left of canvas to top left of grepolis coordinates
