@@ -83,6 +83,7 @@ impl View {
                     canvas_data.scale_screen_to_world(response.drag_delta());
 
                 // ZOOM
+                // as per https://www.youtube.com/watch?v=ZQ8qtAizis4
                 let mouse_position_in_world_space_before_zoom_change = {
                     if let Some(mouse_position) = response.hover_pos() {
                         canvas_data.screen_to_world(mouse_position.to_vec2())
@@ -109,9 +110,31 @@ impl View {
                 canvas_data.world_offset_px += mouse_position_in_world_space_before_zoom_change
                     - mouse_position_in_world_space_after_zoom_change;
 
+                println!(
+                    "{:?}",
+                    canvas_data.screen_to_world(
+                        response
+                            .hover_pos()
+                            .or(Some(egui::pos2(0.0, 0.0)))
+                            .unwrap()
+                            .to_vec2()
+                    )
+                );
+
                 // DRAW TOWNS
                 // towns have a diameter of .25 units, approximately
-                for town in &self.ui_data.towns_all {
+                let top_left = canvas_data.screen_to_world(response.rect.left_top().to_vec2());
+                let bot_right = canvas_data.screen_to_world(response.rect.right_bottom().to_vec2());
+                let left = top_left.y;
+                let right = bot_right.y;
+                let top = top_left.x;
+                let bottom = bot_right.x;
+                for town in self.ui_data.towns_all.iter().filter(|town| {
+                    left < (town.x as f32)
+                        && (town.x as f32) < right
+                        && top < (town.y as f32)
+                        && (town.y as f32) < bottom
+                }) {
                     painter.circle_filled(
                         canvas_data
                             .world_to_screen(egui::vec2(town.y as f32, town.x as f32))
