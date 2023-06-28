@@ -6,7 +6,7 @@ use reqwest;
 use rusqlite::{self, types::ToSqlOutput, ToSql};
 
 use crate::message::{MessageToView, Progress};
-use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
+use crate::towns::{Constraint, ConstraintType, Town};
 
 use super::offset_data;
 
@@ -139,6 +139,10 @@ impl Database {
         constraint_type: &ConstraintType,
         constraints: &[&Constraint],
     ) -> Vec<String> {
+        if constraints.is_empty() {
+            return self.get_names_for_constraint_type(constraint_type);
+        }
+
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
         let mut statement_text = format!(
@@ -214,7 +218,7 @@ impl Database {
         rows
     }
 
-    pub fn get_towns_for_selection(&self, selection: &TownSelection) -> Vec<Town> {
+    pub fn get_towns_for_constraints(&self, constraints: &[&Constraint]) -> Vec<Town> {
         let mut statement_text = String::from(
             "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
                 towns 
@@ -224,7 +228,7 @@ impl Database {
                 LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
                 WHERE islands.type = offsets.type",
         );
-        for (index, constraint) in selection.constraints.iter().enumerate() {
+        for (index, constraint) in constraints.iter().enumerate() {
             statement_text += &format!(
                 " AND {}.{} {} ?{}",
                 constraint.constraint_type.table(),
@@ -240,7 +244,7 @@ impl Database {
         // return early from the outer function in a map statement. so it's a bit
         // of both for now
         let mut query_parameters: Vec<EitherOr> = Vec::new();
-        for constraint in &selection.constraints {
+        for constraint in constraints {
             if constraint.constraint_type.is_string() {
                 query_parameters.push(EitherOr::A(constraint.value.clone()));
             } else {
@@ -444,9 +448,7 @@ impl Database {
                     values.next().expect(&format!("No ally membrs in {line}")),
                     values.next().expect(&format!("No ally rank in {line}")),
                 ))
-                .expect(&format!(
-                    "Failed to insert into alliances for line {line}"
-                ));
+                .expect(&format!("Failed to insert into alliances for line {line}"));
         }
         drop(prepared_statement);
         transaction

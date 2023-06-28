@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 //the entry point for model
-use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
+use crate::towns::{Constraint, ConstraintType, Town};
 
 pub mod download;
 mod offset_data;
@@ -24,10 +24,10 @@ impl Model {
         }
     }
 
-    pub fn get_towns_for_selection(&self, selection: &TownSelection) -> Vec<Town> {
+    pub fn get_towns_for_constraints(&self, constraints: &[&Constraint]) -> Vec<Town> {
         match self {
             Model::Uninitialized => Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => db.get_towns_for_selection(selection),
+            Model::Loaded { db, ctx: _ctx } => db.get_towns_for_constraints(constraints),
         }
     }
 

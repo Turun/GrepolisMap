@@ -56,14 +56,6 @@ impl Presenter {
                         .expect("Failed to send drop down value list to view");
                 }
                 MessageToModel::FetchTowns(selection) => {
-                    let towns = self.model.get_towns_for_selection(&selection);
-                    self.channel_tx
-                        .send(MessageToView::TownListSelection(
-                            selection.partial_clone(),
-                            towns,
-                        ))
-                        .expect("Failed to send town list to view");
-
                     // a list of filled constraints. For each one, filter the ddv list by all _other_ filled constratins
                     let filled_constraints: Vec<&Constraint> = selection
                         .constraints
@@ -71,6 +63,24 @@ impl Presenter {
                         .filter(|c| !c.value.is_empty())
                         .collect();
 
+                    // a list of empty constraints. Filter the ddv list by all non empty constraints
+                    let empty_constraints: Vec<&Constraint> = selection
+                        .constraints
+                        .iter()
+                        .filter(|c| c.value.is_empty())
+                        .collect();
+
+                    if !filled_constraints.is_empty() {
+                        let towns = self.model.get_towns_for_constraints(&filled_constraints);
+                        self.channel_tx
+                            .send(MessageToView::TownListSelection(
+                                selection.partial_clone(),
+                                towns,
+                            ))
+                            .expect("Failed to send town list to view");
+                    }
+
+                    // filled constraints
                     if filled_constraints.is_empty() {
                         // nothing
                     } else if filled_constraints.len() == 1 {
@@ -93,7 +103,7 @@ impl Presenter {
                             let constraint_towns =
                                 self.model.get_names_for_constraint_type_with_constraints(
                                     &c.constraint_type,
-                                    &filled_constraints,
+                                    &other_constraints,
                                 );
 
                             self.channel_tx
@@ -105,12 +115,8 @@ impl Presenter {
                                 .expect("Failed to send town list to view");
                         }
                     }
-                    // a list of empty constraints. Filter the ddv list by all non empty constraints
-                    let empty_constraints: Vec<&Constraint> = selection
-                        .constraints
-                        .iter()
-                        .filter(|c| c.value.is_empty())
-                        .collect();
+
+                    // empty constraints
                     if !empty_constraints.is_empty() {
                         for c in empty_constraints {
                             let constraint_towns =
