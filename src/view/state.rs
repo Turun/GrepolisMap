@@ -1,14 +1,6 @@
+use crate::message::TownSelection;
+
 pub enum State {
     Uninitialized,
-    Show(CitySelection),
+    Show(TownSelection),
 }
-
-#[derive(Debug)]
-pub enum CitySelection {
-    All,
-    Ghosts,
-    Selected(Vec<CityConstraint>),
-}
-
-#[derive(Debug)]
-pub struct CityConstraint {}

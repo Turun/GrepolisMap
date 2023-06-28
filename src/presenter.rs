@@ -1,4 +1,4 @@
-use crate::message::Message;
+use crate::message::{MessageToModel, MessageToView};
 use crate::model::download::Database;
 use crate::model::Model;
 use core::panic;
@@ -6,12 +6,12 @@ use std::sync::mpsc;
 
 pub struct Presenter {
     model: Model,
-    channel_tx: mpsc::Sender<Message>,
-    channel_rx: mpsc::Receiver<Message>,
+    channel_tx: mpsc::Sender<MessageToView>,
+    channel_rx: mpsc::Receiver<MessageToModel>,
 }
 
 impl Presenter {
-    pub fn new(rx: mpsc::Receiver<Message>, tx: mpsc::Sender<Message>) -> Self {
+    pub fn new(rx: mpsc::Receiver<MessageToModel>, tx: mpsc::Sender<MessageToView>) -> Self {
         Self {
             model: Model::Uninitialized,
             channel_tx: tx,
@@ -21,20 +21,17 @@ impl Presenter {
     pub fn start(&mut self) {
         for msg in &self.channel_rx {
             match msg {
-                Message::SetServer(server) => {
+                MessageToModel::SetServer(server) => {
                     let db = Database::create_for_world(&server.id).unwrap();
                     self.model = Model::Loaded { db };
                     self.channel_tx
-                        .send(Message::GotServer)
+                        .send(MessageToView::GotServer)
                         .expect("Failed to send message 'got server'");
                 }
-                Message::GotServer => {
-                    panic!("GotServer should never be sent from the ui to the presenter");
-                }
-                Message::FetchCities(selection) => {
-                    let cities = self.model.get_cities_for_selection(selection);
+                MessageToModel::FetchTowns(selection) => {
+                    let cities = self.model.get_towns_for_selection(&selection);
                     self.channel_tx
-                        .send(Message::CityList(cities))
+                        .send(MessageToView::TownList(cities))
                         .expect("Failed to send city list to view");
                 }
             }

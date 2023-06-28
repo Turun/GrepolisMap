@@ -6,6 +6,8 @@ use tokio;
 use reqwest;
 use rusqlite;
 
+use crate::message::Town;
+
 async fn download_generic<U>(client: &reqwest::Client, url: U) -> Result<String, reqwest::Error>
 where
     U: reqwest::IntoUrl + std::fmt::Display,
@@ -31,6 +33,34 @@ pub struct Database {
 }
 
 impl Database {
+    pub fn get_all_towns(&self) -> Vec<Town> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT * from towns")
+            .expect("Failed to get towns from database (build statement)");
+        let rows = statement
+            .query([])
+            .expect("Failed to get towns from the database (perform query)")
+            .mapped(|row| Town::from(row))
+            .map(|town_option| town_option.expect("Failed to create a town from row"))
+            .collect();
+        return rows;
+    }
+
+    pub fn get_ghost_towns(&self) -> Vec<Town> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT * from towns WHERE player_id=\"\"")
+            .expect("Failed to get ghost towns from database (build statement)");
+        let rows = statement
+            .query([])
+            .expect("Failed to get ghost towns from the database (perform query)")
+            .mapped(|row| Town::from(row))
+            .map(|town_option| town_option.expect("Failed to create a town from row"))
+            .collect();
+        return rows;
+    }
+
     pub fn create_for_world(server_id: &str) -> Result<Self, rusqlite::Error> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()

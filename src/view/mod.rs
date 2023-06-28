@@ -6,19 +6,19 @@ use std::sync::Arc;
 use egui::Stroke;
 use std::sync::mpsc;
 
-use crate::message::{Message, Server};
+use crate::message::{MessageToModel, MessageToView, Server};
 use crate::view::data::Data;
 use crate::view::state::State;
 
 pub struct View {
     ui_state: State,
     ui_data: Data,
-    channel_presenter_rx: mpsc::Receiver<Message>,
-    channel_presenter_tx: mpsc::Sender<Message>,
+    channel_presenter_rx: mpsc::Receiver<MessageToView>,
+    channel_presenter_tx: mpsc::Sender<MessageToModel>,
 }
 
 impl View {
-    pub fn new(rx: mpsc::Receiver<Message>, tx: mpsc::Sender<Message>) -> Self {
+    pub fn new(rx: mpsc::Receiver<MessageToView>, tx: mpsc::Sender<MessageToModel>) -> Self {
         Self {
             ui_state: State::Uninitialized,
             ui_data: Data::default(),
@@ -48,7 +48,7 @@ impl View {
                     .clicked()
                 {
                     self.channel_presenter_tx
-                        .send(Message::SetServer(Server {
+                        .send(MessageToModel::SetServer(Server {
                             id: self.ui_data.server_id.clone(),
                         }))
                         .expect("Failed to send the SetServer Message to the backend");
