@@ -4,10 +4,10 @@ pub(crate) mod state;
 
 use std::sync::mpsc;
 
-use egui::{ProgressBar, Shape, Ui};
+use egui::{FontData, ProgressBar, Shape, Ui};
 
 use crate::message::{
-    ConstraintState, FromType, MessageToModel, MessageToView, Progress, Server, Town,
+    Change, ConstraintState, FromType, MessageToModel, MessageToView, Progress, Server, Town,
     TownConstraint,
 };
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
@@ -31,13 +31,28 @@ impl View {
         }
     }
 
+    fn setup(self, cc: &eframe::CreationContext) -> Self {
+        let mut fonts = egui::FontDefinitions::default();
+        fonts.font_data.insert(
+            String::from("Custom Font"),
+            FontData::from_static(include_bytes!("../../NotoSansJP-Regular.ttf")),
+        );
+        fonts
+            .families
+            .entry(egui::FontFamily::Proportional)
+            .or_default()
+            .push(String::from("Custom Font"));
+        cc.egui_ctx.set_fonts(fonts);
+        return self;
+    }
+
     pub fn start(self) {
         let native_options = eframe::NativeOptions::default();
         // TODO Save config between app runs.
         let _result = eframe::run_native(
             "Grepolis Map",
             native_options,
-            Box::new(|_cc| Box::new(self)),
+            Box::new(|cc| Box::new(self.setup(cc))),
         );
     }
 
@@ -136,23 +151,33 @@ impl View {
                     ));
                 }
                 ui.separator();
-                let mut remove_index: Option<usize> = None;
+                let mut change: Option<Change> = None;
                 for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
                     // TODO A way to reorder the list of selections
                     // TODO advanced selection
                     // show all towns that fulfill X and Y and Y
                     // where each XYZ is (alliance/player/island/town).property lt/eq/gt/ne input
-                    // we need a way to chain these constraints together. Maybe with a tree? Though technically a chain of and's should work
                     let first_row_response = ui.horizontal(|ui| {
-                        ui.selectable_value(&mut selection.from_type, FromType::Player, "Player");
-                        ui.selectable_value(
-                            &mut selection.from_type,
-                            FromType::Alliance,
-                            "Alliance",
-                        );
+                        egui::ComboBox::from_id_source(format!("ComboxBox {}", index))
+                            .selected_text(format!("{}", selection.from_type))
+                            .show_ui(ui, |ui| {
+                                for value in [FromType::Player, FromType::Alliance] {
+                                    ui.selectable_value(
+                                        &mut selection.from_type,
+                                        value,
+                                        value.to_string(),
+                                    );
+                                }
+                            });
                         ui.color_edit_button_srgba(&mut selection.color);
+                        if ui.button("↑").clicked() {
+                            change = Some(Change::MoveUp(index));
+                        }
                         if ui.button("Remove").clicked() {
-                            remove_index = Some(index);
+                            change = Some(Change::Remove(index));
+                        }
+                        if ui.button("↓").clicked() {
+                            change = Some(Change::MoveDown(index));
                         }
                     });
                     ui.horizontal(|ui| {
@@ -191,8 +216,22 @@ impl View {
                     ui.separator();
                 }
 
-                if let Some(index) = remove_index {
-                    let _elem = self.ui_data.selections.remove(index);
+                if let Some(change_action) = change {
+                    match change_action {
+                        Change::MoveUp(index) => {
+                            if index >= 1 {
+                                self.ui_data.selections.swap(index, index - 1);
+                            }
+                        }
+                        Change::Remove(index) => {
+                            let _elem = self.ui_data.selections.remove(index);
+                        }
+                        Change::MoveDown(index) => {
+                            if index + 1 < self.ui_data.selections.len() {
+                                self.ui_data.selections.swap(index, index + 1)
+                            }
+                        }
+                    }
                 }
             });
         });

@@ -128,6 +128,12 @@ impl Town {
     }
 }
 
+pub enum Change {
+    MoveUp(usize),
+    Remove(usize),
+    MoveDown(usize),
+}
+
 #[derive(Debug, Clone)]
 pub struct TownConstraint {
     // TODO more flexible constraints: e.g. any player not in Alliance X, Y, or Z, with Player Points between 123 and 345
@@ -143,6 +149,15 @@ pub struct TownConstraint {
 pub enum FromType {
     Player,
     Alliance,
+}
+
+impl fmt::Display for FromType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FromType::Player => write!(f, "Player"),
+            FromType::Alliance => write!(f, "Alliance"),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
