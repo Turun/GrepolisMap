@@ -127,6 +127,7 @@ impl Town {
 }
 
 pub enum Change {
+    Add,
     MoveUp(usize),
     Remove(usize),
     MoveDown(usize),
@@ -296,8 +297,8 @@ pub enum ConstraintState {
     Finished,
 }
 
-impl TownSelection {
-    pub fn new() -> Self {
+impl Default for TownSelection {
+    fn default() -> Self {
         Self {
             uuid: uuid::Uuid::new_v4(),
             state: ConstraintState::Finished,

@@ -34,7 +34,7 @@ impl Default for Data {
             canvas: None,
             all_towns: Vec::new(),
             ghost_towns: Vec::new(),
-            selections: Vec::new(),
+            selections: vec![TownSelection::default()],
             settings_ghosts: DefaultTownGroup {
                 enabled: true,
                 color: egui::Color32::RED,

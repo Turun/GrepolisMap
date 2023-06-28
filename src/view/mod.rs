@@ -143,37 +143,36 @@ impl View {
                     ui.color_edit_button_srgba(&mut self.ui_data.settings_ghosts.color);
                 });
                 ui.separator();
-                if ui.button("Add Towns").clicked() {
-                    self.ui_data.selections.push(TownSelection::new());
-                }
-                ui.separator();
                 let mut change: Option<Change> = None;
                 for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
                     let _first_row_response = ui.horizontal(|ui| {
                         ui.color_edit_button_srgba(&mut selection.color);
-                        if ui.button("↑").clicked() {
-                            change = Some(Change::MoveUp(index));
+                        if ui.button("Add Towns").clicked() {
+                            change = Some(Change::Add);
                         }
                         if ui.button("Remove").clicked() {
                             change = Some(Change::Remove(index));
                         }
-                        if ui.button("Add Constraints").clicked() {
-                            selection.constraints.push(Constraint::default());
+                        if ui.button("↑").clicked() {
+                            change = Some(Change::MoveUp(index));
                         }
                         if ui.button("↓").clicked() {
                             change = Some(Change::MoveDown(index));
                         }
                     });
 
-                    // let num_constraints = selection.constraints.len();
+                    let num_constraints = selection.constraints.len();
                     let mut request_update = false;
-                    // let mut add_constraint = false;
+                    let mut constraint_change = None;
                     for (cindex, constraint) in selection.constraints.iter_mut().enumerate() {
                         // TODO a way to reorder the constraints
                         // TODO a way to remove a constraint ("-") button at the beginning of the line
+                        // TODO if any of the comboboxes are changed, trigger an update
                         ui.horizontal(|ui| {
                             ui.label("and"); // TODO: move that to the end of the line, and if this constraint is the last one, make a button "+" instead
-                            egui::ComboBox::from_id_source(format!(
+
+                            // TODO make the comboboxes correctly sized
+                            let _inner_response = egui::ComboBox::from_id_source(format!(
                                 "ComboxBox {}/{} Type",
                                 index, cindex
                             ))
@@ -181,15 +180,20 @@ impl View {
                             .show_ui(ui, |ui| {
                                 for value in ConstraintType::iter() {
                                     let text = value.to_string();
-                                    ui.selectable_value(
-                                        &mut constraint.constraint_type,
-                                        value,
-                                        text,
-                                    );
+                                    if ui
+                                        .selectable_value(
+                                            &mut constraint.constraint_type,
+                                            value,
+                                            text,
+                                        )
+                                        .clicked()
+                                    {
+                                        request_update = true;
+                                    }
                                 }
                             });
 
-                            egui::ComboBox::from_id_source(format!(
+                            let _inner_response = egui::ComboBox::from_id_source(format!(
                                 "ComboxBox {}/{} Comparator",
                                 index, cindex
                             ))
@@ -197,7 +201,12 @@ impl View {
                             .show_ui(ui, |ui| {
                                 for value in Comparator::iter() {
                                     let text = value.to_string();
-                                    ui.selectable_value(&mut constraint.comparator, value, text);
+                                    if ui
+                                        .selectable_value(&mut constraint.comparator, value, text)
+                                        .clicked()
+                                    {
+                                        request_update = true;
+                                    }
                                 }
                             });
 
@@ -214,18 +223,39 @@ impl View {
                             if ui.add(ddb).changed() {
                                 request_update = true;
                             };
-                            // if cindex + 1 == num_constraints {
-                            //     if ui.button("+").clicked() {
-                            //         add_constraint = true;
-                            //     }
-                            // } else {
-                            //     ui.label("and");
-                            // }
+                            if cindex + 1 == num_constraints {
+                                if ui.button("+").clicked() {
+                                    constraint_change = Some(Change::Add);
+                                }
+                            } else {
+                                ui.label("and");
+                            }
+                            if ui.button("-").clicked() {
+                                constraint_change = Some(Change::Remove(cindex));
+                            }
+                            // TODO: up down
                         });
                     }
-                    // if add_constraint {
-                    //     selection.constraints.push(Constraint::default());
-                    // }
+
+                    if let Some(change) = constraint_change {
+                        match change {
+                            Change::MoveUp(index) => {
+                                if index >= 1 {
+                                    selection.constraints.swap(index, index - 1);
+                                }
+                            }
+                            Change::Remove(index) => {
+                                let _element = selection.constraints.remove(index);
+                            }
+                            Change::MoveDown(index) => {
+                                if index + 1 < selection.constraints.len() {
+                                    selection.constraints.swap(index, index + 1);
+                                }
+                            }
+                            Change::Add => selection.constraints.push(Constraint::default()),
+                        }
+                    }
+
                     if request_update {
                         self.channel_presenter_tx
                             .send(MessageToModel::FetchTowns(selection.clone()))
@@ -258,6 +288,9 @@ impl View {
                             if index + 1 < self.ui_data.selections.len() {
                                 self.ui_data.selections.swap(index, index + 1)
                             }
+                        }
+                        Change::Add => {
+                            self.ui_data.selections.push(TownSelection::default());
                         }
                     }
                 }
@@ -459,7 +492,7 @@ impl View {
 }
 
 impl eframe::App for View {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if let Ok(message) = self.channel_presenter_rx.try_recv() {
             println!("Got Message from Model to View: {}", message);
             match message {
@@ -514,6 +547,12 @@ impl eframe::App for View {
         match state {
             State::Uninitialized(progress) => self.ui_uninitialized(ctx, progress),
             State::Show => self.ui_init(ctx),
+        }
+
+        // allow the user to zoom in and out
+        // https://docs.rs/egui/latest/egui/gui_zoom/fn.zoom_with_keyboard_shortcuts.html
+        if !frame.is_web() {
+            egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
         }
     }
 }
