@@ -5,18 +5,19 @@ mod view;
 
 use std::{sync::mpsc, thread};
 
-use message::Message;
+use message::MessageToModel;
+use message::MessageToView;
 use view::View;
 
 use crate::presenter::Presenter;
 
 fn main() {
-    let (view_tx, self_rx) = mpsc::channel::<Message>();
-    let (self_tx, view_rx) = mpsc::channel::<Message>();
+    let (view_tx, model_rx) = mpsc::channel::<MessageToModel>();
+    let (model_tx, view_rx) = mpsc::channel::<MessageToView>();
 
     let view = View::new(view_rx, view_tx);
 
-    let mut p = Presenter::new(self_rx, self_tx);
+    let mut p = Presenter::new(model_rx, model_tx);
     let handle = thread::spawn(move || {
         p.start();
     });
