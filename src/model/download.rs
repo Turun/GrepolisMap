@@ -96,12 +96,22 @@ impl Database {
     pub fn get_names_for_constraint_type(&self, constraint_type: &ConstraintType) -> Vec<String> {
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
+
+        let statement_text = if constraint_type.is_string() {
+            format!(
+                "SELECT DISTINCT {0}.{1} from {0} ORDER BY LOWER({0}.{1})",
+                ct_table, ct_property,
+            )
+        } else {
+            format!(
+                "SELECT DISTINCT {0}.{1} from {0} ORDER BY {0}.{1}",
+                ct_table, ct_property
+            )
+        };
+
         let mut statement = self
             .connection
-            .prepare(&format!(
-                "SELECT DISTINCT {0}.{1} from {0}",
-                ct_table, ct_property
-            ))
+            .prepare(&statement_text)
             .expect("Failed to get names from database (build statement)");
         let rows = statement
             .query([])

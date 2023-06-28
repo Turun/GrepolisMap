@@ -180,6 +180,7 @@ impl View {
                                 "ComboxBox {}/{} Type",
                                 index, cindex
                             ))
+                            .width(ui.style().spacing.interact_size.x * 3.5)
                             .selected_text(format!("{}", constraint.constraint_type))
                             .show_ui(ui, |ui| {
                                 for value in ConstraintType::iter() {
@@ -201,6 +202,7 @@ impl View {
                                 "ComboxBox {}/{} Comparator",
                                 index, cindex
                             ))
+                            .width(ui.style().spacing.interact_size.x * 1.75)
                             .selected_text(format!("{}", constraint.comparator))
                             .show_ui(ui, |ui| {
                                 for value in Comparator::iter() {
@@ -227,9 +229,17 @@ impl View {
                                 drop_down_items,
                                 format!("ComboBox {}/{} Value", index, cindex),
                                 &mut constraint.value,
-                                |ui, text| ui.selectable_label(false, text),
                             );
-                            if ui.add(ddb).changed() {
+                            if ui
+                                .add_sized(
+                                    [
+                                        ui.style().spacing.interact_size.x * 4.5,
+                                        ui.style().spacing.interact_size.y,
+                                    ],
+                                    ddb,
+                                )
+                                .changed()
+                            {
                                 request_update = true;
                             };
                             if cindex + 1 == num_constraints {
@@ -553,6 +563,12 @@ impl eframe::App for View {
                         if let Some(constraint) = optional_constraint {
                             constraint.drop_down_values = towns;
                             // TODO do we need to keep track of state, or is the state encoded in the variable here?
+                            // answer: yes, we should probably keep track of state. An empty list is different from a no-results-yet list
+                            // At the moment it can happen that a ddv list is yet to be updated, but the user already requests the ddmenu.
+                            // then the application will hang for a while, trying to stuff a million entries into a scroll list. This could
+                            // be avoided if we simply provide no ddmenu while shit is loading. We could simply show the empty list, but
+                            // I think we really really should give the user the ability to differentiate between empty list and wait a bit,
+                            // there will be results soon
                         } else {
                             println!(
                                 "No existing constraint {} found in selection {}",
@@ -572,7 +588,6 @@ impl eframe::App for View {
                     self.ui_data.ghost_towns = towns;
                 }
                 MessageToView::DropDownValues(constraint_type, values) => {
-                    // TODO give every constraint its own list of dd values. They must be updated each time the other constraints in the selection are changed
                     let _old_value = self.ui_data.dropdown_values.insert(constraint_type, values);
                 }
                 MessageToView::Loading(progress) => {

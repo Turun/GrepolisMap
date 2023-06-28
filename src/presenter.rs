@@ -62,6 +62,8 @@ impl Presenter {
                         .expect("Failed to send town list to view");
                     if selection.constraints.len() >= 2 {
                         for constraint in &selection.constraints {
+                            // the database does some more filtering based on the content of the selections. we should only
+                            // do this for loop, if the filtered length of the constraints is bigger than two
                             let constraint_towns = self
                                 .model
                                 .get_towns_for_constraint_with_selection(&constraint, &selection);
