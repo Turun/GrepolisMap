@@ -70,15 +70,13 @@ impl Presenter {
                         .filter(|c| c.value.is_empty())
                         .collect();
 
-                    if !filled_constraints.is_empty() {
-                        let towns = self.model.get_towns_for_constraints(&filled_constraints);
-                        self.channel_tx
-                            .send(MessageToView::TownListSelection(
-                                selection.partial_clone(),
-                                towns,
-                            ))
-                            .expect("Failed to send town list to view");
-                    }
+                    let towns = self.model.get_towns_for_constraints(&filled_constraints);
+                    self.channel_tx
+                        .send(MessageToView::TownListSelection(
+                            selection.partial_clone(),
+                            towns,
+                        ))
+                        .expect("Failed to send town list to view");
 
                     // filled constraints
                     if filled_constraints.is_empty() {

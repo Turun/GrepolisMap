@@ -219,6 +219,10 @@ impl Database {
     }
 
     pub fn get_towns_for_constraints(&self, constraints: &[&Constraint]) -> Vec<Town> {
+        if constraints.is_empty() {
+            return Vec::new();
+        }
+
         let mut statement_text = String::from(
             "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
                 towns 
