@@ -143,7 +143,7 @@ impl View {
                     // show all towns that fulfill X and Y and Y
                     // where each XYZ is (alliance/player/island/town).property lt/eq/gt/ne input
                     // we need a way to chain these constraints together. Maybe with a tree? Though technically a chain of and's should work
-                    ui.horizontal(|ui| {
+                    let first_row_response = ui.horizontal(|ui| {
                         ui.selectable_value(&mut selection.from_type, FromType::Player, "Player");
                         ui.selectable_value(
                             &mut selection.from_type,
@@ -156,6 +156,16 @@ impl View {
                         }
                     });
                     ui.horizontal(|ui| {
+                        // make sure we have space for the spinner when needed
+                        let need_spinner = selection.state == ConstraintState::Loading;
+                        if need_spinner {
+                            ui.set_max_width(
+                                first_row_response.response.rect.width()
+                                    - ui.style().spacing.interact_size.y, // the size of the spinner
+                            );
+                        } else {
+                            ui.set_max_width(first_row_response.response.rect.width());
+                        }
                         let ddb = DropDownBox::from_iter(
                             match selection.from_type {
                                 FromType::Player => &mut self.ui_data.name_players,
@@ -174,7 +184,7 @@ impl View {
                                 ));
                             selection.state = ConstraintState::Loading;
                         };
-                        if selection.state == ConstraintState::Loading {
+                        if need_spinner {
                             ui.spinner();
                         }
                     });
