@@ -1,9 +1,8 @@
 //the entry point for model
 
-pub struct Model {}
+pub mod download;
 
-impl Model {
-    pub fn new() -> Self {
-        Self {}
-    }
+pub enum Model {
+    Uninitialized,
+    Loaded { db: download::Database },
 }
