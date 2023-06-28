@@ -129,18 +129,21 @@ impl Database {
     pub fn create_for_world(
         server_id: &str,
         sender: mpsc::Sender<MessageToView>,
+        ctx: &egui::Context,
     ) -> Result<Self, rusqlite::Error> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap();
 
-        return runtime.block_on(async { Self::async_create_for_world(server_id, sender).await });
+        return runtime
+            .block_on(async { Self::async_create_for_world(server_id, sender, ctx).await });
     }
 
     pub async fn async_create_for_world(
         server_id: &str,
         sender: mpsc::Sender<MessageToView>,
+        ctx: &egui::Context,
     ) -> Result<Self, rusqlite::Error> {
         let reqwest_client = make_client();
 
@@ -166,26 +169,32 @@ impl Database {
         sender
             .send(MessageToView::Loading(Progress::Started))
             .expect("Failed to send progressupdate 1 to view");
+        ctx.request_repaint();
         Database::create_table_offsets(&mut conn).await?;
         sender
             .send(MessageToView::Loading(Progress::IslandOffsets))
             .expect("Failed to send progressupdate 2 to view");
+        ctx.request_repaint();
         Database::create_table_alliances(&mut conn, data_alliances).await?;
         sender
             .send(MessageToView::Loading(Progress::Alliances))
             .expect("Failed to send progressupdate 3 to view");
+        ctx.request_repaint();
         Database::create_table_players(&mut conn, data_players).await?;
         sender
             .send(MessageToView::Loading(Progress::Players))
             .expect("Failed to send progressupdate 4 to view");
+        ctx.request_repaint();
         Database::create_table_towns(&mut conn, data_towns).await?;
         sender
             .send(MessageToView::Loading(Progress::Towns))
             .expect("Failed to send progressupdate 5 to view");
+        ctx.request_repaint();
         Database::create_table_islands(&mut conn, data_islands).await?;
         sender
             .send(MessageToView::Loading(Progress::Islands))
             .expect("Failed to send progressupdate 6 to view");
+        ctx.request_repaint();
         Ok(Self { connection: conn })
     }
 

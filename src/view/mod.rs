@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use egui::{ProgressBar, Shape, Ui};
 
 use crate::message::{
-    FromType, MessageToModel, MessageToView, Progress, Server, Town, TownConstraint, TownSelection,
+    FromType, MessageToModel, MessageToView, Progress, Server, Town, TownConstraint,
 };
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
@@ -39,7 +39,7 @@ impl View {
         );
     }
 
-    fn ui_server_input(&mut self, ui: &mut Ui) {
+    fn ui_server_input(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         ui.horizontal(|ui| {
             ui.label("Server ID");
             ui.text_edit_singleline(&mut self.ui_data.server_id);
@@ -49,10 +49,19 @@ impl View {
             .clicked()
         {
             self.ui_state = State::Uninitialized(Progress::None);
+            self.ui_data = Data {
+                server_id: self.ui_data.server_id.clone(),
+                settings_all: self.ui_data.settings_all.clone(),
+                settings_ghosts: self.ui_data.settings_ghosts.clone(),
+                ..Data::default()
+            };
             self.channel_presenter_tx
-                .send(MessageToModel::SetServer(Server {
-                    id: self.ui_data.server_id.clone(),
-                }))
+                .send(MessageToModel::SetServer(
+                    Server {
+                        id: self.ui_data.server_id.clone(),
+                    },
+                    ctx.clone(),
+                ))
                 .expect("Failed to send the SetServer Message to the backend");
         }
     }
@@ -60,7 +69,7 @@ impl View {
     fn ui_uninitialized(&mut self, ctx: &egui::Context, progress: Progress) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
-                self.ui_server_input(ui);
+                self.ui_server_input(ui, ctx);
                 match progress {
                     Progress::None => {}
                     Progress::Started => {
@@ -89,7 +98,7 @@ impl View {
     fn ui_init(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {
-                self.ui_server_input(ui);
+                self.ui_server_input(ui, ctx);
                 ui.label(format!("Towns Total: {}", self.ui_data.all_towns.len()));
                 ui.label(format!(
                     "Towns Selected: {}",
@@ -144,18 +153,6 @@ impl View {
                         ))
                     });
                 }
-
-                let ddb = DropDownBox::from_iter(
-                    self.ui_data
-                        .ghost_towns
-                        .iter()
-                        .map(|town| town.name.to_owned())
-                        .collect::<Vec<String>>(),
-                    "dropdown box",
-                    &mut self.ui_data.drop_down_string,
-                    |ui, text| ui.selectable_label(false, text),
-                );
-                ui.add(ddb);
             });
         });
 
@@ -331,11 +328,19 @@ impl View {
                         }
 
                         ui.label(format!(
-                            "{}\nPoints: {}\nPlayer: {}\nDistance: {}",
+                            "{}\nPoints: {}\nPlayer: {}\nAlliance: {}",
                             closest_town.name,
                             closest_town.points,
-                            "Not yet implemented",
-                            closest_distance
+                            if let Some(name) = &closest_town.player_name {
+                                name
+                            } else {
+                                ""
+                            },
+                            if let Some(name) = &closest_town.alliance_name {
+                                name
+                            } else {
+                                ""
+                            },
                         ));
                     });
                 }
@@ -351,22 +356,41 @@ impl eframe::App for View {
         if let Ok(message) = self.channel_presenter_rx.try_recv() {
             println!("Got Message from Model to View: {}", message);
             match message {
-                MessageToView::GotServer(all_towns, player_names, alliance_names) => {
-                    self.ui_state = State::Show(TownSelection::None);
-                    self.ui_data.all_towns = all_towns;
-                    self.ui_data.name_players = player_names;
-                    self.ui_data.name_alliances = alliance_names;
+                MessageToView::GotServer => {
+                    self.ui_state = State::Show;
+                    self.channel_presenter_tx
+                        .send(MessageToModel::FetchAll)
+                        .expect("Failed to send message to model: FetchAll");
                     self.channel_presenter_tx
                         .send(MessageToModel::FetchGhosts)
-                        .expect("Failed to send message to model: TownSelection::Ghosts");
+                        .expect("Failed to send message to model: FetchGhosts");
+                    self.channel_presenter_tx
+                        .send(MessageToModel::FetchPlayers)
+                        .expect("Failed to send message to model: FetchPlayers");
+                    self.channel_presenter_tx
+                        .send(MessageToModel::FetchAlliances)
+                        .expect("Failed to send message to model: FetchAlliances");
                 }
                 MessageToView::TownList(constraint, town_list) => {
-                    self.ui_state = State::Show(TownSelection::Ghosts);
+                    self.ui_state = State::Show;
                     self.ui_data.ghost_towns = town_list;
                     // TODO don't assign the value to the ghost towns, assign it to the correct user selection
                 }
-                MessageToView::GhostTowns(town_list) => {
-                    self.ui_data.ghost_towns = town_list;
+                MessageToView::AllTowns(towns) => {
+                    self.ui_state = State::Show;
+                    self.ui_data.all_towns = towns;
+                }
+                MessageToView::GhostTowns(towns) => {
+                    self.ui_state = State::Show;
+                    self.ui_data.ghost_towns = towns;
+                }
+                MessageToView::PlayerNames(names) => {
+                    self.ui_state = State::Show;
+                    self.ui_data.name_players = names;
+                }
+                MessageToView::AllianceNames(names) => {
+                    self.ui_state = State::Show;
+                    self.ui_data.name_alliances = names;
                 }
                 MessageToView::Loading(progress) => {
                     self.ui_state = State::Uninitialized(progress);
@@ -376,7 +400,7 @@ impl eframe::App for View {
         let state = self.ui_state.clone();
         match state {
             State::Uninitialized(progress) => self.ui_uninitialized(ctx, progress),
-            State::Show(_) => self.ui_init(ctx),
+            State::Show => self.ui_init(ctx),
         }
     }
 }
