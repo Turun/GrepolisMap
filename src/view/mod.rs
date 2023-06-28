@@ -7,7 +7,8 @@ use std::sync::mpsc;
 use egui::{ProgressBar, Shape, Ui};
 
 use crate::message::{
-    FromType, MessageToModel, MessageToView, Progress, Server, Town, TownConstraint,
+    ConstraintState, FromType, MessageToModel, MessageToView, Progress, Server, Town,
+    TownConstraint,
 };
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
@@ -137,6 +138,11 @@ impl View {
                 ui.separator();
                 let mut remove_index: Option<usize> = None;
                 for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
+                    // TODO A way to reorder the list of selections
+                    // TODO advanced selection
+                    // show all towns that fulfill X and Y and Y
+                    // where each XYZ is (alliance/player/island/town).property lt/eq/gt/ne input
+                    // we need a way to chain these constraints together. Maybe with a tree? Though technically a chain of and's should work
                     ui.horizontal(|ui| {
                         ui.selectable_value(&mut selection.from_type, FromType::Player, "Player");
                         ui.selectable_value(
@@ -145,7 +151,6 @@ impl View {
                             "Alliance",
                         );
                         ui.color_edit_button_srgba(&mut selection.color);
-                        // ui.add_space(160.0);
                         if ui.button("Remove").clicked() {
                             remove_index = Some(index);
                         }
@@ -166,8 +171,12 @@ impl View {
                                 .expect(&format!(
                                     "Failed to send Message to Model for Selection {}",
                                     selection
-                                ))
+                                ));
+                            selection.state = ConstraintState::Loading;
                         };
+                        if selection.state == ConstraintState::Loading {
+                            ui.spinner();
+                        }
                     });
                     ui.separator();
                 }
@@ -401,6 +410,7 @@ impl eframe::App for View {
                         .find(|element| *element == constraint);
                     if let Some(selection) = optional_selection {
                         selection.towns = town_list;
+                        selection.state = ConstraintState::Finished;
                     } else {
                         println!("No existing selection found for {}", constraint);
                     }
