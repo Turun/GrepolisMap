@@ -38,10 +38,12 @@ impl Database {
         let mut statement = self
             .connection
             .prepare(
-                "SELECT towns.*, offsets.offset_x, offsets.offset_y from 
+                "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
                 towns 
                 LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
                 LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
+                LEFT JOIN players ON (towns.player_id = players.player_id)
+                LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
                 WHERE islands.type = offsets.type",
             )
             .expect("Failed to get towns from database (build statement)");
@@ -58,10 +60,12 @@ impl Database {
         let mut statement = self
             .connection
             .prepare(
-                "SELECT towns.*, offsets.offset_x, offsets.offset_y from 
+                "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
                 towns 
                 LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
                 LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
+                LEFT JOIN players ON (towns.player_id = players.player_id)
+                LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
                 WHERE islands.type = offsets.type AND towns.player_id IS NULL",
             )
             .expect("Failed to get ghost towns from database (build statement)");
@@ -82,8 +86,13 @@ impl Database {
         let rows = statement
             .query([])
             .expect("Failed to get player names from the database (perform query)")
-            .mapped(|row| row.get(0))
+            .mapped(|row| row.get::<usize, String>(0))
             .map(|name_option| name_option.expect("Failed to collect player names from rows"))
+            .map(|name| {
+                form_urlencoded::parse(name.as_bytes())
+                    .map(|(key, val)| [key, val].concat())
+                    .collect::<String>()
+            })
             .collect();
         return rows;
     }
@@ -96,8 +105,13 @@ impl Database {
         let rows = statement
             .query([])
             .expect("Failed to get alliance names from the database (perform query)")
-            .mapped(|row| row.get(0))
+            .mapped(|row| row.get::<usize, String>(0))
             .map(|name_option| name_option.expect("Failed to collect alliance names from rows"))
+            .map(|name| {
+                form_urlencoded::parse(name.as_bytes())
+                    .map(|(key, val)| [key, val].concat())
+                    .collect::<String>()
+            })
             .collect();
         return rows;
     }

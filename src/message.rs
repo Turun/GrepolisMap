@@ -82,6 +82,8 @@ pub struct Server {
 pub struct Town {
     pub id: i32,
     pub player_id: Option<i32>,
+    pub player_name: Option<String>,
+    pub alliance_name: Option<String>,
     pub name: String,
     pub x: f32,
     pub y: f32,
@@ -91,13 +93,25 @@ pub struct Town {
 
 impl Town {
     pub fn from(row: &Row) -> Result<Self, rusqlite::Error> {
-        let name = form_urlencoded::parse(row.get::<usize, String>(2)?.as_bytes())
+        let town_name = form_urlencoded::parse(row.get::<usize, String>(2)?.as_bytes())
             .map(|(key, val)| [key, val].concat())
             .collect::<String>();
+        let player_name = row.get::<usize, Option<String>>(9)?.map(|s| {
+            form_urlencoded::parse(s.as_bytes())
+                .map(|(key, val)| [key, val].concat())
+                .collect::<String>()
+        });
+        let alliance_name = row.get::<usize, Option<String>>(10)?.map(|s| {
+            form_urlencoded::parse(s.as_bytes())
+                .map(|(key, val)| [key, val].concat())
+                .collect::<String>()
+        });
         Ok(Self {
             id: row.get(0)?,
             player_id: row.get(1)?,
-            name,
+            player_name,
+            alliance_name,
+            name: town_name,
             x: row.get::<usize, f32>(3)? + row.get::<usize, f32>(7)? / 125.0,
             y: row.get::<usize, f32>(4)? + row.get::<usize, f32>(8)? / 125.0,
             slot_number: row.get(5)?,
