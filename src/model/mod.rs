@@ -31,28 +31,16 @@ impl Model {
         }
     }
 
-    pub fn get_towns_for_constraint_with_selection(
+    pub fn get_names_for_constraint_type_with_constraints(
         &self,
-        constraint: &Constraint,
-        selection: &TownSelection,
+        constraint_type: &ConstraintType,
+        constraints: &[&Constraint],
     ) -> Vec<String> {
-        let mut selection = selection.partial_clone();
-        let index_opt = selection.constraints.iter().position(|c| c == constraint);
-        if let Some(index) = index_opt {
-            selection.constraints.swap_remove(index);
-            match self {
-                Model::Uninitialized => return Vec::new(),
-                Model::Loaded { db, ctx: _ctx } => db.get_names_for_constraint_type_in_selection(
-                    &constraint.constraint_type,
-                    &selection,
-                ),
+        match self {
+            Model::Uninitialized => return Vec::new(),
+            Model::Loaded { db, ctx: _ctx } => {
+                db.get_names_for_constraint_type_in_constraints(constraint_type, constraints)
             }
-        } else {
-            println!(
-                "Constraint {} not found in selection {}",
-                constraint, selection
-            );
-            return Vec::new();
         }
     }
 

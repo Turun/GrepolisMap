@@ -1,6 +1,7 @@
 use crate::message::{MessageToModel, MessageToView};
 use crate::model::download::Database;
 use crate::model::Model;
+use crate::towns::Constraint;
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -63,20 +64,64 @@ impl Presenter {
                         ))
                         .expect("Failed to send town list to view");
 
-                    // TODO we need a way to set Constratin ddvalue lists, even when there is only one constraint in the selection.
-                    // This will be the full list without any WHERE clauses in the SQL, so basically the values we fetch at the beginning
-                    // after loading the data. But we need a good way to communicate to the UI Code that this should be the full list, vs
-                    // wait, we have other constraints, let me fetch them before you display anything.
-                    if selection.constraints.len() >= 2 {
-                        for constraint in &selection.constraints {
-                            // TODO: the database does some more filtering based on the content of the selections. we should only
-                            // do this for loop, if the filtered length of the constraints is bigger than two
-                            let constraint_towns = self
-                                .model
-                                .get_towns_for_constraint_with_selection(&constraint, &selection);
+                    // a list of filled constraints. For each one, filter the ddv list by all _other_ filled constratins
+                    let filled_constraints: Vec<&Constraint> = selection
+                        .constraints
+                        .iter()
+                        .filter(|c| !c.value.is_empty())
+                        .collect();
+
+                    if filled_constraints.len() == 0 {
+                        // nothing
+                    } else if filled_constraints.len() == 1 {
+                        let c = filled_constraints[0];
+                        let constraint_towns =
+                            self.model.get_names_for_constraint_type(&c.constraint_type);
+                        self.channel_tx
+                            .send(MessageToView::TownListConstraint(
+                                c.partial_clone(),
+                                selection.partial_clone(),
+                                constraint_towns,
+                            ))
+                            .expect("Failed to send town list to view");
+                    } else {
+                        // for each constraint, make a list of all other filled constraints and get the ddv list filtered by those
+                        for (i, c) in filled_constraints.iter().enumerate() {
+                            let mut other_constraints = filled_constraints.clone();
+                            let _this_constraint = other_constraints.swap_remove(i);
+
+                            let constraint_towns =
+                                self.model.get_names_for_constraint_type_with_constraints(
+                                    &c.constraint_type,
+                                    &filled_constraints,
+                                );
+
                             self.channel_tx
                                 .send(MessageToView::TownListConstraint(
-                                    constraint.partial_clone(),
+                                    c.partial_clone(),
+                                    selection.partial_clone(),
+                                    constraint_towns,
+                                ))
+                                .expect("Failed to send town list to view");
+                        }
+                    }
+                    // a list of empty constraints. Filter the ddv list by all non empty constraints
+                    let empty_constraints: Vec<&Constraint> = selection
+                        .constraints
+                        .iter()
+                        .filter(|c| c.value.is_empty())
+                        .collect();
+                    if empty_constraints.len() > 0 {
+                        for c in empty_constraints {
+                            let constraint_towns =
+                                self.model.get_names_for_constraint_type_with_constraints(
+                                    &c.constraint_type,
+                                    &filled_constraints,
+                                );
+
+                            self.channel_tx
+                                .send(MessageToView::TownListConstraint(
+                                    c.partial_clone(),
                                     selection.partial_clone(),
                                     constraint_towns,
                                 ))

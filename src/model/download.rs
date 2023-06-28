@@ -6,7 +6,7 @@ use reqwest;
 use rusqlite::{self, types::ToSqlOutput, ToSql};
 
 use crate::message::{MessageToView, Progress};
-use crate::towns::{ConstraintType, Town, TownSelection};
+use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
 
 use super::offset_data;
 
@@ -131,10 +131,11 @@ impl Database {
             .collect();
         return rows;
     }
-    pub fn get_names_for_constraint_type_in_selection(
+
+    pub fn get_names_for_constraint_type_in_constraints(
         &self,
         constraint_type: &ConstraintType,
-        selection: &TownSelection,
+        constraints: &[&Constraint],
     ) -> Vec<String> {
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
@@ -149,12 +150,7 @@ impl Database {
             ",
             ct_table, ct_property
         ));
-        for (index, constraint) in selection
-            .constraints
-            .iter()
-            .filter(|c| !c.value.is_empty())
-            .enumerate()
-        {
+        for (index, constraint) in constraints.iter().enumerate() {
             statement_text += &format!(
                 " AND {}.{} {} ?{}",
                 constraint.constraint_type.table(),
@@ -175,7 +171,7 @@ impl Database {
         // return early from the outer function in a map statement. so it's a bit
         // of both for now
         let mut query_parameters: Vec<EitherOr> = Vec::new();
-        for constraint in selection.constraints.iter().filter(|c| !c.value.is_empty()) {
+        for constraint in constraints {
             if constraint.constraint_type.is_string() {
                 query_parameters.push(EitherOr::A(constraint.value.clone()));
             } else {
