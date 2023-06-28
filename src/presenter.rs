@@ -24,14 +24,13 @@ impl Presenter {
             println!("Got Message from View to Model: {message}");
             //TODO multithreaded database. We only read, never write after the inital creation.
             // Could help a lot if we add town lists to each dropdown
-            //TODO better error handling for the database. We should not let the model
+            //TODO better error handling for the database. We MUST NOT let the model
             //  thread crash due to DB issues. In
             //  the worst case the user can just try to reload the data
             match message {
                 MessageToModel::SetServer(server, ctx) => {
-                    // TODO: automatically save each db we load and let the user choose previous versions.
-                    let db = Database::create_for_world(&server.id, self.channel_tx.clone(), &ctx)
-                        .unwrap();
+                    // TODO: automatically save each db we load (with timestamp) and let the user choose previous versions.
+                    let db = Database::create_for_world(&server.id, &self.channel_tx, &ctx);
                     self.model = Model::Loaded { db, ctx };
                     self.channel_tx
                         .send(MessageToView::GotServer)

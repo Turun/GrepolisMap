@@ -9,9 +9,8 @@ edition = "2021"
 egui = "0.22"
 eframe = "0.22"
 egui_extras = "0.22"
-reqwest = {version = "0.11.18", features=["gzip", "deflate"]}
+reqwest = {version = "0.11.18", features=["gzip", "deflate", "blocking"]}
 rusqlite = { version = "0.29.0", features = ["bundled"] }
-tokio = {version = "1.28.2", features=["rt-multi-thread"]}
 form_urlencoded = "1.1.0"
 uuid = {version = "1.3.3", features=["v4", "fast-rng"]}
 strum = { version = "0.24", features = ["derive"] }

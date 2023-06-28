@@ -1,6 +1,5 @@
 /// this takes care of fetching the data and putting it into a database
-use std::{future::Future, sync::mpsc};
-use tokio;
+use std::sync::mpsc;
 
 use reqwest;
 use rusqlite::{self, types::ToSqlOutput, ToSql};
@@ -10,20 +9,23 @@ use crate::towns::{Constraint, ConstraintType, Town};
 
 use super::offset_data;
 
-async fn download_generic<U>(client: &reqwest::Client, url: U) -> Result<String, reqwest::Error>
+fn download_generic<U>(client: &reqwest::blocking::Client, url: U) -> Result<String, reqwest::Error>
 where
     U: reqwest::IntoUrl + std::fmt::Display,
 {
     let url_text = format!("{url}");
-    let result = client.get(url).send().await?;
+    println!("dl 1 {url_text}");
+    let result = client.get(url).send()?;
+    println!("dl 2 {url_text}");
     println!("Got status {} for url {}", result.status(), url_text);
-    let text = result.text().await?;
+    let text = result.text()?;
+    println!("dl 3 {url_text}");
 
     Ok(text)
 }
 
-fn make_client() -> reqwest::Client {
-    reqwest::Client::builder()
+fn make_client() -> reqwest::blocking::Client {
+    reqwest::blocking::Client::builder()
         .user_agent("Rust Grepolis Map - Turun")
         .gzip(true)
         .deflate(true)
@@ -282,79 +284,99 @@ impl Database {
 
     pub fn create_for_world(
         server_id: &str,
-        sender: mpsc::Sender<MessageToView>,
+        sender: &mpsc::Sender<MessageToView>,
         ctx: &egui::Context,
-    ) -> Result<Self, rusqlite::Error> {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        runtime.block_on(async { Self::async_create_for_world(server_id, sender, ctx).await })
-    }
-
-    pub async fn async_create_for_world(
-        server_id: &str,
-        sender: mpsc::Sender<MessageToView>,
-        ctx: &egui::Context,
-    ) -> Result<Self, rusqlite::Error> {
+    ) -> Self {
         let reqwest_client = make_client();
 
         let mut conn =
             rusqlite::Connection::open_in_memory().expect("Failed to open in memory database");
-        let data_players = download_generic(
-            &reqwest_client,
-            format!("https://{server_id}.grepolis.com/data/players.txt"),
-        );
-        let data_alliances = download_generic(
-            &reqwest_client,
-            format!("https://{server_id}.grepolis.com/data/alliances.txt"),
-        );
-        let data_towns = download_generic(
-            &reqwest_client,
-            format!("https://{server_id}.grepolis.com/data/towns.txt"),
-        );
-        let data_islands = download_generic(
-            &reqwest_client,
-            format!("https://{server_id}.grepolis.com/data/islands.txt"),
-        );
+        let thread_client = reqwest_client.clone();
+        let thread_server_id = String::from(server_id);
+        let handle_data_players = std::thread::spawn(move || {
+            download_generic(
+                &thread_client,
+                format!("https://{thread_server_id}.grepolis.com/data/players.txt"),
+            )
+        });
+        let thread_client = reqwest_client.clone();
+        let thread_server_id = String::from(server_id);
+        let handle_data_alliances = std::thread::spawn(move || {
+            download_generic(
+                &thread_client,
+                format!("https://{thread_server_id}.grepolis.com/data/alliances.txt"),
+            )
+        });
+        let thread_client = reqwest_client.clone();
+        let thread_server_id = String::from(server_id);
+        let handle_data_towns = std::thread::spawn(move || {
+            download_generic(
+                &thread_client,
+                format!("https://{thread_server_id}.grepolis.com/data/towns.txt"),
+            )
+        });
+        let thread_client = reqwest_client;
+        let thread_server_id = String::from(server_id);
+        let handle_data_islands = std::thread::spawn(move || {
+            download_generic(
+                &thread_client,
+                format!("https://{thread_server_id}.grepolis.com/data/islands.txt"),
+            )
+        });
 
         sender
             .send(MessageToView::Loading(Progress::Started))
             .expect("Failed to send progressupdate 1 to view");
         ctx.request_repaint();
+
         Database::create_table_offsets(&mut conn);
         sender
             .send(MessageToView::Loading(Progress::IslandOffsets))
             .expect("Failed to send progressupdate 2 to view");
         ctx.request_repaint();
-        Database::create_table_alliances(&mut conn, data_alliances).await?;
+
+        let data_alliances = handle_data_alliances
+            .join()
+            .expect("Failed to join AllianceData fetching thread");
+        Database::create_table_alliances(&mut conn, data_alliances);
         sender
             .send(MessageToView::Loading(Progress::Alliances))
             .expect("Failed to send progressupdate 3 to view");
         ctx.request_repaint();
-        Database::create_table_players(&mut conn, data_players).await?;
+
+        let data_players = handle_data_players
+            .join()
+            .expect("Failed to join PlayerData fetching thread");
+        Database::create_table_players(&mut conn, data_players);
         sender
             .send(MessageToView::Loading(Progress::Players))
             .expect("Failed to send progressupdate 4 to view");
         ctx.request_repaint();
-        Database::create_table_towns(&mut conn, data_towns).await?;
+
+        let data_towns = handle_data_towns
+            .join()
+            .expect("Failed to join AllianceData fetching thread");
+        Database::create_table_towns(&mut conn, data_towns);
         sender
             .send(MessageToView::Loading(Progress::Towns))
             .expect("Failed to send progressupdate 5 to view");
         ctx.request_repaint();
-        Database::create_table_islands(&mut conn, data_islands).await?;
+
+        let data_islands = handle_data_islands
+            .join()
+            .expect("Failed to join AllianceData fetching thread");
+        Database::create_table_islands(&mut conn, data_islands);
         sender
             .send(MessageToView::Loading(Progress::Islands))
             .expect("Failed to send progressupdate 6 to view");
         ctx.request_repaint();
-        Ok(Self { connection: conn })
+        Self { connection: conn }
     }
 
-    async fn create_table_players(
+    fn create_table_players(
         connection: &mut rusqlite::Connection,
-        data: impl Future<Output = Result<String, reqwest::Error>>,
-    ) -> Result<(), rusqlite::Error> {
+        data: Result<String, reqwest::Error>,
+    ) {
         connection
             .execute(
                 "CREATE TABLE players(
@@ -376,7 +398,7 @@ impl Database {
         let mut prepared_statement = transaction
             .prepare("INSERT INTO players VALUES(?1, ?2, ?3, ?4, ?5, ?6)")
             .expect("Failed to prepare statement for players");
-        for line in data.await.expect("Failed to download player data").lines() {
+        for line in data.expect("Failed to download player data").lines() {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
@@ -406,13 +428,12 @@ impl Database {
         transaction
             .commit()
             .expect("Failed to commit transaction for table players");
-        Ok(())
     }
 
-    async fn create_table_alliances(
+    fn create_table_alliances(
         connection: &mut rusqlite::Connection,
-        data: impl Future<Output = Result<String, reqwest::Error>>,
-    ) -> Result<(), rusqlite::Error> {
+        data: Result<String, reqwest::Error>,
+    ) {
         connection
             .execute(
                 "CREATE TABLE alliances(
@@ -429,13 +450,10 @@ impl Database {
         let transaction = connection
             .transaction()
             .expect("Failed to start transaction for table creation alliances");
-        let mut prepared_statement =
-            transaction.prepare("INSERT INTO alliances VALUES(?1, ?2, ?3, ?4, ?5, ?6)")?;
-        for line in data
-            .await
-            .expect("Failed to download alliance data")
-            .lines()
-        {
+        let mut prepared_statement = transaction
+            .prepare("INSERT INTO alliances VALUES(?1, ?2, ?3, ?4, ?5, ?6)")
+            .expect("Failed to prepare statement for alliances");
+        for line in data.expect("Failed to download alliance data").lines() {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
@@ -458,13 +476,12 @@ impl Database {
         transaction
             .commit()
             .expect("Failed to commit transaction for table alliances");
-        Ok(())
     }
 
-    async fn create_table_towns(
+    fn create_table_towns(
         connection: &mut rusqlite::Connection,
-        data: impl Future<Output = Result<String, reqwest::Error>>,
-    ) -> Result<(), rusqlite::Error> {
+        data: Result<String, reqwest::Error>,
+    ) {
         connection
             .execute(
                 "CREATE TABLE towns(
@@ -486,7 +503,7 @@ impl Database {
         let mut prepared_statement = transaction
             .prepare("INSERT INTO towns VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)")
             .expect("Failed to prepare statement for towns");
-        for line in data.await.expect("Failed to download town data").lines() {
+        for line in data.expect("Failed to download town data").lines() {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
@@ -517,13 +534,12 @@ impl Database {
         transaction
             .commit()
             .expect("Failed to commit transaction for table towns");
-        Ok(())
     }
 
-    async fn create_table_islands(
+    fn create_table_islands(
         connection: &mut rusqlite::Connection,
-        data: impl Future<Output = Result<String, reqwest::Error>>,
-    ) -> Result<(), rusqlite::Error> {
+        data: Result<String, reqwest::Error>,
+    ) {
         connection
             .execute(
                 "CREATE TABLE islands(
@@ -543,7 +559,7 @@ impl Database {
         let mut prepared_statement = transaction
             .prepare("INSERT INTO islands VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)")
             .expect("Failed to prepare statement for islands");
-        for line in data.await.expect("Failed to download island data").lines() {
+        for line in data.expect("Failed to download island data").lines() {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
@@ -561,8 +577,8 @@ impl Database {
         transaction
             .commit()
             .expect("Failed to commit transaction for table islands");
-        Ok(())
     }
+
     fn create_table_offsets(connection: &mut rusqlite::Connection) {
         connection
             .execute(

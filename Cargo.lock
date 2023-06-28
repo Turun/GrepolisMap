@@ -1137,7 +1137,6 @@ dependencies = [
  "rusqlite",
  "strum",
  "strum_macros",
- "tokio",
  "uuid",
 ]
 
