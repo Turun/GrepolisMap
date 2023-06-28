@@ -28,16 +28,28 @@ impl Presenter {
                     let db =
                         Database::create_for_world(&server.id, self.channel_tx.clone()).unwrap();
                     let towns = db.get_all_towns();
+                    let player_names = db.get_player_names();
+                    let alliance_names = db.get_alliance_names(); // TODO split that into extra messages. Send messages back to the Model as early as possible, and in small steps
                     self.model = Model::Loaded { db };
                     self.channel_tx
-                        .send(MessageToView::GotServer(towns))
+                        .send(MessageToView::GotServer(
+                            towns,
+                            player_names,
+                            alliance_names,
+                        ))
                         .expect("Failed to send message 'got server'");
                 }
-                MessageToModel::FetchTowns(selection) => {
-                    let towns = self.model.get_towns_for_selection(&selection);
+                MessageToModel::FetchGhosts => {
+                    let towns = self.model.get_ghost_towns();
                     self.channel_tx
-                        .send(MessageToView::TownList(selection, towns))
-                        .expect("Failed to send city list to view");
+                        .send(MessageToView::GhostTowns(towns))
+                        .expect("Failed to send ghost town list to view");
+                }
+                MessageToModel::FetchTowns(constraint) => {
+                    let towns = self.model.get_towns_for_selection(&constraint);
+                    self.channel_tx
+                        .send(MessageToView::TownList(constraint, towns))
+                        .expect("Failed to send town list to view");
                 }
             }
         }

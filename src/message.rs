@@ -8,15 +8,22 @@ use rusqlite::Row;
 #[derive(Debug)]
 pub enum MessageToView {
     Loading(Progress),
-    GotServer(Vec<Town>),
-    TownList(TownSelection, Vec<Town>),
+    GhostTowns(Vec<Town>),
+    GotServer(Vec<Town>, Vec<String>, Vec<String>),
+    TownList(TownConstraint, Vec<Town>),
 }
 
 impl fmt::Display for MessageToView {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MessageToView::GotServer(all_towns) => {
-                write!(f, "MessageToView::GotServer({} towns)", all_towns.len())
+            MessageToView::GotServer(all_towns, players, alliances) => {
+                write!(
+                    f,
+                    "MessageToView::GotServer({} towns, {} players, {} alliances)",
+                    all_towns.len(),
+                    players.len(),
+                    alliances.len()
+                )
             }
             MessageToView::TownList(selection, towns) => write!(
                 f,
@@ -25,6 +32,9 @@ impl fmt::Display for MessageToView {
                 towns.len()
             ),
             MessageToView::Loading(progress) => write!(f, "MessageToView::Loading({:?})", progress),
+            MessageToView::GhostTowns(towns) => {
+                write!(f, "MessageToView::GhostTowns({} towns)", towns.len())
+            }
         }
     }
 }
@@ -32,7 +42,8 @@ impl fmt::Display for MessageToView {
 #[derive(Debug)]
 pub enum MessageToModel {
     SetServer(Server),
-    FetchTowns(TownSelection),
+    FetchGhosts,
+    FetchTowns(TownConstraint),
 }
 
 impl fmt::Display for MessageToModel {
@@ -43,6 +54,9 @@ impl fmt::Display for MessageToModel {
             }
             MessageToModel::FetchTowns(selection) => {
                 write!(f, "MessageToModel::FetchTowns({:?})", selection)
+            }
+            MessageToModel::FetchGhosts => {
+                write!(f, "MessageToModel::FetchGhosts")
             }
         }
     }
@@ -64,7 +78,7 @@ pub struct Server {
     pub id: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Town {
     pub id: i32,
     pub player_id: Option<i32>,
@@ -97,8 +111,19 @@ pub enum TownSelection {
     None,
     All,
     Ghosts,
-    Selected(Vec<TownConstraint>),
+    Selected(TownConstraint),
 }
 
 #[derive(Debug, Clone)]
-pub struct TownConstraint {}
+pub struct TownConstraint {
+    pub from_type: FromType,
+    pub color: egui::Color32,
+    pub value: String,
+    pub towns: Vec<Town>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum FromType {
+    Player,
+    Alliance,
+}

@@ -6,8 +6,10 @@ use std::sync::mpsc;
 
 use egui::{ProgressBar, Shape, Ui};
 
-use crate::message::{MessageToModel, MessageToView, Progress, Server, Town, TownSelection};
-use crate::view::data::{CanvasData, Data};
+use crate::message::{
+    FromType, MessageToModel, MessageToView, Progress, Server, Town, TownConstraint, TownSelection,
+};
+use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
 
@@ -88,15 +90,64 @@ impl View {
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {
                 self.ui_server_input(ui);
-                ui.label(format!("Towns Total: {}", self.ui_data.towns_all.len()));
+                ui.label(format!("Towns Total: {}", self.ui_data.all_towns.len()));
                 ui.label(format!(
                     "Towns Selected: {}",
-                    self.ui_data.towns_shown.len()
+                    self.ui_data.ghost_towns.len()
                 ));
                 ui.separator();
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut self.ui_data.settings_all.enabled, "");
+                    ui.label("All Towns:");
+                    ui.color_edit_button_srgba(&mut self.ui_data.settings_all.color);
+                });
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut self.ui_data.settings_ghosts.enabled, "");
+                    ui.label("Ghost Towns:");
+                    ui.color_edit_button_srgba(&mut self.ui_data.settings_ghosts.color);
+                });
+                ui.separator();
+                if ui.button("Add Towns").clicked() {
+                    self.ui_data.selections.push(TownConstraint {
+                        from_type: FromType::Player,
+                        color: egui::Color32::GREEN,
+                        value: String::from(""),
+                        towns: Vec::new(),
+                    })
+                }
+                ui.separator();
+                // TODO: figure out how we can fetch the data corresponding to each selection. We have to send a new
+                // request every time the selection values change. When that happens we must send a request to the backend. The message
+                // ingest loop will have to track all incoming updates and update the value of the correct selection accordingly
+                for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
+                    ui.vertical(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.selectable_value(
+                                &mut selection.from_type,
+                                FromType::Player,
+                                "Player",
+                            );
+                            ui.selectable_value(
+                                &mut selection.from_type,
+                                FromType::Alliance,
+                                "Alliance",
+                            );
+                        });
+                        ui.add(DropDownBox::from_iter(
+                            match selection.from_type {
+                                FromType::Player => &mut self.ui_data.name_players,
+                                FromType::Alliance => &mut self.ui_data.name_alliances,
+                            },
+                            format!("Selection {}", index),
+                            &mut selection.value,
+                            |ui, text| ui.selectable_label(false, text),
+                        ))
+                    });
+                }
+
                 let ddb = DropDownBox::from_iter(
                     self.ui_data
-                        .towns_shown
+                        .ghost_towns
                         .iter()
                         .map(|town| town.name.to_owned())
                         .collect::<Vec<String>>(),
@@ -157,13 +208,13 @@ impl View {
                 let filter = ViewPortFilter::new(&canvas_data, response.rect);
                 let visible_towns_all: Vec<&Town> = self
                     .ui_data
-                    .towns_all
+                    .all_towns
                     .iter()
                     .filter(|town| filter.town_in_viewport(town))
                     .collect();
-                let visible_towns_shown: Vec<&Town> = self
+                let visible_ghost_towns: Vec<&Town> = self
                     .ui_data
-                    .towns_shown
+                    .ghost_towns
                     .iter()
                     .filter(|town| filter.town_in_viewport(town))
                     .collect();
@@ -209,34 +260,50 @@ impl View {
 
                 // DRAW ALL TOWNS
                 // towns have a diameter of .25 units, approximately
-                for town in &visible_towns_all {
-                    painter.circle_filled(
-                        canvas_data
-                            .world_to_screen(egui::vec2(town.x, town.y))
-                            .to_pos2(),
-                        1.0 + canvas_data.scale_world_to_screen(0.15),
-                        if town.player_id == Some(1495649) {
-                            egui::Color32::WHITE
-                        } else {
-                            // egui::Color32::DARK_GRAY.gamma_multiply(0.5)
-                            egui::Color32::from_rgb(48, 48, 48)
-                        },
-                    );
+                if self.ui_data.settings_all.enabled {
+                    for town in &visible_towns_all {
+                        painter.circle_filled(
+                            canvas_data
+                                .world_to_screen(egui::vec2(town.x, town.y))
+                                .to_pos2(),
+                            1.0 + canvas_data.scale_world_to_screen(0.15),
+                            if town.player_id == Some(1495649) {
+                                egui::Color32::WHITE
+                            } else {
+                                self.ui_data.settings_all.color
+                            },
+                        );
+                    }
                 }
 
-                // DRAW SELECTED TOWNS
-                for town in &visible_towns_shown {
-                    painter.circle_filled(
-                        canvas_data
-                            .world_to_screen(egui::vec2(town.x, town.y))
-                            .to_pos2(),
-                        2.0 + canvas_data.scale_world_to_screen(0.15),
-                        egui::Color32::RED,
-                    );
+                // DRAW GHOST TOWNS
+                if self.ui_data.settings_ghosts.enabled {
+                    for town in &visible_ghost_towns {
+                        painter.circle_filled(
+                            canvas_data
+                                .world_to_screen(egui::vec2(town.x, town.y))
+                                .to_pos2(),
+                            2.0 + canvas_data.scale_world_to_screen(0.15),
+                            self.ui_data.settings_ghosts.color,
+                        );
+                    }
+                }
+
+                // DRAW SELECTED TOWS
+                for selection in &self.ui_data.selections {
+                    for town in &selection.towns {
+                        painter.circle_filled(
+                            canvas_data
+                                .world_to_screen(egui::vec2(town.x, town.y))
+                                .to_pos2(),
+                            1.0 + canvas_data.scale_world_to_screen(0.15),
+                            selection.color,
+                        );
+                    }
                 }
 
                 // POPUP WITH TOWN INFORMATION
-                // TODO
+                // TODO more information (hydrate our town structs more)
                 if canvas_data.zoom > 10.0 {
                     let optional_mouse_position = response.hover_pos();
                     response = response.on_hover_ui_at_pointer(|ui| {
@@ -246,7 +313,6 @@ impl View {
                                 .to_pos2()
                         } else {
                             return;
-                            // egui::pos2(0.0, 0.0)
                         };
                         ui.label(format!("{:?}", position));
 
@@ -285,16 +351,22 @@ impl eframe::App for View {
         if let Ok(message) = self.channel_presenter_rx.try_recv() {
             println!("Got Message from Model to View: {}", message);
             match message {
-                MessageToView::GotServer(all_towns) => {
+                MessageToView::GotServer(all_towns, player_names, alliance_names) => {
                     self.ui_state = State::Show(TownSelection::None);
-                    self.ui_data.towns_all = all_towns;
+                    self.ui_data.all_towns = all_towns;
+                    self.ui_data.name_players = player_names;
+                    self.ui_data.name_alliances = alliance_names;
                     self.channel_presenter_tx
-                        .send(MessageToModel::FetchTowns(TownSelection::Ghosts))
+                        .send(MessageToModel::FetchGhosts)
                         .expect("Failed to send message to model: TownSelection::Ghosts");
                 }
-                MessageToView::TownList(selection, town_list) => {
-                    self.ui_state = State::Show(selection);
-                    self.ui_data.towns_shown = town_list;
+                MessageToView::TownList(constraint, town_list) => {
+                    self.ui_state = State::Show(TownSelection::Ghosts);
+                    self.ui_data.ghost_towns = town_list;
+                    // TODO don't assign the value to the ghost towns, assign it to the correct user selection
+                }
+                MessageToView::GhostTowns(town_list) => {
+                    self.ui_data.ghost_towns = town_list;
                 }
                 MessageToView::Loading(progress) => {
                     self.ui_state = State::Uninitialized(progress);
@@ -306,40 +378,5 @@ impl eframe::App for View {
             State::Uninitialized(progress) => self.ui_uninitialized(ctx, progress),
             State::Show(_) => self.ui_init(ctx),
         }
-    }
-}
-
-struct ViewPortFilter {
-    world_l: f32,
-    world_r: f32,
-    world_b: f32,
-    world_t: f32,
-}
-
-impl ViewPortFilter {
-    fn new(canvas: &CanvasData, screen_rect: egui::Rect) -> Self {
-        let top_left = canvas.screen_to_world(screen_rect.left_top().to_vec2());
-        let bot_right = canvas.screen_to_world(screen_rect.right_bottom().to_vec2());
-        Self {
-            world_l: top_left.x,
-            world_r: bot_right.x,
-            world_t: top_left.y,
-            world_b: bot_right.y,
-        }
-    }
-
-    fn town_in_viewport(&self, town: &Town) -> bool {
-        self.world_l < town.x
-            && town.x < self.world_r
-            && self.world_t < town.y
-            && town.y < self.world_b
-    }
-
-    fn x_in_viewport(&self, x: f32) -> bool {
-        self.world_l < x && x < self.world_r
-    }
-
-    fn y_in_viewport(&self, y: f32) -> bool {
-        self.world_t < y && y < self.world_b
     }
 }
