@@ -5,7 +5,7 @@ mod view;
 
 use crate::presenter::Presenter;
 
-fn main() -> Result<(), ()> {
+fn main() {
     let p = Presenter::new();
     p.start()
 }

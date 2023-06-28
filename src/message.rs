@@ -1,7 +1,8 @@
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene
 
-enum Message {
+#[derive(Debug)]
+pub enum Message {
     /// tell the backend the user entered a server
     SetServer(Server),
 
@@ -9,6 +10,7 @@ enum Message {
     GotServer,
 }
 
-struct Server {
-    id: String,
+#[derive(Debug)]
+pub struct Server {
+    pub id: String,
 }
