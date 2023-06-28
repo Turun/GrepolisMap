@@ -21,7 +21,7 @@ impl Presenter {
     }
     pub fn start(&mut self) {
         for message in &self.channel_rx {
-            println!("Got Message from View to Model: {}", message);
+            println!("Got Message from View to Model: {message}");
             //TODO multithreaded database. We only read, never write after the inital creation.
             // Could help a lot if we add town lists to each dropdown
             //TODO better error handling for the database. We should not let the model

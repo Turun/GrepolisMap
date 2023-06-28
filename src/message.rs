@@ -38,7 +38,7 @@ impl fmt::Display for MessageToView {
                     towns.len()
                 )
             }
-            MessageToView::Loading(progress) => write!(f, "MessageToView::Loading({:?})", progress),
+            MessageToView::Loading(progress) => write!(f, "MessageToView::Loading({progress:?})"),
             MessageToView::AllTowns(towns) => {
                 write!(f, "MessageToView::AllTowns({} towns)", towns.len())
             }
@@ -73,7 +73,7 @@ impl fmt::Display for MessageToModel {
                 write!(f, "MessageToMode::SetServer({})", server.id)
             }
             MessageToModel::FetchTowns(selection) => {
-                write!(f, "MessageToModel::FetchTowns({})", selection)
+                write!(f, "MessageToModel::FetchTowns({selection})")
             }
             MessageToModel::FetchAll => {
                 write!(f, "MessageToModel::FetchAll")
@@ -84,8 +84,7 @@ impl fmt::Display for MessageToModel {
             MessageToModel::FetchDropDownValues(constraint_type) => {
                 write!(
                     f,
-                    "MessageToModel::FetchDropDownValues({})",
-                    constraint_type
+                    "MessageToModel::FetchDropDownValues({constraint_type})"
                 )
             }
         }

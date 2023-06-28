@@ -105,22 +105,22 @@ impl View {
                 match progress {
                     Progress::None => {}
                     Progress::Started => {
-                        ui.add(ProgressBar::new(0.0).text(format!("{:?}", progress)));
+                        ui.add(ProgressBar::new(0.0).text(format!("{progress:?}")));
                     }
                     Progress::IslandOffsets => {
-                        ui.add(ProgressBar::new(0.2).text(format!("{:?}", progress)));
+                        ui.add(ProgressBar::new(0.2).text(format!("{progress:?}")));
                     }
                     Progress::Alliances => {
-                        ui.add(ProgressBar::new(0.4).text(format!("{:?}", progress)));
+                        ui.add(ProgressBar::new(0.4).text(format!("{progress:?}")));
                     }
                     Progress::Players => {
-                        ui.add(ProgressBar::new(0.6).text(format!("{:?}", progress)));
+                        ui.add(ProgressBar::new(0.6).text(format!("{progress:?}")));
                     }
                     Progress::Towns => {
-                        ui.add(ProgressBar::new(0.8).text(format!("{:?}", progress)));
+                        ui.add(ProgressBar::new(0.8).text(format!("{progress:?}")));
                     }
                     Progress::Islands => {
-                        ui.add(ProgressBar::new(1.0).text(format!("{:?}", progress)));
+                        ui.add(ProgressBar::new(1.0).text(format!("{progress:?}")));
                     }
                 }
             });
@@ -181,8 +181,7 @@ impl View {
 
                             // TODO make the comboboxes correctly sized
                             let _inner_response = egui::ComboBox::from_id_source(format!(
-                                "ComboxBox {}/{} Type",
-                                index, cindex
+                                "ComboxBox {index}/{cindex} Type"
                             ))
                             .width(ui.style().spacing.interact_size.x * 3.5)
                             .selected_text(format!("{}", constraint.constraint_type))
@@ -203,8 +202,7 @@ impl View {
                             });
 
                             let _inner_response = egui::ComboBox::from_id_source(format!(
-                                "ComboxBox {}/{} Comparator",
-                                index, cindex
+                                "ComboxBox {index}/{cindex} Comparator"
                             ))
                             .width(ui.style().spacing.interact_size.x * 1.75)
                             .selected_text(format!("{}", constraint.comparator))
@@ -222,7 +220,7 @@ impl View {
 
                             let ddb = DropDownBox::from_iter(
                                 constraint.drop_down_values.as_ref(),
-                                format!("ComboBox {}/{} Value", index, cindex),
+                                format!("ComboBox {index}/{cindex} Value"),
                                 &mut constraint.value,
                             );
                             if ui
@@ -471,7 +469,7 @@ impl View {
                         } else {
                             return;
                         };
-                        ui.label(format!("{:?}", position));
+                        ui.label(format!("{position:?}"));
 
                         if !visible_towns_all.is_empty() {
                             let mut closest_town = visible_towns_all[0];
@@ -515,7 +513,7 @@ impl View {
 impl eframe::App for View {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         while let Ok(message) = self.channel_presenter_rx.try_recv() {
-            println!("Got Message from Model to View: {}", message);
+            println!("Got Message from Model to View: {message}");
             match message {
                 MessageToView::GotServer => {
                     self.ui_state = State::Show;
@@ -529,8 +527,7 @@ impl eframe::App for View {
                         self.channel_presenter_tx
                             .send(MessageToModel::FetchDropDownValues(variant.clone()))
                             .expect(&format!(
-                                "Failed to send message to model: FetchDropDownValues({})",
-                                variant
+                                "Failed to send message to model: FetchDropDownValues({variant})"
                             ));
                     }
                 }
@@ -545,7 +542,7 @@ impl eframe::App for View {
                         selection.towns = town_list;
                         selection.state = SelectionState::Finished;
                     } else {
-                        println!("No existing selection found for {}", selection);
+                        println!("No existing selection found for {selection}");
                     }
                 }
                 MessageToView::TownListConstraint(constraint, selection, towns) => {
@@ -562,12 +559,11 @@ impl eframe::App for View {
                             constraint.drop_down_values = Some(towns);
                         } else {
                             println!(
-                                "No existing constraint {} found in selection {}",
-                                constraint, selection
+                                "No existing constraint {constraint} found in selection {selection}"
                             );
                         }
                     } else {
-                        println!("No existing selection found for {}", selection);
+                        println!("No existing selection found for {selection}");
                     }
                 }
                 MessageToView::AllTowns(towns) => {

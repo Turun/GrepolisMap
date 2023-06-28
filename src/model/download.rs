@@ -14,7 +14,7 @@ async fn download_generic<U>(client: &reqwest::Client, url: U) -> Result<String,
 where
     U: reqwest::IntoUrl + std::fmt::Display,
 {
-    let url_text = format!("{}", url);
+    let url_text = format!("{url}");
     let result = client.get(url).send().await?;
     println!("Got status {} for url {}", result.status(), url_text);
     let text = result.text().await?;
@@ -102,13 +102,11 @@ impl Database {
 
         let statement_text = if constraint_type.is_string() {
             format!(
-                "SELECT DISTINCT {0}.{1} from {0} ORDER BY LOWER({0}.{1})",
-                ct_table, ct_property,
+                "SELECT DISTINCT {ct_table}.{ct_property} from {ct_table} ORDER BY LOWER({ct_table}.{ct_property})",
             )
         } else {
             format!(
-                "SELECT DISTINCT {0}.{1} from {0} ORDER BY {0}.{1}",
-                ct_table, ct_property
+                "SELECT DISTINCT {ct_table}.{ct_property} from {ct_table} ORDER BY {ct_table}.{ct_property}"
             )
         };
 
@@ -127,7 +125,7 @@ impl Database {
                 } else {
                     let value_option = row.get::<usize, usize>(0);
                     let value = value_option.expect("Failed to collect names from rows");
-                    Ok(format!("{}", value))
+                    Ok(format!("{value}"))
                 }
             })
             .map(Result::unwrap)
@@ -144,15 +142,14 @@ impl Database {
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
         let mut statement_text = format!(
-            "SELECT DISTINCT {0}.{1} from 
+            "SELECT DISTINCT {ct_table}.{ct_property} from 
                 towns 
                 LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
                 LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
                 LEFT JOIN players ON (towns.player_id = players.player_id)
                 LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
                 WHERE islands.type = offsets.type
-            ",
-            ct_table, ct_property
+            "
         );
         for (index, constraint) in constraints.iter().enumerate() {
             statement_text += &format!(
@@ -164,9 +161,9 @@ impl Database {
             );
         }
         if constraint_type.is_string() {
-            statement_text += &*format!(" ORDER BY LOWER({0}.{1})", ct_table, ct_property);
+            statement_text += &*format!(" ORDER BY LOWER({ct_table}.{ct_property})");
         } else {
-            statement_text += &*format!(" ORDER BY {0}.{1}", ct_table, ct_property);
+            statement_text += &*format!(" ORDER BY {ct_table}.{ct_property}");
         }
 
         // building a list of &dyn turned out to be very much non trivial.
@@ -206,7 +203,7 @@ impl Database {
                 } else {
                     let value_option = row.get::<usize, usize>(0);
                     match value_option {
-                        Ok(value) => Ok(format!("{}", value)),
+                        Ok(value) => Ok(format!("{value}")),
                         Err(err) => Err(err),
                     }
                 }
@@ -299,19 +296,19 @@ impl Database {
             rusqlite::Connection::open_in_memory().expect("Failed to open in memory database");
         let data_players = download_generic(
             &reqwest_client,
-            format!("https://{}.grepolis.com/data/players.txt", server_id),
+            format!("https://{server_id}.grepolis.com/data/players.txt"),
         );
         let data_alliances = download_generic(
             &reqwest_client,
-            format!("https://{}.grepolis.com/data/alliances.txt", server_id),
+            format!("https://{server_id}.grepolis.com/data/alliances.txt"),
         );
         let data_towns = download_generic(
             &reqwest_client,
-            format!("https://{}.grepolis.com/data/towns.txt", server_id),
+            format!("https://{server_id}.grepolis.com/data/towns.txt"),
         );
         let data_islands = download_generic(
             &reqwest_client,
-            format!("https://{}.grepolis.com/data/islands.txt", server_id),
+            format!("https://{server_id}.grepolis.com/data/islands.txt"),
         );
 
         sender
@@ -375,27 +372,27 @@ impl Database {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No player id in {}", line)),
+                    values.next().expect(&format!("No player id in {line}")),
                     {
-                        let text = values.next().expect(&format!("No player name in {}", line));
+                        let text = values.next().expect(&format!("No player name in {line}"));
                         let decoded = form_urlencoded::parse(text.as_bytes())
                             .map(|(key, val)| [key, val].concat())
                             .collect::<String>();
                         decoded
                     },
                     {
-                        let text = values.next().expect(&format!("No alliance id in {}", line));
+                        let text = values.next().expect(&format!("No alliance id in {line}"));
                         if text.is_empty() {
                             None
                         } else {
                             Some(text)
                         }
                     },
-                    values.next().expect(&format!("No player pts in {}", line)),
-                    values.next().expect(&format!("No player rank in {}", line)),
-                    values.next().expect(&format!("No player town in {}", line)),
+                    values.next().expect(&format!("No player pts in {line}")),
+                    values.next().expect(&format!("No player rank in {line}")),
+                    values.next().expect(&format!("No player town in {line}")),
                 ))
-                .expect(&format!("Failed to insert into players from line {}", line));
+                .expect(&format!("Failed to insert into players from line {line}"));
         }
         drop(prepared_statement);
         transaction
@@ -434,22 +431,21 @@ impl Database {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No ally id in {}", line)),
+                    values.next().expect(&format!("No ally id in {line}")),
                     {
-                        let text = values.next().expect(&format!("No ally name in {}", line));
+                        let text = values.next().expect(&format!("No ally name in {line}"));
                         let decoded = form_urlencoded::parse(text.as_bytes())
                             .map(|(key, val)| [key, val].concat())
                             .collect::<String>();
                         decoded
                     },
-                    values.next().expect(&format!("No ally pts in {}", line)),
-                    values.next().expect(&format!("No ally towns in {}", line)),
-                    values.next().expect(&format!("No ally membrs in {}", line)),
-                    values.next().expect(&format!("No ally rank in {}", line)),
+                    values.next().expect(&format!("No ally pts in {line}")),
+                    values.next().expect(&format!("No ally towns in {line}")),
+                    values.next().expect(&format!("No ally membrs in {line}")),
+                    values.next().expect(&format!("No ally rank in {line}")),
                 ))
                 .expect(&format!(
-                    "Failed to insert into alliances for line {}",
-                    line
+                    "Failed to insert into alliances for line {line}"
                 ));
         }
         drop(prepared_statement);
@@ -488,9 +484,9 @@ impl Database {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No town id in {}", line)),
+                    values.next().expect(&format!("No town id in {line}")),
                     {
-                        let text = values.next().expect(&format!("No player id in {}", line));
+                        let text = values.next().expect(&format!("No player id in {line}"));
                         if text.is_empty() {
                             None
                         } else {
@@ -498,18 +494,18 @@ impl Database {
                         }
                     },
                     {
-                        let text = values.next().expect(&format!("No town name in {}", line));
+                        let text = values.next().expect(&format!("No town name in {line}"));
                         let decoded = form_urlencoded::parse(text.as_bytes())
                             .map(|(key, val)| [key, val].concat())
                             .collect::<String>();
                         decoded
                     },
-                    values.next().expect(&format!("No town x in {}", line)),
-                    values.next().expect(&format!("No town y pts in {}", line)),
-                    values.next().expect(&format!("No town slotnr in {}", line)),
-                    values.next().expect(&format!("No town points in {}", line)),
+                    values.next().expect(&format!("No town x in {line}")),
+                    values.next().expect(&format!("No town y pts in {line}")),
+                    values.next().expect(&format!("No town slotnr in {line}")),
+                    values.next().expect(&format!("No town points in {line}")),
                 ))
-                .expect(&format!("Failed to insert into towns from line {}", line));
+                .expect(&format!("Failed to insert into towns from line {line}"));
         }
         drop(prepared_statement);
         transaction
@@ -545,15 +541,15 @@ impl Database {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No island id in {}", line)),
-                    values.next().expect(&format!("No island x in {}", line)),
-                    values.next().expect(&format!("No island y in {}", line)),
-                    values.next().expect(&format!("No island type in {}", line)),
-                    values.next().expect(&format!("No island town in {}", line)),
-                    values.next().expect(&format!("No island more in {}", line)),
-                    values.next().expect(&format!("No island less in {}", line)),
+                    values.next().expect(&format!("No island id in {line}")),
+                    values.next().expect(&format!("No island x in {line}")),
+                    values.next().expect(&format!("No island y in {line}")),
+                    values.next().expect(&format!("No island type in {line}")),
+                    values.next().expect(&format!("No island town in {line}")),
+                    values.next().expect(&format!("No island more in {line}")),
+                    values.next().expect(&format!("No island less in {line}")),
                 ))
-                .expect(&format!("Failed to insert into islands from line {}", line));
+                .expect(&format!("Failed to insert into islands from line {line}"));
         }
         drop(prepared_statement);
         transaction
@@ -583,12 +579,12 @@ impl Database {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No offset tyep in {}", line)),
-                    values.next().expect(&format!("No offset x in {}", line)),
-                    values.next().expect(&format!("No offset y in {}", line)),
-                    values.next().expect(&format!("No offset slot in {}", line)),
+                    values.next().expect(&format!("No offset tyep in {line}")),
+                    values.next().expect(&format!("No offset x in {line}")),
+                    values.next().expect(&format!("No offset y in {line}")),
+                    values.next().expect(&format!("No offset slot in {line}")),
                 ))
-                .expect(&format!("Failed to insert into offsets from line {}", line));
+                .expect(&format!("Failed to insert into offsets from line {line}"));
         }
         drop(prepared_statement);
         transaction
