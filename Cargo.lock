@@ -1161,6 +1161,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui",
+ "form_urlencoded",
  "futures",
  "rand",
  "reqwest",
