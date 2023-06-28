@@ -1,7 +1,9 @@
 use core::fmt;
-use uuid;
-
 use rusqlite::Row;
+use std::{default, f32::consts};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
+use uuid;
 
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene
@@ -12,8 +14,7 @@ pub enum MessageToView {
     GotServer,
     AllTowns(Vec<Town>),
     GhostTowns(Vec<Town>),
-    PlayerNames(Vec<String>),
-    AllianceNames(Vec<String>),
+    DropDownValues(ConstraintType, Vec<String>),
     TownList(TownConstraint, Vec<Town>),
 }
 
@@ -36,11 +37,8 @@ impl fmt::Display for MessageToView {
             MessageToView::GhostTowns(towns) => {
                 write!(f, "MessageToView::GhostTowns({} towns)", towns.len())
             }
-            MessageToView::PlayerNames(names) => {
-                write!(f, "MessageToView::PlayerNames({} players)", names.len())
-            }
-            MessageToView::AllianceNames(names) => {
-                write!(f, "MessageToView::AllianceNames({} alliances)", names.len())
+            MessageToView::DropDownValues(constraint_type, values) => {
+                write!(f, "MessageToView::DropDownValues({} entries)", values.len())
             }
         }
     }
@@ -50,8 +48,7 @@ pub enum MessageToModel {
     SetServer(Server, egui::Context),
     FetchAll,
     FetchGhosts,
-    FetchPlayers,
-    FetchAlliances,
+    FetchDropDownValues(ConstraintType),
     FetchTowns(TownConstraint),
 }
 
@@ -70,11 +67,12 @@ impl fmt::Display for MessageToModel {
             MessageToModel::FetchGhosts => {
                 write!(f, "MessageToModel::FetchGhosts")
             }
-            MessageToModel::FetchPlayers => {
-                write!(f, "MessageToModel::FetchPlayers")
-            }
-            MessageToModel::FetchAlliances => {
-                write!(f, "MessageToModel::FetchAlliances")
+            MessageToModel::FetchDropDownValues(constraint_type) => {
+                write!(
+                    f,
+                    "MessageToModel::FetchDropDownValues({})",
+                    constraint_type
+                )
             }
         }
     }
@@ -111,15 +109,12 @@ pub struct Town {
 
 impl Town {
     pub fn from(row: &Row) -> Result<Self, rusqlite::Error> {
-        let town_name = form_urlencoded::parse(row.get::<usize, String>(2)?.as_bytes())
-            .map(|(key, val)| [key, val].concat())
-            .collect::<String>();
         Ok(Self {
             id: row.get(0)?,
             player_id: row.get(1)?,
             player_name: row.get(9)?,
             alliance_name: row.get(10)?,
-            name: town_name,
+            name: row.get(2)?,
             x: row.get::<usize, f32>(3)? + row.get::<usize, f32>(7)? / 125.0,
             y: row.get::<usize, f32>(4)? + row.get::<usize, f32>(8)? / 125.0,
             slot_number: row.get(5)?,
@@ -136,26 +131,154 @@ pub enum Change {
 
 #[derive(Debug, Clone)]
 pub struct TownConstraint {
-    // TODO more flexible constraints: e.g. any player not in Alliance X, Y, or Z, with Player Points between 123 and 345
     uuid: uuid::Uuid,
     pub state: ConstraintState,
-    pub from_type: FromType,
+    pub constraints: Vec<Constraint>,
     pub color: egui::Color32,
-    pub value: String,
     pub towns: Vec<Town>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum FromType {
-    Player,
-    Alliance,
+#[derive(Debug, Clone)]
+pub struct Constraint {
+    pub constraint_type: ConstraintType,
+    pub comparator: Comparator,
+    pub value: String,
 }
 
-impl fmt::Display for FromType {
+impl Default for Constraint {
+    fn default() -> Self {
+        Self {
+            constraint_type: ConstraintType::PlayerName,
+            comparator: Comparator::Equal,
+            value: String::from(""),
+        }
+    }
+}
+
+#[derive(Debug, Clone, EnumIter, PartialEq, Eq, Hash)]
+pub enum ConstraintType {
+    PlayerName,
+    PlayerPoints,
+    PlayerRank,
+    PlayerTowns,
+    AllianceName,
+    AlliancePoints,
+    AllianceTowns,
+    AllianceMembers,
+    AllianceRank,
+    TownName,
+    TownPoints,
+    IslandX,
+    IslandY,
+    IslandTowns,
+    IslandResMore,
+    IslandResLess,
+}
+
+impl fmt::Display for ConstraintType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FromType::Player => write!(f, "Player"),
-            FromType::Alliance => write!(f, "Alliance"),
+            ConstraintType::PlayerName => write!(f, "PlayerName"),
+            ConstraintType::PlayerPoints => write!(f, "PlayerPoints"),
+            ConstraintType::PlayerRank => write!(f, "PlayerRank"),
+            ConstraintType::PlayerTowns => write!(f, "PlayerTowns"),
+            ConstraintType::AllianceName => write!(f, "AllianceName"),
+            ConstraintType::AlliancePoints => write!(f, "AlliancePoints"),
+            ConstraintType::AllianceTowns => write!(f, "AllianceTowns"),
+            ConstraintType::AllianceMembers => write!(f, "AllianceMembers"),
+            ConstraintType::AllianceRank => write!(f, "AllianceRank"),
+            ConstraintType::TownName => write!(f, "TownName"),
+            ConstraintType::TownPoints => write!(f, "TownPoints"),
+            ConstraintType::IslandX => write!(f, "IslandX"),
+            ConstraintType::IslandY => write!(f, "IslandY"),
+            ConstraintType::IslandTowns => write!(f, "IslandTowns"),
+            ConstraintType::IslandResMore => write!(f, "IslandResMore"),
+            ConstraintType::IslandResLess => write!(f, "IslandResLess"),
+        }
+    }
+}
+
+impl ConstraintType {
+    pub fn table(&self) -> String {
+        match self {
+            ConstraintType::PlayerName
+            | ConstraintType::PlayerPoints
+            | ConstraintType::PlayerRank
+            | ConstraintType::PlayerTowns => return String::from("players"),
+            ConstraintType::AllianceName
+            | ConstraintType::AlliancePoints
+            | ConstraintType::AllianceTowns
+            | ConstraintType::AllianceMembers
+            | ConstraintType::AllianceRank => return String::from("alliances"),
+            ConstraintType::TownName | ConstraintType::TownPoints => return String::from("towns"),
+            ConstraintType::IslandX
+            | ConstraintType::IslandY
+            | ConstraintType::IslandTowns
+            | ConstraintType::IslandResMore
+            | ConstraintType::IslandResLess => return String::from("islands"),
+        }
+    }
+
+    pub fn property(&self) -> String {
+        match self {
+            ConstraintType::PlayerName
+            | ConstraintType::AllianceName
+            | ConstraintType::TownName => return String::from("name"),
+            ConstraintType::PlayerPoints
+            | ConstraintType::AlliancePoints
+            | ConstraintType::TownPoints => return String::from("points"),
+            ConstraintType::PlayerRank | ConstraintType::AllianceRank => {
+                return String::from("rank")
+            }
+            ConstraintType::PlayerTowns
+            | ConstraintType::AllianceTowns
+            | ConstraintType::IslandTowns => return String::from("towns"),
+            ConstraintType::AllianceMembers => return String::from("members"),
+            ConstraintType::IslandX => return String::from("x"),
+            ConstraintType::IslandY => return String::from("y"),
+            ConstraintType::IslandResMore => return String::from("ressource_plus"),
+            ConstraintType::IslandResLess => return String::from("ressource_minus"),
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        match self {
+            ConstraintType::PlayerName
+            | ConstraintType::AllianceName
+            | ConstraintType::TownName
+            | ConstraintType::IslandResMore
+            | ConstraintType::IslandResLess => return true,
+
+            ConstraintType::PlayerPoints
+            | ConstraintType::PlayerRank
+            | ConstraintType::PlayerTowns
+            | ConstraintType::AlliancePoints
+            | ConstraintType::AllianceTowns
+            | ConstraintType::AllianceMembers
+            | ConstraintType::AllianceRank
+            | ConstraintType::TownPoints
+            | ConstraintType::IslandX
+            | ConstraintType::IslandY
+            | ConstraintType::IslandTowns => return false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, EnumIter, PartialEq, Eq)]
+pub enum Comparator {
+    LessThan,
+    Equal,
+    GreaterThan,
+    NotEqual,
+}
+
+impl fmt::Display for Comparator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Comparator::LessThan => write!(f, "<="),
+            Comparator::Equal => write!(f, "="),
+            Comparator::GreaterThan => write!(f, ">="),
+            Comparator::NotEqual => write!(f, "<>"),
         }
     }
 }
@@ -167,14 +290,13 @@ pub enum ConstraintState {
 }
 
 impl TownConstraint {
-    pub fn new(from_type: FromType, color: egui::Color32, value: String) -> Self {
+    pub fn new() -> Self {
         Self {
             uuid: uuid::Uuid::new_v4(),
             state: ConstraintState::Finished,
-            from_type,
-            color,
-            value,
             towns: Vec::new(),
+            constraints: Vec::new(),
+            color: egui::Color32::GREEN,
         }
     }
 }
@@ -189,12 +311,8 @@ impl fmt::Display for TownConstraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "TownConstraint({}, {}, {} towns)",
-            match self.from_type {
-                FromType::Player => "Player",
-                FromType::Alliance => "Alliance",
-            },
-            self.value,
+            "TownConstraint({} constraints, {} towns)",
+            self.constraints.len(),
             self.towns.len()
         )
     }

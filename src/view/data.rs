@@ -1,6 +1,9 @@
-use std::ops::{Add, Div, Mul, Sub};
+use std::{
+    collections::HashMap,
+    ops::{Add, Div, Mul, Sub},
+};
 
-use crate::message::{Town, TownConstraint};
+use crate::message::{ConstraintType, Town, TownConstraint};
 
 #[derive(Clone)]
 pub struct DefaultTownGroup {
@@ -21,8 +24,7 @@ pub struct Data {
     pub all_towns: Vec<Town>,
     pub ghost_towns: Vec<Town>,
 
-    pub name_players: Vec<String>,
-    pub name_alliances: Vec<String>,
+    pub dropdown_values: HashMap<ConstraintType, Vec<String>>,
 }
 
 impl Default for Data {
@@ -41,8 +43,7 @@ impl Default for Data {
                 enabled: true,
                 color: egui::Color32::from_rgb(48, 48, 48),
             },
-            name_players: Vec::new(),
-            name_alliances: Vec::new(),
+            dropdown_values: HashMap::new(),
         }
     }
 }

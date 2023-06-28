@@ -1,14 +1,14 @@
 mod data;
 mod dropdownbox;
 pub(crate) mod state;
-
 use std::sync::mpsc;
+use strum::IntoEnumIterator;
 
 use egui::{FontData, ProgressBar, Shape, Ui};
 
 use crate::message::{
-    Change, ConstraintState, FromType, MessageToModel, MessageToView, Progress, Server, Town,
-    TownConstraint,
+    Change, Comparator, Constraint, ConstraintState, ConstraintType, MessageToModel, MessageToView,
+    Progress, Server, Town, TownConstraint,
 };
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
@@ -144,11 +144,7 @@ impl View {
                 });
                 ui.separator();
                 if ui.button("Add Towns").clicked() {
-                    self.ui_data.selections.push(TownConstraint::new(
-                        FromType::Player,
-                        egui::Color32::GREEN,
-                        String::from(""),
-                    ));
+                    self.ui_data.selections.push(TownConstraint::new());
                 }
                 ui.separator();
                 let mut change: Option<Change> = None;
@@ -158,17 +154,6 @@ impl View {
                     // show all towns that fulfill X and Y and Y
                     // where each XYZ is (alliance/player/island/town).property lt/eq/gt/ne input
                     let first_row_response = ui.horizontal(|ui| {
-                        egui::ComboBox::from_id_source(format!("ComboxBox {}", index))
-                            .selected_text(format!("{}", selection.from_type))
-                            .show_ui(ui, |ui| {
-                                for value in [FromType::Player, FromType::Alliance] {
-                                    ui.selectable_value(
-                                        &mut selection.from_type,
-                                        value,
-                                        value.to_string(),
-                                    );
-                                }
-                            });
                         ui.color_edit_button_srgba(&mut selection.color);
                         if ui.button("↑").clicked() {
                             change = Some(Change::MoveUp(index));
@@ -176,40 +161,72 @@ impl View {
                         if ui.button("Remove").clicked() {
                             change = Some(Change::Remove(index));
                         }
+                        if ui.button("Add Constraints").clicked() {
+                            selection.constraints.push(Constraint::default());
+                        }
                         if ui.button("↓").clicked() {
                             change = Some(Change::MoveDown(index));
                         }
                     });
-                    ui.horizontal(|ui| {
-                        // make sure we have space for the spinner when needed
-                        let need_spinner = selection.state == ConstraintState::Loading;
-                        if need_spinner {
-                            ui.set_max_width(
-                                first_row_response.response.rect.width()
-                                    - ui.style().spacing.interact_size.y, // the size of the spinner
+
+                    let mut request_update = false;
+                    for (cindex, constraint) in selection.constraints.iter_mut().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.label("and");
+                            egui::ComboBox::from_id_source(format!(
+                                "ComboxBox {}/{} Type",
+                                index, cindex
+                            ))
+                            .selected_text(format!("{}", constraint.constraint_type))
+                            .show_ui(ui, |ui| {
+                                for value in ConstraintType::iter() {
+                                    let text = value.to_string();
+                                    ui.selectable_value(
+                                        &mut constraint.constraint_type,
+                                        value,
+                                        text,
+                                    );
+                                }
+                            });
+                            egui::ComboBox::from_id_source(format!(
+                                "ComboxBox {}/{} Comparator",
+                                index, cindex
+                            ))
+                            .selected_text(format!("{}", constraint.comparator))
+                            .show_ui(ui, |ui| {
+                                for value in Comparator::iter() {
+                                    let text = value.to_string();
+                                    ui.selectable_value(&mut constraint.comparator, value, text);
+                                }
+                            });
+
+                            let empty_vec: Vec<String> = Vec::new();
+                            let ddb = DropDownBox::from_iter(
+                                self.ui_data
+                                    .dropdown_values
+                                    .get(&constraint.constraint_type)
+                                    .unwrap_or(&empty_vec),
+                                format!("ComboBox {}/{} Value", index, cindex),
+                                &mut constraint.value,
+                                |ui, text| ui.selectable_label(false, text),
                             );
-                        } else {
-                            ui.set_max_width(first_row_response.response.rect.width());
-                        }
-                        let ddb = DropDownBox::from_iter(
-                            match selection.from_type {
-                                FromType::Player => &mut self.ui_data.name_players,
-                                FromType::Alliance => &mut self.ui_data.name_alliances,
-                            },
-                            format!("Selection {}", index),
-                            &mut selection.value,
-                            |ui, text| ui.selectable_label(false, text),
-                        );
-                        if ui.add(ddb).changed() {
-                            self.channel_presenter_tx
-                                .send(MessageToModel::FetchTowns(selection.clone()))
-                                .expect(&format!(
-                                    "Failed to send Message to Model for Selection {}",
-                                    selection
-                                ));
-                            selection.state = ConstraintState::Loading;
-                        };
-                        if need_spinner {
+                            if ui.add(ddb).changed() {
+                                request_update = true;
+                            };
+                        });
+                    }
+                    if request_update {
+                        self.channel_presenter_tx
+                            .send(MessageToModel::FetchTowns(selection.clone()))
+                            .expect(&format!(
+                                "Failed to send Message to Model for Selection {}",
+                                &selection
+                            ));
+                        selection.state = ConstraintState::Loading;
+                    }
+
+                    ui.horizontal(|ui| {
+                        if selection.state == ConstraintState::Loading {
                             ui.spinner();
                         }
                     });
@@ -443,12 +460,14 @@ impl eframe::App for View {
                     self.channel_presenter_tx
                         .send(MessageToModel::FetchGhosts)
                         .expect("Failed to send message to model: FetchGhosts");
-                    self.channel_presenter_tx
-                        .send(MessageToModel::FetchPlayers)
-                        .expect("Failed to send message to model: FetchPlayers");
-                    self.channel_presenter_tx
-                        .send(MessageToModel::FetchAlliances)
-                        .expect("Failed to send message to model: FetchAlliances");
+                    for variant in ConstraintType::iter() {
+                        self.channel_presenter_tx
+                            .send(MessageToModel::FetchDropDownValues(variant.clone()))
+                            .expect(&format!(
+                                "Failed to send message to model: FetchDropDownValues({})",
+                                variant
+                            ));
+                    }
                 }
                 MessageToView::TownList(constraint, town_list) => {
                     self.ui_state = State::Show;
@@ -472,13 +491,8 @@ impl eframe::App for View {
                     self.ui_state = State::Show;
                     self.ui_data.ghost_towns = towns;
                 }
-                MessageToView::PlayerNames(names) => {
-                    self.ui_state = State::Show;
-                    self.ui_data.name_players = names;
-                }
-                MessageToView::AllianceNames(names) => {
-                    self.ui_state = State::Show;
-                    self.ui_data.name_alliances = names;
+                MessageToView::DropDownValues(constraint_type, values) => {
+                    let _old_value = self.ui_data.dropdown_values.insert(constraint_type, values);
                 }
                 MessageToView::Loading(progress) => {
                     self.ui_state = State::Uninitialized(progress);

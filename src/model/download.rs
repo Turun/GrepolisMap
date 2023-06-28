@@ -1,11 +1,11 @@
 /// this takes care of fetching the data and putting it into a database
-use std::{future::Future, sync::mpsc};
+use std::{f32::consts, future::Future, sync::mpsc};
 use tokio;
 
 use reqwest;
 use rusqlite;
 
-use crate::message::{MessageToView, Progress, Town};
+use crate::message::{ConstraintType, MessageToView, Progress, Town, TownConstraint};
 
 use super::offset_data;
 
@@ -78,40 +78,71 @@ impl Database {
         return rows;
     }
 
-    pub fn get_player_names(&self) -> Vec<String> {
+    pub fn get_names_for_constraint_type(&self, constraint_type: &ConstraintType) -> Vec<String> {
+        let ct_property = constraint_type.property();
+        let ct_table = constraint_type.table();
         let mut statement = self
             .connection
-            .prepare("SELECT players.name from players")
-            .expect("Failed to get player names from database (build statement)");
+            .prepare(&format!(
+                "SELECT DISTINCT {0}.{1} from {0}",
+                ct_table, ct_property
+            ))
+            .expect("Failed to get names from database (build statement)");
         let rows = statement
             .query([])
-            .expect("Failed to get player names from the database (perform query)")
-            .mapped(|row| row.get::<usize, String>(0))
-            .map(|name_option| name_option.expect("Failed to collect player names from rows"))
-            .map(|name| {
-                form_urlencoded::parse(name.as_bytes())
-                    .map(|(key, val)| [key, val].concat())
-                    .collect::<String>()
+            .expect("Failed to get names from the database (perform query)")
+            .mapped(|row| {
+                if constraint_type.is_string() {
+                    let value_option = row.get::<usize, String>(0);
+                    let value = value_option.expect("Failed to collect names from rows");
+                    Ok(value)
+                } else {
+                    let value_option = row.get::<usize, usize>(0);
+                    let value = value_option.expect("Failed to collect names from rows");
+                    Ok(format!("{}", value))
+                }
             })
+            .map(|result| result.unwrap())
             .collect();
         return rows;
     }
 
-    pub fn get_alliance_names(&self) -> Vec<String> {
+    pub fn get_towns_for_constraint(&self, selection: &TownConstraint) -> Vec<Town> {
+        let mut statement_text = String::from(
+            "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
+                towns 
+                LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
+                LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
+                LEFT JOIN players ON (towns.player_id = players.player_id)
+                LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
+                WHERE islands.type = offsets.type",
+        );
+        for constraint in &selection.constraints {
+            // if constraint.value.is_empty() {
+            //     return Vec::new();
+            // }
+            statement_text += &format!(
+                " AND {}.{} {} {}",
+                constraint.constraint_type.table(),
+                constraint.constraint_type.property(),
+                constraint.comparator,
+                if constraint.constraint_type.is_string() {
+                    format!("\"{}\"", constraint.value)
+                } else {
+                    constraint.value.clone()
+                }
+            );
+        }
+
         let mut statement = self
             .connection
-            .prepare("SELECT alliances.name from alliances")
-            .expect("Failed to get alliance names from database (build statement)");
+            .prepare(&statement_text)
+            .expect("Failed to get towns from database (build statement)");
         let rows = statement
             .query([])
-            .expect("Failed to get alliance names from the database (perform query)")
-            .mapped(|row| row.get::<usize, String>(0))
-            .map(|name_option| name_option.expect("Failed to collect alliance names from rows"))
-            .map(|name| {
-                form_urlencoded::parse(name.as_bytes())
-                    .map(|(key, val)| [key, val].concat())
-                    .collect::<String>()
-            })
+            .expect("Failed to get towns from the database (perform query)")
+            .mapped(|row| Town::from(row))
+            .map(|town_option| town_option.expect("Failed to create a town from row"))
             .collect();
         return rows;
     }
@@ -383,7 +414,13 @@ impl Database {
                             Some(text)
                         }
                     },
-                    values.next().expect(&format!("No town name in {}", line)),
+                    {
+                        let text = values.next().expect(&format!("No town name in {}", line));
+                        let decoded = form_urlencoded::parse(text.as_bytes())
+                            .map(|(key, val)| [key, val].concat())
+                            .collect::<String>();
+                        decoded
+                    },
                     values.next().expect(&format!("No town x in {}", line)),
                     values.next().expect(&format!("No town y pts in {}", line)),
                     values.next().expect(&format!("No town slotnr in {}", line)),
@@ -409,7 +446,7 @@ impl Database {
                 x INTEGER, 
                 y INTEGER, 
                 type INTEGER, 
-                num_towns INTEGER, 
+                towns INTEGER, 
                 ressource_plus TEXT, 
                 ressource_minus TEXT)",
                 (),

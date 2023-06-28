@@ -1,6 +1,6 @@
 //the entry point for model
 
-use crate::message::{FromType, Town, TownConstraint};
+use crate::message::{ConstraintType, Town, TownConstraint};
 
 pub mod download;
 mod offset_data;
@@ -24,10 +24,7 @@ impl Model {
     pub fn get_towns_for_selection(&self, constraint: &TownConstraint) -> Vec<Town> {
         match self {
             Model::Uninitialized => return Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => match constraint.from_type {
-                FromType::Player => return db.get_towns_for_player(&constraint.value),
-                FromType::Alliance => return db.get_towns_for_alliance(&constraint.value),
-            },
+            Model::Loaded { db, ctx: _ctx } => db.get_towns_for_constraint(constraint),
         }
     }
 
@@ -44,16 +41,13 @@ impl Model {
             Model::Loaded { db, ctx: _ctx } => return db.get_all_towns(),
         }
     }
-    pub fn get_player_names(&self) -> Vec<String> {
+
+    pub fn get_names_for_constraint_type(&self, constraint_type: &ConstraintType) -> Vec<String> {
         match self {
             Model::Uninitialized => return Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => return db.get_player_names(),
-        }
-    }
-    pub fn get_alliance_names(&self) -> Vec<String> {
-        match self {
-            Model::Uninitialized => return Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => return db.get_alliance_names(),
+            Model::Loaded { db, ctx: _ctx } => {
+                return db.get_names_for_constraint_type(constraint_type)
+            }
         }
     }
 }

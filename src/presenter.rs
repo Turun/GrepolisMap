@@ -44,17 +44,11 @@ impl Presenter {
                         .send(MessageToView::GhostTowns(towns))
                         .expect("Failed to send ghost town list to view");
                 }
-                MessageToModel::FetchPlayers => {
-                    let names = self.model.get_player_names();
+                MessageToModel::FetchDropDownValues(constraint_type) => {
+                    let names = self.model.get_names_for_constraint_type(&constraint_type);
                     self.channel_tx
-                        .send(MessageToView::PlayerNames(names))
-                        .expect("Failed to send player name list to view");
-                }
-                MessageToModel::FetchAlliances => {
-                    let names = self.model.get_alliance_names();
-                    self.channel_tx
-                        .send(MessageToView::AllianceNames(names))
-                        .expect("Failed to send alliance name list to view");
+                        .send(MessageToView::DropDownValues(constraint_type, names))
+                        .expect("Failed to send drop down value list to view");
                 }
                 MessageToModel::FetchTowns(constraint) => {
                     let towns = self.model.get_towns_for_selection(&constraint);
