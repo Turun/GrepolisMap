@@ -1,7 +1,6 @@
 use crate::message::{MessageToModel, MessageToView};
 use crate::model::download::Database;
 use crate::model::Model;
-use core::panic;
 use std::sync::mpsc;
 
 pub struct Presenter {
@@ -23,15 +22,16 @@ impl Presenter {
             match msg {
                 MessageToModel::SetServer(server) => {
                     let db = Database::create_for_world(&server.id).unwrap();
+                    let towns = db.get_all_towns();
                     self.model = Model::Loaded { db };
                     self.channel_tx
-                        .send(MessageToView::GotServer)
+                        .send(MessageToView::GotServer(towns))
                         .expect("Failed to send message 'got server'");
                 }
                 MessageToModel::FetchTowns(selection) => {
-                    let cities = self.model.get_towns_for_selection(&selection);
+                    let towns = self.model.get_towns_for_selection(&selection);
                     self.channel_tx
-                        .send(MessageToView::TownList(cities))
+                        .send(MessageToView::TownList(selection, towns))
                         .expect("Failed to send city list to view");
                 }
             }
