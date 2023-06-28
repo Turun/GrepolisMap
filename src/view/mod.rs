@@ -169,7 +169,7 @@ impl View {
                     });
 
                     let num_constraints = selection.constraints.len();
-                    let mut request_update = false;
+                    let mut request_update = selection.state == SelectionState::NewlyCreated; // A newly created one must request an update immediately to fill its ddv list
                     let mut constraint_change = None;
                     for (cindex, constraint) in selection.constraints.iter_mut().enumerate() {
                         // TODO a way to reorder the constraints

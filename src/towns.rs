@@ -221,6 +221,7 @@ impl fmt::Display for Comparator {
 pub enum SelectionState {
     Loading,
     Finished,
+    NewlyCreated,
 }
 
 #[derive(Debug, Clone)]
@@ -251,7 +252,7 @@ impl Default for TownSelection {
     fn default() -> Self {
         Self {
             uuid: uuid::Uuid::new_v4(),
-            state: SelectionState::Finished,
+            state: SelectionState::NewlyCreated,
             towns: Vec::new(),
             constraints: vec![Constraint::default()],
             color: egui::Color32::GREEN,
