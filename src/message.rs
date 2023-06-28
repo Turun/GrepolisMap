@@ -22,8 +22,8 @@ pub struct Server {
 
 #[derive(Debug)]
 pub struct Town {
-    id: i32,
-    player_id: Option<i32>,
+    pub id: i32,
+    pub player_id: Option<i32>,
     pub name: String,
     pub x: i16,
     pub y: i16,
@@ -33,7 +33,6 @@ pub struct Town {
 
 impl Town {
     pub fn from(row: &Row) -> Result<Self, rusqlite::Error> {
-        // println!("{:?} {:?}", row, row.get::<usize, i32>(0));
         Ok(Self {
             id: row.get(0)?,
             player_id: row.get(1)?,

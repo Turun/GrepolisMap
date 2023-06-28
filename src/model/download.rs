@@ -1,4 +1,3 @@
-use egui::FontData;
 /// this takes care of fetching the data and putting it into a database
 use std::future::Future;
 use tokio;
@@ -7,6 +6,8 @@ use reqwest;
 use rusqlite;
 
 use crate::message::Town;
+
+use super::offset_data;
 
 async fn download_generic<U>(client: &reqwest::Client, url: U) -> Result<String, reqwest::Error>
 where
@@ -92,6 +93,7 @@ impl Database {
             format!("https://{}.grepolis.com/data/islands.txt", server_id),
         );
 
+        Database::create_table_offsets(&mut conn).await?;
         Database::create_table_alliances(&mut conn, data_alliances).await?;
         Database::create_table_players(&mut conn, data_players).await?;
         Database::create_table_towns(&mut conn, data_towns).await?;
@@ -112,7 +114,7 @@ impl Database {
             points INTEGER, 
             rank INTEGER, 
             towns INTEGER, 
-            FOREIGN KEY(alliance_id) REFERENCES alliances(alliance_id))",
+            FOREIGN KEY(alliance_id) REFERENCES alliances(alliance_id) DEFERRABLE)",
                 (),
             )
             .expect("Failed to create players table");
@@ -158,12 +160,12 @@ impl Database {
         connection
             .execute(
                 "CREATE TABLE alliances(
-            alliance_id INTEGER UNIQUE PRIMARY KEY, 
-            name TEXT UNIQUE, 
-            points INTEGER,
-            towns INTEGER,
-            members INTEGER,
-            rank INTEGER)",
+                alliance_id INTEGER UNIQUE PRIMARY KEY, 
+                name TEXT UNIQUE, 
+                points INTEGER,
+                towns INTEGER,
+                members INTEGER,
+                rank INTEGER)",
                 (),
             )
             .expect("Failed to create table alliances");
@@ -207,14 +209,14 @@ impl Database {
         connection
             .execute(
                 "CREATE TABLE towns(
-            town_id INTEGER UNIQUE PRIMARY KEY, 
-            player_id INTEGER, 
-            name TEXT, 
-            island_x INTEGER, 
-            island_y INTEGER, 
-            slot_number INTEGER, 
-            points INTEGER, 
-            FOREIGN KEY(player_id) REFERENCES players(player_id))",
+                town_id INTEGER UNIQUE PRIMARY KEY, 
+                player_id INTEGER, 
+                name TEXT, 
+                island_x INTEGER, 
+                island_y INTEGER, 
+                slot_number INTEGER, 
+                points INTEGER, 
+                FOREIGN KEY(player_id) REFERENCES players(player_id) DEFERRABLE)",
                 (),
             )
             .expect("Failed to create table towns");
@@ -260,13 +262,13 @@ impl Database {
         connection
             .execute(
                 "CREATE TABLE islands(
-            island_id INTEGER UNIQUE PRIMARY KEY, 
-            x INTEGER, 
-            y INTEGER, 
-            type INTEGER, 
-            num_towns INTEGER, 
-            ressource_plus TEXT, 
-            ressource_minus TEXT)",
+                island_id INTEGER UNIQUE PRIMARY KEY, 
+                x INTEGER, 
+                y INTEGER, 
+                type INTEGER, 
+                num_towns INTEGER, 
+                ressource_plus TEXT, 
+                ressource_minus TEXT)",
                 (),
             )
             .expect("Failed to create table islands");
@@ -294,6 +296,43 @@ impl Database {
         transaction
             .commit()
             .expect("Failed to commit transaction for table islands");
+        Ok(())
+    }
+    async fn create_table_offsets(
+        connection: &mut rusqlite::Connection,
+    ) -> Result<(), rusqlite::Error> {
+        connection
+            .execute(
+                "CREATE TABLE offsets(
+                type INTEGER NOT NULL, 
+                offset_x INTEGER NOT NULL, 
+                offset_y INTEGER NOT NULL, 
+                slot_number INTEGER NOT NULL,
+                PRIMARY KEY (type, slot_number))",
+                (),
+            )
+            .expect("Failed to create table offsets");
+        let transaction = connection
+            .transaction()
+            .expect("Failed to start transaction for table creation offsets");
+        let mut prepared_statement = transaction
+            .prepare("INSERT INTO offsets VALUES(?1, ?2, ?3, ?4)")
+            .expect("Failed to prepare statement for offsets");
+        for line in offset_data::OFFSET_DATA.lines() {
+            let mut values = line.split(",");
+            prepared_statement
+                .execute((
+                    values.next().expect(&format!("No offset tyep in {}", line)),
+                    values.next().expect(&format!("No offset x in {}", line)),
+                    values.next().expect(&format!("No offset y in {}", line)),
+                    values.next().expect(&format!("No offset slot in {}", line)),
+                ))
+                .expect(&format!("Failed to insert into offsets from line {}", line));
+        }
+        drop(prepared_statement);
+        transaction
+            .commit()
+            .expect("Failed to commit transaction for table offsets");
         Ok(())
     }
 }
