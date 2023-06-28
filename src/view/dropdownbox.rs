@@ -54,6 +54,7 @@ impl<'a, F: FnMut(&mut Ui, &str) -> Response, V: AsRef<str>, I: Iterator<Item = 
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for var in it {
                     let text = var.as_ref();
+                    // TODO better matching, potentially highlighting the matching part
                     if !buf.is_empty() && !text.contains(&*buf) {
                         continue;
                     }

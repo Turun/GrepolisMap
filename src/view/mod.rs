@@ -41,14 +41,27 @@ impl View {
     }
 
     fn ui_server_input(&mut self, ui: &mut Ui, ctx: &egui::Context) {
+        let mut should_load_server = false;
         ui.horizontal(|ui| {
             ui.label("Server ID");
-            ui.text_edit_singleline(&mut self.ui_data.server_id);
+            let response = ui.text_edit_singleline(&mut self.ui_data.server_id);
+            if response.lost_focus()
+                && response
+                    .ctx
+                    .input(|input| input.key_pressed(egui::Key::Enter))
+            {
+                // detect enter on text field: https://github.com/emilk/egui/issues/229
+                should_load_server = true;
+            }
         });
         if ui
             .add(egui::Button::new("Load Data for this Server"))
             .clicked()
         {
+            should_load_server = true;
+        }
+
+        if should_load_server {
             self.ui_state = State::Uninitialized(Progress::None);
             self.ui_data = Data {
                 server_id: self.ui_data.server_id.clone(),
@@ -100,11 +113,8 @@ impl View {
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {
                 self.ui_server_input(ui, ctx);
-                ui.label(format!("Towns Total: {}", self.ui_data.all_towns.len()));
-                ui.label(format!(
-                    "Towns Selected: {}",
-                    self.ui_data.ghost_towns.len()
-                ));
+                ui.label(format!("Total Towns: {}", self.ui_data.all_towns.len()));
+                ui.label(format!("Ghost Towns: {}", self.ui_data.ghost_towns.len()));
                 ui.separator();
                 ui.horizontal(|ui| {
                     ui.checkbox(&mut self.ui_data.settings_all.enabled, "");
@@ -125,52 +135,41 @@ impl View {
                     ));
                 }
                 ui.separator();
-                // TODO: figure out how we can fetch the data corresponding to each selection. We have to send a new
-                // request every time the selection values change. When that happens we must send a request to the backend. The message
-                // ingest loop will have to track all incoming updates and update the value of the correct selection accordingly
                 let mut remove_index: Option<usize> = None;
                 for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
-                    ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.selectable_value(
-                                &mut selection.from_type,
-                                FromType::Player,
-                                "Player",
-                            );
-                            ui.selectable_value(
-                                &mut selection.from_type,
-                                FromType::Alliance,
-                                "Alliance",
-                            );
-                        });
-                        ui.horizontal(|ui| {
-                            let ddb = DropDownBox::from_iter(
-                                match selection.from_type {
-                                    FromType::Player => &mut self.ui_data.name_players,
-                                    FromType::Alliance => &mut self.ui_data.name_alliances,
-                                },
-                                format!("Selection {}", index),
-                                &mut selection.value,
-                                |ui, text| ui.selectable_label(false, text),
-                            );
-                            if ui.add(ddb).changed() {
-                                // TODO request data
-                                self.channel_presenter_tx
-                                    .send(MessageToModel::FetchTowns(selection.clone()))
-                                    .expect(&format!(
-                                        "Failed to send Message to Model for Selection {}",
-                                        selection
-                                    ))
-                            };
-
-                            ui.color_edit_button_srgba(&mut selection.color);
-                        });
-                        ui.horizontal(|ui| {
-                            if ui.button("Remove").clicked() {
-                                remove_index = Some(index);
-                            }
-                        });
+                    ui.horizontal(|ui| {
+                        ui.selectable_value(&mut selection.from_type, FromType::Player, "Player");
+                        ui.selectable_value(
+                            &mut selection.from_type,
+                            FromType::Alliance,
+                            "Alliance",
+                        );
+                        ui.color_edit_button_srgba(&mut selection.color);
+                        // ui.add_space(160.0);
+                        if ui.button("Remove").clicked() {
+                            remove_index = Some(index);
+                        }
                     });
+                    ui.horizontal(|ui| {
+                        let ddb = DropDownBox::from_iter(
+                            match selection.from_type {
+                                FromType::Player => &mut self.ui_data.name_players,
+                                FromType::Alliance => &mut self.ui_data.name_alliances,
+                            },
+                            format!("Selection {}", index),
+                            &mut selection.value,
+                            |ui, text| ui.selectable_label(false, text),
+                        );
+                        if ui.add(ddb).changed() {
+                            self.channel_presenter_tx
+                                .send(MessageToModel::FetchTowns(selection.clone()))
+                                .expect(&format!(
+                                    "Failed to send Message to Model for Selection {}",
+                                    selection
+                                ))
+                        };
+                    });
+                    ui.separator();
                 }
 
                 if let Some(index) = remove_index {
@@ -198,31 +197,33 @@ impl View {
 
                 // ZOOM
                 // as per https://www.youtube.com/watch?v=ZQ8qtAizis4
-                let mouse_position_in_world_space_before_zoom_change = {
-                    if let Some(mouse_position) = response.hover_pos() {
-                        canvas_data.screen_to_world(mouse_position.to_vec2())
-                    } else {
-                        egui::vec2(0.0, 0.0)
-                    }
-                };
+                if response.hovered() {
+                    let mouse_position_in_world_space_before_zoom_change = {
+                        if let Some(mouse_position) = response.hover_pos() {
+                            canvas_data.screen_to_world(mouse_position.to_vec2())
+                        } else {
+                            egui::vec2(0.0, 0.0)
+                        }
+                    };
 
-                let scroll_delta = ctx.input(|input| input.scroll_delta.y);
-                if scroll_delta > 0.0 {
-                    canvas_data.zoom *= 1.2;
-                } else if scroll_delta < 0.0 {
-                    canvas_data.zoom /= 1.2;
+                    let scroll_delta = ctx.input(|input| input.scroll_delta.y);
+                    if scroll_delta > 0.0 {
+                        canvas_data.zoom *= 1.2;
+                    } else if scroll_delta < 0.0 {
+                        canvas_data.zoom /= 1.2;
+                    }
+
+                    let mouse_position_in_world_space_after_zoom_change = {
+                        if let Some(mouse_position) = response.hover_pos() {
+                            canvas_data.screen_to_world(mouse_position.to_vec2())
+                        } else {
+                            egui::vec2(0.0, 0.0)
+                        }
+                    };
+
+                    canvas_data.world_offset_px += mouse_position_in_world_space_before_zoom_change
+                        - mouse_position_in_world_space_after_zoom_change;
                 }
-
-                let mouse_position_in_world_space_after_zoom_change = {
-                    if let Some(mouse_position) = response.hover_pos() {
-                        canvas_data.screen_to_world(mouse_position.to_vec2())
-                    } else {
-                        egui::vec2(0.0, 0.0)
-                    }
-                };
-
-                canvas_data.world_offset_px += mouse_position_in_world_space_before_zoom_change
-                    - mouse_position_in_world_space_after_zoom_change;
 
                 // filter everything that is not visible
                 let filter = ViewPortFilter::new(&canvas_data, response.rect);
@@ -287,11 +288,7 @@ impl View {
                                 .world_to_screen(egui::vec2(town.x, town.y))
                                 .to_pos2(),
                             1.0 + canvas_data.scale_world_to_screen(0.15),
-                            if town.player_id == Some(1495649) {
-                                egui::Color32::WHITE
-                            } else {
-                                self.ui_data.settings_all.color
-                            },
+                            self.ui_data.settings_all.color,
                         );
                     }
                 }
@@ -323,7 +320,6 @@ impl View {
                 }
 
                 // POPUP WITH TOWN INFORMATION
-                // TODO more information (hydrate our town structs more)
                 if canvas_data.zoom > 10.0 {
                     let optional_mouse_position = response.hover_pos();
                     response = response.on_hover_ui_at_pointer(|ui| {
@@ -350,21 +346,23 @@ impl View {
                             }
                         }
 
-                        ui.label(format!(
-                            "{}\nPoints: {}\nPlayer: {}\nAlliance: {}",
-                            closest_town.name,
-                            closest_town.points,
-                            if let Some(name) = &closest_town.player_name {
-                                name
-                            } else {
-                                ""
-                            },
-                            if let Some(name) = &closest_town.alliance_name {
-                                name
-                            } else {
-                                ""
-                            },
-                        ));
+                        if closest_distance < 1.5 {
+                            ui.label(format!(
+                                "{}\nPoints: {}\nPlayer: {}\nAlliance: {}",
+                                closest_town.name,
+                                closest_town.points,
+                                if let Some(name) = &closest_town.player_name {
+                                    name
+                                } else {
+                                    ""
+                                },
+                                if let Some(name) = &closest_town.alliance_name {
+                                    name
+                                } else {
+                                    ""
+                                },
+                            ));
+                        }
                     });
                 }
 

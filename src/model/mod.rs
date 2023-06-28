@@ -24,13 +24,10 @@ impl Model {
     pub fn get_towns_for_selection(&self, constraint: &TownConstraint) -> Vec<Town> {
         match self {
             Model::Uninitialized => return Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => {
-                // TODO
-                match constraint.from_type {
-                    FromType::Player => return db.get_towns_for_player(&constraint.value),
-                    FromType::Alliance => return db.get_towns_for_alliance(&constraint.value),
-                }
-            }
+            Model::Loaded { db, ctx: _ctx } => match constraint.from_type {
+                FromType::Player => return db.get_towns_for_player(&constraint.value),
+                FromType::Alliance => return db.get_towns_for_alliance(&constraint.value),
+            },
         }
     }
 
