@@ -2,6 +2,7 @@ mod data;
 mod dropdownbox;
 pub(crate) mod state;
 use std::sync::mpsc;
+use std::time::Duration;
 use strum::IntoEnumIterator;
 
 use egui::{FontData, ProgressBar, Shape, Ui};
@@ -160,6 +161,8 @@ impl View {
                             change = Some(Change::MoveDown(index));
                         }
 
+                        // TODO list the number of cities in this selection here
+
                         if selection.state == SelectionState::Loading {
                             ui.spinner();
                         }
@@ -216,17 +219,8 @@ impl View {
                                 }
                             });
 
-                            let empty_vec: Vec<String> = Vec::new();
-                            let drop_down_items = if constraint.drop_down_values.is_empty() {
-                                self.ui_data
-                                    .dropdown_values
-                                    .get(&constraint.constraint_type)
-                                    .unwrap_or(&empty_vec)
-                            } else {
-                                &constraint.drop_down_values
-                            };
                             let ddb = DropDownBox::from_iter(
-                                drop_down_items,
+                                constraint.drop_down_values.as_ref(),
                                 format!("ComboBox {}/{} Value", index, cindex),
                                 &mut constraint.value,
                             );
@@ -291,7 +285,7 @@ impl View {
                             ));
                         selection.state = SelectionState::Loading;
                         for constraint in selection.constraints.iter_mut() {
-                            constraint.drop_down_values = Vec::new();
+                            constraint.drop_down_values = None;
                         }
                     }
                     ui.separator();
@@ -516,7 +510,7 @@ impl View {
 
 impl eframe::App for View {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        if let Ok(message) = self.channel_presenter_rx.try_recv() {
+        while let Ok(message) = self.channel_presenter_rx.try_recv() {
             println!("Got Message from Model to View: {}", message);
             match message {
                 MessageToView::GotServer => {
@@ -561,14 +555,7 @@ impl eframe::App for View {
                         let optional_constraint =
                             selection.constraints.iter_mut().find(|c| **c == constraint);
                         if let Some(constraint) = optional_constraint {
-                            constraint.drop_down_values = towns;
-                            // TODO do we need to keep track of state, or is the state encoded in the variable here?
-                            // answer: yes, we should probably keep track of state. An empty list is different from a no-results-yet list
-                            // At the moment it can happen that a ddv list is yet to be updated, but the user already requests the ddmenu.
-                            // then the application will hang for a while, trying to stuff a million entries into a scroll list. This could
-                            // be avoided if we simply provide no ddmenu while shit is loading. We could simply show the empty list, but
-                            // I think we really really should give the user the ability to differentiate between empty list and wait a bit,
-                            // there will be results soon
+                            constraint.drop_down_values = Some(towns);
                         } else {
                             println!(
                                 "No existing constraint {} found in selection {}",
@@ -606,5 +593,8 @@ impl eframe::App for View {
         if !frame.is_web() {
             egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
         }
+
+        // make sure we process messages from the backend every once in a while
+        ctx.request_repaint_after(Duration::from_millis(500))
     }
 }

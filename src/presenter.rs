@@ -2,6 +2,7 @@ use crate::message::{MessageToModel, MessageToView};
 use crate::model::download::Database;
 use crate::model::Model;
 use std::sync::mpsc;
+use std::time::Duration;
 
 pub struct Presenter {
     model: Model,
@@ -27,6 +28,7 @@ impl Presenter {
             //  the worst case the user can just try to reload the data
             match message {
                 MessageToModel::SetServer(server, ctx) => {
+                    // TODO: automatically save each db we load and let the user choose previous versions.
                     let db = Database::create_for_world(&server.id, self.channel_tx.clone(), &ctx)
                         .unwrap();
                     self.model = Model::Loaded { db, ctx };
@@ -60,9 +62,14 @@ impl Presenter {
                             towns,
                         ))
                         .expect("Failed to send town list to view");
+
+                    // TODO we need a way to set Constratin ddvalue lists, even when there is only one constraint in the selection.
+                    // This will be the full list without any WHERE clauses in the SQL, so basically the values we fetch at the beginning
+                    // after loading the data. But we need a good way to communicate to the UI Code that this should be the full list, vs
+                    // wait, we have other constraints, let me fetch them before you display anything.
                     if selection.constraints.len() >= 2 {
                         for constraint in &selection.constraints {
-                            // the database does some more filtering based on the content of the selections. we should only
+                            // TODO: the database does some more filtering based on the content of the selections. we should only
                             // do this for loop, if the filtered length of the constraints is bigger than two
                             let constraint_towns = self
                                 .model
@@ -80,7 +87,10 @@ impl Presenter {
             }
 
             // after we process a message, tell the UI to repaint
-            self.model.request_repaint();
+            // this helps a lot speeding things along, but sometimes the UI finished painting
+            // before receiving the message. In that case it fulfilled the request_repaint here,
+            // but goes to sleep before it can fulfill the message intent.
+            self.model.request_repaint_after(Duration::from_millis(50));
         }
     }
 }

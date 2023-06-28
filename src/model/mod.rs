@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 //the entry point for model
 use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
 
@@ -12,11 +14,13 @@ pub enum Model {
     },
 }
 
+// TODO: cache the methods here. This struct is replaced any time the Server/DB is changed, so we don't even have to think about cache invalidation
+
 impl Model {
-    pub fn request_repaint(&self) {
+    pub fn request_repaint_after(&self, duration: Duration) {
         match self {
             Model::Uninitialized => { /*do nothing*/ }
-            Model::Loaded { db: _db, ctx } => ctx.request_repaint(),
+            Model::Loaded { db: _db, ctx } => ctx.request_repaint_after(duration),
         }
     }
 
@@ -44,6 +48,10 @@ impl Model {
                 ),
             }
         } else {
+            println!(
+                "Constraint {} not found in selection {}",
+                constraint, selection
+            );
             return Vec::new();
         }
     }

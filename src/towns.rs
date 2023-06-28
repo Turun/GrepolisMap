@@ -45,7 +45,7 @@ pub struct Constraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
     pub value: String,
-    pub drop_down_values: Vec<String>,
+    pub drop_down_values: Option<Vec<String>>,
 }
 
 impl Constraint {
@@ -55,7 +55,7 @@ impl Constraint {
             constraint_type: self.constraint_type.clone(),
             comparator: self.comparator.clone(),
             value: self.value.clone(),
-            drop_down_values: Vec::new(),
+            drop_down_values: None,
         }
     }
 }
@@ -77,7 +77,7 @@ impl Default for Constraint {
             constraint_type: ConstraintType::PlayerName,
             comparator: Comparator::Equal,
             value: String::from(""),
-            drop_down_values: Vec::new(),
+            drop_down_values: None,
         }
     }
 }
