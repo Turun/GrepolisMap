@@ -1,13 +1,11 @@
 mod data;
 pub(crate) mod state;
 
-use std::collections::linked_list::IterMut;
-use std::sync::Arc;
-
-use egui::Stroke;
 use std::sync::mpsc;
 
-use crate::message::{MessageToModel, MessageToView, Server, TownSelection};
+use egui::ProgressBar;
+
+use crate::message::{MessageToModel, MessageToView, Progress, Server, Town, TownSelection};
 use crate::view::data::{CanvasData, Data};
 use crate::view::state::State;
 
@@ -21,7 +19,7 @@ pub struct View {
 impl View {
     pub fn new(rx: mpsc::Receiver<MessageToView>, tx: mpsc::Sender<MessageToModel>) -> Self {
         Self {
-            ui_state: State::Uninitialized,
+            ui_state: State::Uninitialized(Progress::None),
             ui_data: Data::default(),
             channel_presenter_rx: rx,
             channel_presenter_tx: tx,
@@ -37,7 +35,7 @@ impl View {
         );
     }
 
-    fn ui_uninitialized(&mut self, ctx: &egui::Context) {
+    fn ui_uninitialized(&mut self, ctx: &egui::Context, progress: Progress) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
@@ -54,6 +52,17 @@ impl View {
                         }))
                         .expect("Failed to send the SetServer Message to the backend");
                 }
+
+                ui.add(match progress {
+                    Progress::None => ProgressBar::new(0.0).text(format!("{:?}", progress)),
+                    Progress::IslandOffsets => {
+                        ProgressBar::new(0.2).text(format!("{:?}", progress))
+                    }
+                    Progress::Alliances => ProgressBar::new(0.4).text(format!("{:?}", progress)),
+                    Progress::Players => ProgressBar::new(0.6).text(format!("{:?}", progress)),
+                    Progress::Towns => ProgressBar::new(0.8).text(format!("{:?}", progress)),
+                    Progress::Islands => ProgressBar::new(1.0).text(format!("{:?}", progress)),
+                });
             });
         });
     }
@@ -110,43 +119,47 @@ impl View {
                 canvas_data.world_offset_px += mouse_position_in_world_space_before_zoom_change
                     - mouse_position_in_world_space_after_zoom_change;
 
-                println!(
-                    "{:?}",
-                    canvas_data.screen_to_world(
-                        response
-                            .hover_pos()
-                            .or(Some(egui::pos2(0.0, 0.0)))
-                            .unwrap()
-                            .to_vec2()
-                    )
-                );
-
-                // DRAW TOWNS
+                // DRAW ALL TOWNS
                 // towns have a diameter of .25 units, approximately
-                let top_left = canvas_data.screen_to_world(response.rect.left_top().to_vec2());
-                let bot_right = canvas_data.screen_to_world(response.rect.right_bottom().to_vec2());
-                let left = top_left.x;
-                let right = bot_right.x;
-                let top = top_left.y;
-                let bottom = bot_right.y;
-                for town in self.ui_data.towns_all.iter().filter(|town| {
-                    left < (town.x as f32)
-                        && (town.x as f32) < right
-                        && top < (town.y as f32)
-                        && (town.y as f32) < bottom
-                }) {
+                let filter = ViewPortFilter::new(&canvas_data, response.rect);
+                for town in self
+                    .ui_data
+                    .towns_all
+                    .iter()
+                    .filter(|town| filter.town_in_viewport(town))
+                {
                     painter.circle_filled(
                         canvas_data
-                            .world_to_screen(egui::vec2(town.x as f32, town.y as f32))
+                            .world_to_screen(egui::vec2(town.x, town.y))
                             .to_pos2(),
                         2.0,
                         if town.player_id == Some(1495649) {
                             egui::Color32::WHITE
                         } else {
-                            egui::Color32::from_rgb(25, 200, 100)
+                            // egui::Color32::from_rgb(25, 200, 100)
+                            egui::Color32::TRANSPARENT
                         },
                     );
                 }
+
+                // DRAW GHOST TOWNS
+                for town in self
+                    .ui_data
+                    .towns_shown
+                    .iter()
+                    .filter(|town| filter.town_in_viewport(town))
+                {
+                    painter.circle_filled(
+                        canvas_data
+                            .world_to_screen(egui::vec2(town.x, town.y))
+                            .to_pos2(),
+                        2.0,
+                        egui::Color32::RED,
+                    );
+                }
+
+                // POPUP WITH TOWN INFORMATION
+                // TODO
 
                 response
             })
@@ -157,6 +170,7 @@ impl View {
 impl eframe::App for View {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if let Ok(message) = self.channel_presenter_rx.try_recv() {
+            println!("Got Message from Model to View: {}", message);
             match message {
                 MessageToView::GotServer(all_towns) => {
                     self.ui_state = State::Show(TownSelection::None);
@@ -169,12 +183,42 @@ impl eframe::App for View {
                     self.ui_state = State::Show(selection);
                     self.ui_data.towns_shown = town_list;
                 }
+                MessageToView::Loading(progress) => {
+                    self.ui_state = State::Uninitialized(progress);
+                }
             }
         }
-        let state = &self.ui_state;
+        let state = self.ui_state.clone();
         match state {
-            State::Uninitialized => self.ui_uninitialized(ctx),
+            State::Uninitialized(progress) => self.ui_uninitialized(ctx, progress),
             State::Show(_) => self.ui_init(ctx),
         }
+    }
+}
+
+struct ViewPortFilter {
+    world_l: f32,
+    world_r: f32,
+    world_b: f32,
+    world_t: f32,
+}
+
+impl ViewPortFilter {
+    fn new(canvas: &CanvasData, screen_rect: egui::Rect) -> Self {
+        let top_left = canvas.screen_to_world(screen_rect.left_top().to_vec2());
+        let bot_right = canvas.screen_to_world(screen_rect.right_bottom().to_vec2());
+        Self {
+            world_l: top_left.x,
+            world_r: bot_right.x,
+            world_t: top_left.y,
+            world_b: bot_right.y,
+        }
+    }
+
+    fn town_in_viewport(&self, town: &Town) -> bool {
+        self.world_l < town.x
+            && town.x < self.world_r
+            && self.world_t < town.y
+            && town.y < self.world_b
     }
 }

@@ -18,10 +18,15 @@ impl Presenter {
         }
     }
     pub fn start(&mut self) {
-        for msg in &self.channel_rx {
-            match msg {
+        for message in &self.channel_rx {
+            println!("Got Message from View to Model: {}", message);
+            //TODO better error handling for the database. We should not let the model
+            //  thread crash due to DB issues. In
+            //  the worst case the user can just try to reload the data
+            match message {
                 MessageToModel::SetServer(server) => {
-                    let db = Database::create_for_world(&server.id).unwrap();
+                    let db =
+                        Database::create_for_world(&server.id, self.channel_tx.clone()).unwrap();
                     let towns = db.get_all_towns();
                     self.model = Model::Loaded { db };
                     self.channel_tx
