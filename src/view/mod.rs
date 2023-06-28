@@ -1,5 +1,5 @@
 mod data;
-mod state;
+pub(crate) mod state;
 
 use std::sync::Arc;
 
