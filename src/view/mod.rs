@@ -1,13 +1,14 @@
 mod data;
 pub(crate) mod state;
 
+use std::collections::linked_list::IterMut;
 use std::sync::Arc;
 
 use egui::Stroke;
 use std::sync::mpsc;
 
 use crate::message::{MessageToModel, MessageToView, Server, TownSelection};
-use crate::view::data::Data;
+use crate::view::data::{CanvasData, Data};
 use crate::view::state::State;
 
 pub struct View {
@@ -70,27 +71,55 @@ impl View {
                     ui.available_size_before_wrap(),
                     egui::Sense::click_and_drag(),
                 );
-                let size = response.rect;
 
-                // cities have a diameter of .25 units, approximately
-                for town in &self.ui_data.towns_all {
-                    painter.circle_filled(
-                        egui::pos2(town.y as f32, town.x as f32),
-                        2.0,
-                        egui::Color32::from_rgb(25, 200, 100),
-                    )
+                if let None = self.ui_data.canvas {
+                    self.ui_data.canvas =
+                        Some(CanvasData::new(-response.rect.left_top().to_vec2()));
+                }
+                let canvas_data = self.ui_data.canvas.as_mut().unwrap();
+
+                //DRAG
+                canvas_data.world_offset_px -=
+                    canvas_data.scale_screen_to_world(response.drag_delta());
+
+                // ZOOM
+                let mouse_position_in_world_space_before_zoom_change = {
+                    if let Some(mouse_position) = response.hover_pos() {
+                        canvas_data.screen_to_world(mouse_position.to_vec2())
+                    } else {
+                        egui::vec2(0.0, 0.0)
+                    }
+                };
+
+                let scroll_delta = ctx.input(|input| input.scroll_delta.y);
+                if scroll_delta > 0.0 {
+                    canvas_data.zoom *= 1.2;
+                } else if scroll_delta < 0.0 {
+                    canvas_data.zoom /= 1.2;
                 }
 
-                // painter.circle_filled(
-                //     self.ui_data.canvas.center,
-                //     self.ui_data.canvas.zoom.x,
-                //     egui::Color32::from_rgb(25, 200, 100),
-                // );
-                self.ui_data.canvas.center += response.drag_delta();
-                let scroll_delta = ctx.input(|input| input.scroll_delta.y);
-                self.ui_data.canvas.zoom += egui::vec2(scroll_delta, scroll_delta);
+                let mouse_position_in_world_space_after_zoom_change = {
+                    if let Some(mouse_position) = response.hover_pos() {
+                        canvas_data.screen_to_world(mouse_position.to_vec2())
+                    } else {
+                        egui::vec2(0.0, 0.0)
+                    }
+                };
 
-                println!("{:#?}", self.ui_data.canvas);
+                canvas_data.world_offset_px += mouse_position_in_world_space_before_zoom_change
+                    - mouse_position_in_world_space_after_zoom_change;
+
+                // DRAW TOWNS
+                // towns have a diameter of .25 units, approximately
+                for town in &self.ui_data.towns_all {
+                    painter.circle_filled(
+                        canvas_data
+                            .world_to_screen(egui::vec2(town.y as f32, town.x as f32))
+                            .to_pos2(),
+                        2.0,
+                        egui::Color32::from_rgb(25, 200, 100),
+                    );
+                }
 
                 response
             })
