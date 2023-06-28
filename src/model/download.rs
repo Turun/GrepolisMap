@@ -1,11 +1,11 @@
 /// this takes care of fetching the data and putting it into a database
-use std::future::Future;
+use std::{future::Future, sync::mpsc};
 use tokio;
 
 use reqwest;
 use rusqlite;
 
-use crate::message::Town;
+use crate::message::{MessageToView, Progress, Town};
 
 use super::offset_data;
 
@@ -37,7 +37,13 @@ impl Database {
     pub fn get_all_towns(&self) -> Vec<Town> {
         let mut statement = self
             .connection
-            .prepare("SELECT * from towns")
+            .prepare(
+                "SELECT towns.*, offsets.offset_x, offsets.offset_y from 
+                towns 
+                LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
+                LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
+                WHERE islands.type = offsets.type",
+            )
             .expect("Failed to get towns from database (build statement)");
         let rows = statement
             .query([])
@@ -51,7 +57,13 @@ impl Database {
     pub fn get_ghost_towns(&self) -> Vec<Town> {
         let mut statement = self
             .connection
-            .prepare("SELECT * from towns WHERE player_id=\"\"")
+            .prepare(
+                "SELECT towns.*, offsets.offset_x, offsets.offset_y from 
+                towns 
+                LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
+                LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
+                WHERE islands.type = offsets.type AND towns.player_id IS NULL",
+            )
             .expect("Failed to get ghost towns from database (build statement)");
         let rows = statement
             .query([])
@@ -62,16 +74,22 @@ impl Database {
         return rows;
     }
 
-    pub fn create_for_world(server_id: &str) -> Result<Self, rusqlite::Error> {
+    pub fn create_for_world(
+        server_id: &str,
+        sender: mpsc::Sender<MessageToView>,
+    ) -> Result<Self, rusqlite::Error> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap();
 
-        return runtime.block_on(async { Self::async_create_for_world(server_id).await });
+        return runtime.block_on(async { Self::async_create_for_world(server_id, sender).await });
     }
 
-    pub async fn async_create_for_world(server_id: &str) -> Result<Self, rusqlite::Error> {
+    pub async fn async_create_for_world(
+        server_id: &str,
+        sender: mpsc::Sender<MessageToView>,
+    ) -> Result<Self, rusqlite::Error> {
         let reqwest_client = make_client();
 
         let mut conn =
@@ -93,11 +111,29 @@ impl Database {
             format!("https://{}.grepolis.com/data/islands.txt", server_id),
         );
 
+        sender
+            .send(MessageToView::Loading(Progress::None))
+            .expect("Failed to send progressupdate 1 to view");
         Database::create_table_offsets(&mut conn).await?;
+        sender
+            .send(MessageToView::Loading(Progress::IslandOffsets))
+            .expect("Failed to send progressupdate 2 to view");
         Database::create_table_alliances(&mut conn, data_alliances).await?;
+        sender
+            .send(MessageToView::Loading(Progress::Alliances))
+            .expect("Failed to send progressupdate 3 to view");
         Database::create_table_players(&mut conn, data_players).await?;
+        sender
+            .send(MessageToView::Loading(Progress::Players))
+            .expect("Failed to send progressupdate 4 to view");
         Database::create_table_towns(&mut conn, data_towns).await?;
+        sender
+            .send(MessageToView::Loading(Progress::Towns))
+            .expect("Failed to send progressupdate 5 to view");
         Database::create_table_islands(&mut conn, data_islands).await?;
+        sender
+            .send(MessageToView::Loading(Progress::Islands))
+            .expect("Failed to send progressupdate 6 to view");
         Ok(Self { connection: conn })
     }
 
@@ -108,13 +144,13 @@ impl Database {
         connection
             .execute(
                 "CREATE TABLE players(
-            player_id INTEGER UNIQUE PRIMARY KEY, 
-            name TEXT UNIQUE, 
-            alliance_id INTEGER, 
-            points INTEGER, 
-            rank INTEGER, 
-            towns INTEGER, 
-            FOREIGN KEY(alliance_id) REFERENCES alliances(alliance_id) DEFERRABLE)",
+                player_id INTEGER UNIQUE PRIMARY KEY, 
+                name TEXT UNIQUE, 
+                alliance_id INTEGER, 
+                points INTEGER, 
+                rank INTEGER, 
+                towns INTEGER, 
+                FOREIGN KEY(alliance_id) REFERENCES alliances(alliance_id) DEFERRABLE)",
                 (),
             )
             .expect("Failed to create players table");
