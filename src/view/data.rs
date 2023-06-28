@@ -2,6 +2,7 @@ use std::ops::{Add, Div, Mul, Sub};
 
 use crate::message::{Town, TownConstraint};
 
+#[derive(Clone)]
 pub struct DefaultTownGroup {
     pub enabled: bool,
     pub color: egui::Color32,
@@ -11,8 +12,6 @@ pub struct DefaultTownGroup {
 pub struct Data {
     pub server_id: String,
     pub canvas: Option<CanvasData>,
-
-    pub drop_down_string: String,
 
     pub settings_all: DefaultTownGroup,
     pub settings_ghosts: DefaultTownGroup,
@@ -31,7 +30,6 @@ impl Default for Data {
         Self {
             server_id: String::from("de99"),
             canvas: None,
-            drop_down_string: String::new(),
             all_towns: Vec::new(),
             ghost_towns: Vec::new(),
             selections: Vec::new(),

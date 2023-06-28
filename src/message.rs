@@ -8,22 +8,19 @@ use rusqlite::Row;
 #[derive(Debug)]
 pub enum MessageToView {
     Loading(Progress),
+    GotServer,
+    AllTowns(Vec<Town>),
     GhostTowns(Vec<Town>),
-    GotServer(Vec<Town>, Vec<String>, Vec<String>),
+    PlayerNames(Vec<String>),
+    AllianceNames(Vec<String>),
     TownList(TownConstraint, Vec<Town>),
 }
 
 impl fmt::Display for MessageToView {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MessageToView::GotServer(all_towns, players, alliances) => {
-                write!(
-                    f,
-                    "MessageToView::GotServer({} towns, {} players, {} alliances)",
-                    all_towns.len(),
-                    players.len(),
-                    alliances.len()
-                )
+            MessageToView::GotServer => {
+                write!(f, "MessageToView::GotServer",)
             }
             MessageToView::TownList(selection, towns) => write!(
                 f,
@@ -32,31 +29,51 @@ impl fmt::Display for MessageToView {
                 towns.len()
             ),
             MessageToView::Loading(progress) => write!(f, "MessageToView::Loading({:?})", progress),
+            MessageToView::AllTowns(towns) => {
+                write!(f, "MessageToView::AllTowns({} towns)", towns.len())
+            }
             MessageToView::GhostTowns(towns) => {
                 write!(f, "MessageToView::GhostTowns({} towns)", towns.len())
+            }
+            MessageToView::PlayerNames(names) => {
+                write!(f, "MessageToView::PlayerNames({} players)", names.len())
+            }
+            MessageToView::AllianceNames(names) => {
+                write!(f, "MessageToView::AllianceNames({} alliances)", names.len())
             }
         }
     }
 }
 
-#[derive(Debug)]
 pub enum MessageToModel {
-    SetServer(Server),
+    SetServer(Server, egui::Context),
+    FetchAll,
     FetchGhosts,
+    FetchPlayers,
+    FetchAlliances,
     FetchTowns(TownConstraint),
 }
 
 impl fmt::Display for MessageToModel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MessageToModel::SetServer(server) => {
+            MessageToModel::SetServer(server, _frame) => {
                 write!(f, "MessageToMode::SetServer({})", server.id)
             }
             MessageToModel::FetchTowns(selection) => {
                 write!(f, "MessageToModel::FetchTowns({:?})", selection)
             }
+            MessageToModel::FetchAll => {
+                write!(f, "MessageToModel::FetchAll")
+            }
             MessageToModel::FetchGhosts => {
                 write!(f, "MessageToModel::FetchGhosts")
+            }
+            MessageToModel::FetchPlayers => {
+                write!(f, "MessageToModel::FetchPlayers")
+            }
+            MessageToModel::FetchAlliances => {
+                write!(f, "MessageToModel::FetchAlliances")
             }
         }
     }
@@ -118,14 +135,6 @@ impl Town {
             points: row.get(6)?,
         })
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum TownSelection {
-    None,
-    All,
-    Ghosts,
-    Selected(TownConstraint),
 }
 
 #[derive(Debug, Clone)]

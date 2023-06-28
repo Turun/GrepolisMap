@@ -1,7 +1,7 @@
-use crate::message::{Progress, TownSelection};
+use crate::message::Progress;
 
 #[derive(Debug, Clone)]
 pub enum State {
     Uninitialized(Progress),
-    Show(TownSelection),
+    Show,
 }

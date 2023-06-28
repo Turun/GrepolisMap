@@ -24,26 +24,37 @@ impl Presenter {
             //  thread crash due to DB issues. In
             //  the worst case the user can just try to reload the data
             match message {
-                MessageToModel::SetServer(server) => {
-                    let db =
-                        Database::create_for_world(&server.id, self.channel_tx.clone()).unwrap();
-                    let towns = db.get_all_towns();
-                    let player_names = db.get_player_names();
-                    let alliance_names = db.get_alliance_names(); // TODO split that into extra messages. Send messages back to the Model as early as possible, and in small steps
-                    self.model = Model::Loaded { db };
+                MessageToModel::SetServer(server, ctx) => {
+                    let db = Database::create_for_world(&server.id, self.channel_tx.clone(), &ctx)
+                        .unwrap();
+                    self.model = Model::Loaded { db, ctx };
                     self.channel_tx
-                        .send(MessageToView::GotServer(
-                            towns,
-                            player_names,
-                            alliance_names,
-                        ))
+                        .send(MessageToView::GotServer)
                         .expect("Failed to send message 'got server'");
+                }
+                MessageToModel::FetchAll => {
+                    let towns = self.model.get_all_towns();
+                    self.channel_tx
+                        .send(MessageToView::AllTowns(towns))
+                        .expect("Failed to send all town list to view");
                 }
                 MessageToModel::FetchGhosts => {
                     let towns = self.model.get_ghost_towns();
                     self.channel_tx
                         .send(MessageToView::GhostTowns(towns))
                         .expect("Failed to send ghost town list to view");
+                }
+                MessageToModel::FetchPlayers => {
+                    let names = self.model.get_player_names();
+                    self.channel_tx
+                        .send(MessageToView::PlayerNames(names))
+                        .expect("Failed to send player name list to view");
+                }
+                MessageToModel::FetchAlliances => {
+                    let names = self.model.get_alliance_names();
+                    self.channel_tx
+                        .send(MessageToView::AllianceNames(names))
+                        .expect("Failed to send alliance name list to view");
                 }
                 MessageToModel::FetchTowns(constraint) => {
                     let towns = self.model.get_towns_for_selection(&constraint);
@@ -52,6 +63,9 @@ impl Presenter {
                         .expect("Failed to send town list to view");
                 }
             }
+
+            // after we process a message, tell the UI to repaint
+            self.model.request_repaint();
         }
     }
 }

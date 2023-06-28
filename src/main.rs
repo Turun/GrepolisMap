@@ -17,8 +17,8 @@ fn main() {
 
     let view = View::new(view_rx, view_tx);
 
-    let mut p = Presenter::new(model_rx, model_tx);
     let handle = thread::spawn(move || {
+        let mut p = Presenter::new(model_rx, model_tx);
         p.start();
     });
 
