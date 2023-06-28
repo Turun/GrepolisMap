@@ -1,6 +1,7 @@
 mod message;
 mod model;
 mod presenter;
+mod towns;
 mod view;
 
 use std::{sync::mpsc, thread};

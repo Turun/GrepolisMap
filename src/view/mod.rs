@@ -6,9 +6,9 @@ use strum::IntoEnumIterator;
 
 use egui::{FontData, ProgressBar, Shape, Ui};
 
-use crate::message::{
-    Change, Comparator, Constraint, ConstraintState, ConstraintType, MessageToModel, MessageToView,
-    Progress, Server, Town, TownSelection,
+use crate::message::{MessageToModel, MessageToView, Progress, Server};
+use crate::towns::{
+    Change, Comparator, Constraint, ConstraintType, SelectionState, Town, TownSelection,
 };
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
@@ -160,7 +160,7 @@ impl View {
                             change = Some(Change::MoveDown(index));
                         }
 
-                        if selection.state == ConstraintState::Loading {
+                        if selection.state == SelectionState::Loading {
                             ui.spinner();
                         }
                     });
@@ -272,7 +272,7 @@ impl View {
                                 "Failed to send Message to Model for Selection {}",
                                 &selection
                             ));
-                        selection.state = ConstraintState::Loading;
+                        selection.state = SelectionState::Loading;
                     }
                     ui.separator();
                 }
@@ -525,7 +525,7 @@ impl eframe::App for View {
                         .find(|element| *element == constraint);
                     if let Some(selection) = optional_selection {
                         selection.towns = town_list;
-                        selection.state = ConstraintState::Finished;
+                        selection.state = SelectionState::Finished;
                     } else {
                         println!("No existing selection found for {}", constraint);
                     }

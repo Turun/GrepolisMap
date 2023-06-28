@@ -1,6 +1,6 @@
 //the entry point for model
 
-use crate::message::{ConstraintType, Town, TownSelection};
+use crate::towns::{ConstraintType, Town, TownSelection};
 
 pub mod download;
 mod offset_data;

@@ -5,7 +5,8 @@ use tokio;
 use reqwest;
 use rusqlite::{self, types::ToSqlOutput, ToSql};
 
-use crate::message::{ConstraintType, MessageToView, Progress, Town, TownSelection};
+use crate::message::{MessageToView, Progress};
+use crate::towns::{ConstraintType, Town, TownSelection};
 
 use super::offset_data;
 

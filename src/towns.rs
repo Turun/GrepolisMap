@@ -1,100 +1,8 @@
-use core::fmt;
-
-use crate::towns::{ConstraintType, Town, TownSelection};
-
-/// This is a file for the messages passed between the view and the presenter.
-/// message passing communication allows them to be on separate threads. Also it's good code hygene
-
-#[derive(Debug)]
-pub enum MessageToView {
-    Loading(Progress),
-    GotServer,
-    AllTowns(Vec<Town>),
-    GhostTowns(Vec<Town>),
-    DropDownValues(ConstraintType, Vec<String>),
-    TownList(TownSelection, Vec<Town>),
-}
-
-impl fmt::Display for MessageToView {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            MessageToView::GotServer => {
-                write!(f, "MessageToView::GotServer",)
-            }
-            MessageToView::TownList(selection, towns) => write!(
-                f,
-                "MessageToView::TownList({}, {} towns)",
-                selection,
-                towns.len()
-            ),
-            MessageToView::Loading(progress) => write!(f, "MessageToView::Loading({:?})", progress),
-            MessageToView::AllTowns(towns) => {
-                write!(f, "MessageToView::AllTowns({} towns)", towns.len())
-            }
-            MessageToView::GhostTowns(towns) => {
-                write!(f, "MessageToView::GhostTowns({} towns)", towns.len())
-            }
-            MessageToView::DropDownValues(constraint_type, values) => {
-                write!(
-                    f,
-                    "MessageToView::DropDownValues({}: {} entries)",
-                    constraint_type,
-                    values.len()
-                )
-            }
-        }
-    }
-}
-
-pub enum MessageToModel {
-    SetServer(Server, egui::Context),
-    FetchAll,
-    FetchGhosts,
-    FetchDropDownValues(ConstraintType),
-    FetchTowns(TownSelection),
-}
-
-impl fmt::Display for MessageToModel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            MessageToModel::SetServer(server, _frame) => {
-                write!(f, "MessageToMode::SetServer({})", server.id)
-            }
-            MessageToModel::FetchTowns(selection) => {
-                write!(f, "MessageToModel::FetchTowns({})", selection)
-            }
-            MessageToModel::FetchAll => {
-                write!(f, "MessageToModel::FetchAll")
-            }
-            MessageToModel::FetchGhosts => {
-                write!(f, "MessageToModel::FetchGhosts")
-            }
-            MessageToModel::FetchDropDownValues(constraint_type) => {
-                write!(
-                    f,
-                    "MessageToModel::FetchDropDownValues({})",
-                    constraint_type
-                )
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Progress {
-    None,
-    Started,
-    IslandOffsets,
-    Alliances,
-    Players,
-    Towns,
-    Islands,
-}
-
-#[derive(Debug)]
-pub struct Server {
-    pub id: String,
-}
+use rusqlite::Row;
+use std::default::Default;
+use std::fmt;
+use strum_macros::EnumIter;
+use uuid;
 
 #[derive(Debug, Clone)]
 pub struct Town {
@@ -135,7 +43,7 @@ pub enum Change {
 #[derive(Debug, Clone)]
 pub struct TownSelection {
     uuid: uuid::Uuid,
-    pub state: ConstraintState,
+    pub state: SelectionState,
     pub constraints: Vec<Constraint>,
     pub color: egui::Color32,
     pub towns: Vec<Town>,
@@ -291,7 +199,7 @@ impl fmt::Display for Comparator {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ConstraintState {
+pub enum SelectionState {
     Loading,
     Finished,
 }
@@ -300,7 +208,7 @@ impl Default for TownSelection {
     fn default() -> Self {
         Self {
             uuid: uuid::Uuid::new_v4(),
-            state: ConstraintState::Finished,
+            state: SelectionState::Finished,
             towns: Vec::new(),
             constraints: vec![Constraint::default()],
             color: egui::Color32::GREEN,

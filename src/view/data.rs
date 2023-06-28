@@ -3,7 +3,7 @@ use std::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::message::{ConstraintType, Town, TownSelection};
+use crate::towns::{ConstraintType, Town, TownSelection};
 
 #[derive(Clone)]
 pub struct DefaultTownGroup {
