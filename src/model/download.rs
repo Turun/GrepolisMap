@@ -117,13 +117,47 @@ impl Database {
     }
 
     pub fn get_towns_for_player(&self, player_name: &str) -> Vec<Town> {
-        // TODO
-        Vec::new()
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
+                towns 
+                LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
+                LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
+                LEFT JOIN players ON (towns.player_id = players.player_id)
+                LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
+                WHERE islands.type = offsets.type AND players.name = ?1",
+            )
+            .expect("Failed to get ghost towns from database (build statement)");
+        let rows = statement
+            .query([player_name])
+            .expect("Failed to get ghost towns from the database (perform query)")
+            .mapped(|row| Town::from(row))
+            .map(|town_option| town_option.expect("Failed to create a town from row"))
+            .collect();
+        return rows;
     }
 
     pub fn get_towns_for_alliance(&self, alliance_name: &str) -> Vec<Town> {
-        // TODO
-        Vec::new()
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name from 
+                towns 
+                LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
+                LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
+                LEFT JOIN players ON (towns.player_id = players.player_id)
+                LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
+                WHERE islands.type = offsets.type AND alliances.name = ?1",
+            )
+            .expect("Failed to get ghost towns from database (build statement)");
+        let rows = statement
+            .query([alliance_name])
+            .expect("Failed to get ghost towns from the database (perform query)")
+            .mapped(|row| Town::from(row))
+            .map(|town_option| town_option.expect("Failed to create a town from row"))
+            .collect();
+        return rows;
     }
 
     pub fn create_for_world(
@@ -228,7 +262,13 @@ impl Database {
             prepared_statement
                 .execute((
                     values.next().expect(&format!("No player id in {}", line)),
-                    values.next().expect(&format!("No player name in {}", line)),
+                    {
+                        let text = values.next().expect(&format!("No player name in {}", line));
+                        let decoded = form_urlencoded::parse(text.as_bytes())
+                            .map(|(key, val)| [key, val].concat())
+                            .collect::<String>();
+                        decoded
+                    },
                     {
                         let text = values.next().expect(&format!("No alliance id in {}", line));
                         if text.is_empty() {
@@ -281,7 +321,13 @@ impl Database {
             prepared_statement
                 .execute((
                     values.next().expect(&format!("No ally id in {}", line)),
-                    values.next().expect(&format!("No ally name in {}", line)),
+                    {
+                        let text = values.next().expect(&format!("No ally name in {}", line));
+                        let decoded = form_urlencoded::parse(text.as_bytes())
+                            .map(|(key, val)| [key, val].concat())
+                            .collect::<String>();
+                        decoded
+                    },
                     values.next().expect(&format!("No ally pts in {}", line)),
                     values.next().expect(&format!("No ally towns in {}", line)),
                     values.next().expect(&format!("No ally membrs in {}", line)),

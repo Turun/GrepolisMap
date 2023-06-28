@@ -1,4 +1,5 @@
 use core::fmt;
+use uuid;
 
 use rusqlite::Row;
 
@@ -61,7 +62,7 @@ impl fmt::Display for MessageToModel {
                 write!(f, "MessageToMode::SetServer({})", server.id)
             }
             MessageToModel::FetchTowns(selection) => {
-                write!(f, "MessageToModel::FetchTowns({:?})", selection)
+                write!(f, "MessageToModel::FetchTowns({})", selection)
             }
             MessageToModel::FetchAll => {
                 write!(f, "MessageToModel::FetchAll")
@@ -113,21 +114,11 @@ impl Town {
         let town_name = form_urlencoded::parse(row.get::<usize, String>(2)?.as_bytes())
             .map(|(key, val)| [key, val].concat())
             .collect::<String>();
-        let player_name = row.get::<usize, Option<String>>(9)?.map(|s| {
-            form_urlencoded::parse(s.as_bytes())
-                .map(|(key, val)| [key, val].concat())
-                .collect::<String>()
-        });
-        let alliance_name = row.get::<usize, Option<String>>(10)?.map(|s| {
-            form_urlencoded::parse(s.as_bytes())
-                .map(|(key, val)| [key, val].concat())
-                .collect::<String>()
-        });
         Ok(Self {
             id: row.get(0)?,
             player_id: row.get(1)?,
-            player_name,
-            alliance_name,
+            player_name: row.get(9)?,
+            alliance_name: row.get(10)?,
             name: town_name,
             x: row.get::<usize, f32>(3)? + row.get::<usize, f32>(7)? / 125.0,
             y: row.get::<usize, f32>(4)? + row.get::<usize, f32>(8)? / 125.0,
@@ -139,6 +130,7 @@ impl Town {
 
 #[derive(Debug, Clone)]
 pub struct TownConstraint {
+    uuid: uuid::Uuid,
     pub from_type: FromType,
     pub color: egui::Color32,
     pub value: String,
@@ -149,4 +141,37 @@ pub struct TownConstraint {
 pub enum FromType {
     Player,
     Alliance,
+}
+
+impl TownConstraint {
+    pub fn new(from_type: FromType, color: egui::Color32, value: String) -> Self {
+        Self {
+            uuid: uuid::Uuid::new_v4(),
+            from_type,
+            color,
+            value,
+            towns: Vec::new(),
+        }
+    }
+}
+
+impl PartialEq<TownConstraint> for &mut TownConstraint {
+    fn eq(&self, other: &TownConstraint) -> bool {
+        self.uuid == other.uuid
+    }
+}
+
+impl fmt::Display for TownConstraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TownConstraint({}, {},, {} towns)",
+            match self.from_type {
+                FromType::Player => "Player",
+                FromType::Alliance => "Alliance",
+            },
+            self.value,
+            self.towns.len()
+        )
+    }
 }
