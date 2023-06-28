@@ -3,6 +3,7 @@
 use crate::message::{Town, TownSelection};
 
 pub mod download;
+mod offset_data;
 
 pub enum Model {
     Uninitialized,

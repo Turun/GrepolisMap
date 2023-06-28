@@ -125,10 +125,10 @@ impl View {
                 // towns have a diameter of .25 units, approximately
                 let top_left = canvas_data.screen_to_world(response.rect.left_top().to_vec2());
                 let bot_right = canvas_data.screen_to_world(response.rect.right_bottom().to_vec2());
-                let left = top_left.y;
-                let right = bot_right.y;
-                let top = top_left.x;
-                let bottom = bot_right.x;
+                let left = top_left.x;
+                let right = bot_right.x;
+                let top = top_left.y;
+                let bottom = bot_right.y;
                 for town in self.ui_data.towns_all.iter().filter(|town| {
                     left < (town.x as f32)
                         && (town.x as f32) < right
@@ -137,10 +137,14 @@ impl View {
                 }) {
                     painter.circle_filled(
                         canvas_data
-                            .world_to_screen(egui::vec2(town.y as f32, town.x as f32))
+                            .world_to_screen(egui::vec2(town.x as f32, town.y as f32))
                             .to_pos2(),
                         2.0,
-                        egui::Color32::from_rgb(25, 200, 100),
+                        if town.player_id == Some(1495649) {
+                            egui::Color32::WHITE
+                        } else {
+                            egui::Color32::from_rgb(25, 200, 100)
+                        },
                     );
                 }
 
