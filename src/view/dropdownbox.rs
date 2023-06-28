@@ -47,8 +47,10 @@ impl<'a, V: AsRef<str>, I: Iterator<Item = V>> Widget for DropDownBox<'a, V, I> 
                 // a giant for loop to prepare the table entries
                 let mut first = Vec::new();
                 let mut second = Vec::new();
-                let mut emphasize = TextFormat::default();
-                emphasize.color = ui.style().visuals.warn_fg_color;
+                let emphasize = egui::TextFormat {
+                    color: ui.style().visuals.warn_fg_color,
+                    ..Default::default()
+                };
                 for var in it {
                     let s = var.as_ref();
                     if buf.is_empty() {
@@ -67,7 +69,7 @@ impl<'a, V: AsRef<str>, I: Iterator<Item = V>> Widget for DropDownBox<'a, V, I> 
                         s.match_indices(&*buf).collect::<Vec<(usize, &str)>>()
                     };
 
-                    if mat.len() == 0 {
+                    if mat.is_empty() {
                         // not a match
                         continue;
                     }

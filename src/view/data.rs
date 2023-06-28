@@ -68,7 +68,7 @@ impl CanvasData {
         T: Mul<f32, Output = T>,
         T: Sub<egui::Vec2, Output = T>,
     {
-        return self.scale_world_to_screen(world - self.world_offset_px);
+        self.scale_world_to_screen(world - self.world_offset_px)
     }
 
     pub fn screen_to_world<T>(&self, screen: T) -> T
@@ -76,21 +76,21 @@ impl CanvasData {
         T: Div<f32, Output = T>,
         T: Add<egui::Vec2, Output = T>,
     {
-        return self.scale_screen_to_world(screen) + self.world_offset_px;
+        self.scale_screen_to_world(screen) + self.world_offset_px
     }
 
     pub fn scale_screen_to_world<T>(&self, screen: T) -> T
     where
         T: Div<f32, Output = T>,
     {
-        return screen / self.zoom;
+        screen / self.zoom
     }
 
     pub fn scale_world_to_screen<T>(&self, world: T) -> T
     where
         T: Mul<f32, Output = T>,
     {
-        return world * self.zoom;
+        world * self.zoom
     }
 }
 

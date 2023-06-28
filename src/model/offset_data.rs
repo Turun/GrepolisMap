@@ -1,6 +1,6 @@
 /// Offset of towns relativ to their island position. from
 /// https://en.forum.grepolis.com/index.php?threads/req-island_id-%E2%80%98type-size-shape%E2%80%99.12969/
-pub const OFFSET_DATA: &'static str = "1,451,130,0
+pub const OFFSET_DATA: &str = "1,451,130,0
 1,351,168,1
 1,261,230,2
 1,193,268,3

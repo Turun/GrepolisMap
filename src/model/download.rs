@@ -18,7 +18,8 @@ where
     let result = client.get(url).send().await?;
     println!("Got status {} for url {}", result.status(), url_text);
     let text = result.text().await?;
-    return Ok(text);
+
+    Ok(text)
 }
 
 fn make_client() -> reqwest::Client {
@@ -65,10 +66,11 @@ impl Database {
         let rows = statement
             .query([])
             .expect("Failed to get towns from the database (perform query)")
-            .mapped(|row| Town::from(row))
+            .mapped(Town::from)
             .map(|town_option| town_option.expect("Failed to create a town from row"))
             .collect();
-        return rows;
+
+        rows
     }
 
     pub fn get_ghost_towns(&self) -> Vec<Town> {
@@ -87,10 +89,11 @@ impl Database {
         let rows = statement
             .query([])
             .expect("Failed to get ghost towns from the database (perform query)")
-            .mapped(|row| Town::from(row))
+            .mapped(Town::from)
             .map(|town_option| town_option.expect("Failed to create a town from row"))
             .collect();
-        return rows;
+
+        rows
     }
 
     pub fn get_names_for_constraint_type(&self, constraint_type: &ConstraintType) -> Vec<String> {
@@ -129,7 +132,8 @@ impl Database {
             })
             .map(|result| result.unwrap())
             .collect();
-        return rows;
+
+        rows
     }
 
     pub fn get_names_for_constraint_type_in_constraints(
@@ -139,7 +143,7 @@ impl Database {
     ) -> Vec<String> {
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
-        let mut statement_text = String::from(format!(
+        let mut statement_text = format!(
             "SELECT DISTINCT {0}.{1} from 
                 towns 
                 LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
@@ -149,7 +153,7 @@ impl Database {
                 WHERE islands.type = offsets.type
             ",
             ct_table, ct_property
-        ));
+        );
         for (index, constraint) in constraints.iter().enumerate() {
             statement_text += &format!(
                 " AND {}.{} {} ?{}",
@@ -209,7 +213,8 @@ impl Database {
             })
             .filter_map(|result| result.ok())
             .collect();
-        return rows;
+
+        rows
     }
 
     pub fn get_towns_for_selection(&self, selection: &TownSelection) -> Vec<Town> {
@@ -263,10 +268,11 @@ impl Database {
         let rows = statement
             .query(query_parameters.as_slice())
             .expect("Failed to get ghost towns from the database (perform query)")
-            .mapped(|row| Town::from(row))
+            .mapped(Town::from)
             .map(|town_option| town_option.expect("Failed to create a town from row"))
             .collect();
-        return rows;
+
+        rows
     }
 
     pub fn create_for_world(
@@ -279,8 +285,7 @@ impl Database {
             .build()
             .unwrap();
 
-        return runtime
-            .block_on(async { Self::async_create_for_world(server_id, sender, ctx).await });
+        runtime.block_on(async { Self::async_create_for_world(server_id, sender, ctx).await })
     }
 
     pub async fn async_create_for_world(
@@ -363,11 +368,11 @@ impl Database {
             .transaction()
             .expect("Failed to start transaction for table creation players");
 
-        let mut prepared_statement = (&transaction)
+        let mut prepared_statement = transaction
             .prepare("INSERT INTO players VALUES(?1, ?2, ?3, ?4, ?5, ?6)")
             .expect("Failed to prepare statement for players");
         for line in data.await.expect("Failed to download player data").lines() {
-            let mut values = line.split(",");
+            let mut values = line.split(',');
             prepared_statement
                 .execute((
                     values.next().expect(&format!("No player id in {}", line)),
@@ -426,7 +431,7 @@ impl Database {
             .expect("Failed to download alliance data")
             .lines()
         {
-            let mut values = line.split(",");
+            let mut values = line.split(',');
             prepared_statement
                 .execute((
                     values.next().expect(&format!("No ally id in {}", line)),
@@ -480,7 +485,7 @@ impl Database {
             .prepare("INSERT INTO towns VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)")
             .expect("Failed to prepare statement for towns");
         for line in data.await.expect("Failed to download town data").lines() {
-            let mut values = line.split(",");
+            let mut values = line.split(',');
             prepared_statement
                 .execute((
                     values.next().expect(&format!("No town id in {}", line)),
@@ -537,7 +542,7 @@ impl Database {
             .prepare("INSERT INTO islands VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)")
             .expect("Failed to prepare statement for islands");
         for line in data.await.expect("Failed to download island data").lines() {
-            let mut values = line.split(",");
+            let mut values = line.split(',');
             prepared_statement
                 .execute((
                     values.next().expect(&format!("No island id in {}", line)),
@@ -577,7 +582,7 @@ impl Database {
             .prepare("INSERT INTO offsets VALUES(?1, ?2, ?3, ?4)")
             .expect("Failed to prepare statement for offsets");
         for line in offset_data::OFFSET_DATA.lines() {
-            let mut values = line.split(",");
+            let mut values = line.split(',');
             prepared_statement
                 .execute((
                     values.next().expect(&format!("No offset tyep in {}", line)),

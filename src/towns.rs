@@ -2,7 +2,6 @@ use rusqlite::Row;
 use std::default::Default;
 use std::fmt;
 use strum_macros::EnumIter;
-use uuid;
 
 #[derive(Debug, Clone)]
 pub struct Town {
@@ -51,7 +50,7 @@ pub struct Constraint {
 impl Constraint {
     pub fn partial_clone(&self) -> Self {
         Self {
-            uuid: self.uuid.clone(),
+            uuid: self.uuid, // implements copy
             constraint_type: self.constraint_type.clone(),
             comparator: self.comparator.clone(),
             value: self.value.clone(),
@@ -138,18 +137,18 @@ impl ConstraintType {
             ConstraintType::PlayerName
             | ConstraintType::PlayerPoints
             | ConstraintType::PlayerRank
-            | ConstraintType::PlayerTowns => return String::from("players"),
+            | ConstraintType::PlayerTowns => String::from("players"),
             ConstraintType::AllianceName
             | ConstraintType::AlliancePoints
             | ConstraintType::AllianceTowns
             | ConstraintType::AllianceMembers
-            | ConstraintType::AllianceRank => return String::from("alliances"),
-            ConstraintType::TownName | ConstraintType::TownPoints => return String::from("towns"),
+            | ConstraintType::AllianceRank => String::from("alliances"),
+            ConstraintType::TownName | ConstraintType::TownPoints => String::from("towns"),
             ConstraintType::IslandX
             | ConstraintType::IslandY
             | ConstraintType::IslandTowns
             | ConstraintType::IslandResMore
-            | ConstraintType::IslandResLess => return String::from("islands"),
+            | ConstraintType::IslandResLess => String::from("islands"),
         }
     }
 
@@ -157,21 +156,19 @@ impl ConstraintType {
         match self {
             ConstraintType::PlayerName
             | ConstraintType::AllianceName
-            | ConstraintType::TownName => return String::from("name"),
+            | ConstraintType::TownName => String::from("name"),
             ConstraintType::PlayerPoints
             | ConstraintType::AlliancePoints
-            | ConstraintType::TownPoints => return String::from("points"),
-            ConstraintType::PlayerRank | ConstraintType::AllianceRank => {
-                return String::from("rank")
-            }
+            | ConstraintType::TownPoints => String::from("points"),
+            ConstraintType::PlayerRank | ConstraintType::AllianceRank => String::from("rank"),
             ConstraintType::PlayerTowns
             | ConstraintType::AllianceTowns
-            | ConstraintType::IslandTowns => return String::from("towns"),
-            ConstraintType::AllianceMembers => return String::from("members"),
-            ConstraintType::IslandX => return String::from("x"),
-            ConstraintType::IslandY => return String::from("y"),
-            ConstraintType::IslandResMore => return String::from("ressource_plus"),
-            ConstraintType::IslandResLess => return String::from("ressource_minus"),
+            | ConstraintType::IslandTowns => String::from("towns"),
+            ConstraintType::AllianceMembers => String::from("members"),
+            ConstraintType::IslandX => String::from("x"),
+            ConstraintType::IslandY => String::from("y"),
+            ConstraintType::IslandResMore => String::from("ressource_plus"),
+            ConstraintType::IslandResLess => String::from("ressource_minus"),
         }
     }
 
@@ -181,7 +178,7 @@ impl ConstraintType {
             | ConstraintType::AllianceName
             | ConstraintType::TownName
             | ConstraintType::IslandResMore
-            | ConstraintType::IslandResLess => return true,
+            | ConstraintType::IslandResLess => true,
 
             ConstraintType::PlayerPoints
             | ConstraintType::PlayerRank
@@ -193,7 +190,7 @@ impl ConstraintType {
             | ConstraintType::TownPoints
             | ConstraintType::IslandX
             | ConstraintType::IslandY
-            | ConstraintType::IslandTowns => return false,
+            | ConstraintType::IslandTowns => false,
         }
     }
 }
@@ -240,10 +237,10 @@ impl TownSelection {
     pub fn partial_clone(&self) -> Self {
         Self {
             towns: Vec::new(),
-            uuid: self.uuid.clone(),
-            state: self.state.clone(),
+            uuid: self.uuid,   // implements copy
+            state: self.state, // implements copy
             constraints: self.constraints.clone(),
-            color: self.color.clone(),
+            color: self.color, // implements copy
         }
     }
 }

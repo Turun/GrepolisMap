@@ -26,7 +26,7 @@ impl Model {
 
     pub fn get_towns_for_selection(&self, selection: &TownSelection) -> Vec<Town> {
         match self {
-            Model::Uninitialized => return Vec::new(),
+            Model::Uninitialized => Vec::new(),
             Model::Loaded { db, ctx: _ctx } => db.get_towns_for_selection(selection),
         }
     }
@@ -37,7 +37,7 @@ impl Model {
         constraints: &[&Constraint],
     ) -> Vec<String> {
         match self {
-            Model::Uninitialized => return Vec::new(),
+            Model::Uninitialized => Vec::new(),
             Model::Loaded { db, ctx: _ctx } => {
                 db.get_names_for_constraint_type_in_constraints(constraint_type, constraints)
             }
@@ -46,24 +46,22 @@ impl Model {
 
     pub fn get_ghost_towns(&self) -> Vec<Town> {
         match self {
-            Model::Uninitialized => return Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => return db.get_ghost_towns(),
+            Model::Uninitialized => Vec::new(),
+            Model::Loaded { db, ctx: _ctx } => db.get_ghost_towns(),
         }
     }
 
     pub fn get_all_towns(&self) -> Vec<Town> {
         match self {
-            Model::Uninitialized => return Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => return db.get_all_towns(),
+            Model::Uninitialized => Vec::new(),
+            Model::Loaded { db, ctx: _ctx } => db.get_all_towns(),
         }
     }
 
     pub fn get_names_for_constraint_type(&self, constraint_type: &ConstraintType) -> Vec<String> {
         match self {
-            Model::Uninitialized => return Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => {
-                return db.get_names_for_constraint_type(constraint_type)
-            }
+            Model::Uninitialized => Vec::new(),
+            Model::Loaded { db, ctx: _ctx } => db.get_names_for_constraint_type(constraint_type),
         }
     }
 }

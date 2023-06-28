@@ -71,7 +71,7 @@ impl Presenter {
                         .filter(|c| !c.value.is_empty())
                         .collect();
 
-                    if filled_constraints.len() == 0 {
+                    if filled_constraints.is_empty() {
                         // nothing
                     } else if filled_constraints.len() == 1 {
                         let c = filled_constraints[0];
@@ -111,7 +111,7 @@ impl Presenter {
                         .iter()
                         .filter(|c| c.value.is_empty())
                         .collect();
-                    if empty_constraints.len() > 0 {
+                    if !empty_constraints.is_empty() {
                         for c in empty_constraints {
                             let constraint_towns =
                                 self.model.get_names_for_constraint_type_with_constraints(

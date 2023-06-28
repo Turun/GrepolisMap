@@ -44,7 +44,8 @@ impl View {
             .or_default()
             .push(String::from("Custom Font"));
         cc.egui_ctx.set_fonts(fonts);
-        return self;
+
+        self
     }
 
     pub fn start(self) {
@@ -321,7 +322,7 @@ impl View {
                     egui::Sense::click_and_drag(),
                 );
 
-                if let None = self.ui_data.canvas {
+                if self.ui_data.canvas.is_none() {
                     self.ui_data.canvas =
                         Some(CanvasData::new(-response.rect.left_top().to_vec2()));
                 }
@@ -362,7 +363,7 @@ impl View {
                 }
 
                 // filter everything that is not visible
-                let filter = ViewPortFilter::new(&canvas_data, response.rect);
+                let filter = ViewPortFilter::new(canvas_data, response.rect);
                 let visible_towns_all: Vec<&Town> = self
                     .ui_data
                     .all_towns
@@ -472,36 +473,35 @@ impl View {
                         };
                         ui.label(format!("{:?}", position));
 
-                        if &visible_towns_all.len() < &1usize {
-                            return;
-                        }
-                        let mut closest_town = visible_towns_all[0];
-                        let mut closest_distance =
-                            position.distance(egui::pos2(closest_town.x, closest_town.y));
-                        for town in &visible_towns_all {
-                            let distance = position.distance(egui::pos2(town.x, town.y));
-                            if distance < closest_distance {
-                                closest_distance = distance;
-                                closest_town = town;
+                        if !visible_towns_all.is_empty() {
+                            let mut closest_town = visible_towns_all[0];
+                            let mut closest_distance =
+                                position.distance(egui::pos2(closest_town.x, closest_town.y));
+                            for town in &visible_towns_all {
+                                let distance = position.distance(egui::pos2(town.x, town.y));
+                                if distance < closest_distance {
+                                    closest_distance = distance;
+                                    closest_town = town;
+                                }
                             }
-                        }
 
-                        if closest_distance < 1.5 {
-                            ui.label(format!(
-                                "{}\nPoints: {}\nPlayer: {}\nAlliance: {}",
-                                closest_town.name,
-                                closest_town.points,
-                                if let Some(name) = &closest_town.player_name {
-                                    name
-                                } else {
-                                    ""
-                                },
-                                if let Some(name) = &closest_town.alliance_name {
-                                    name
-                                } else {
-                                    ""
-                                },
-                            ));
+                            if closest_distance < 1.5 {
+                                ui.label(format!(
+                                    "{}\nPoints: {}\nPlayer: {}\nAlliance: {}",
+                                    closest_town.name,
+                                    closest_town.points,
+                                    if let Some(name) = &closest_town.player_name {
+                                        name
+                                    } else {
+                                        ""
+                                    },
+                                    if let Some(name) = &closest_town.alliance_name {
+                                        name
+                                    } else {
+                                        ""
+                                    },
+                                ));
+                            }
                         }
                     });
                 }
