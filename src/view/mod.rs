@@ -444,7 +444,11 @@ impl View {
 
                 // DRAW SELECTED TOWS
                 for selection in &self.ui_data.selections {
-                    for town in &selection.towns {
+                    for town in selection
+                        .towns
+                        .iter()
+                        .filter(|t| filter.town_in_viewport(t))
+                    {
                         painter.circle_filled(
                             canvas_data
                                 .world_to_screen(egui::vec2(town.x, town.y))
