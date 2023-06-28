@@ -32,10 +32,11 @@ impl View {
 
     pub fn start(self) {
         let native_options = eframe::NativeOptions::default();
-        let result = eframe::run_native(
+        // TODO Save config between app runs.
+        let _result = eframe::run_native(
             "Grepolis Map",
             native_options,
-            Box::new(|cc| Box::new(self)),
+            Box::new(|_cc| Box::new(self)),
         );
     }
 
@@ -117,17 +118,17 @@ impl View {
                 });
                 ui.separator();
                 if ui.button("Add Towns").clicked() {
-                    self.ui_data.selections.push(TownConstraint {
-                        from_type: FromType::Player,
-                        color: egui::Color32::GREEN,
-                        value: String::from(""),
-                        towns: Vec::new(),
-                    })
+                    self.ui_data.selections.push(TownConstraint::new(
+                        FromType::Player,
+                        egui::Color32::GREEN,
+                        String::from(""),
+                    ));
                 }
                 ui.separator();
                 // TODO: figure out how we can fetch the data corresponding to each selection. We have to send a new
                 // request every time the selection values change. When that happens we must send a request to the backend. The message
                 // ingest loop will have to track all incoming updates and update the value of the correct selection accordingly
+                let mut remove_index: Option<usize> = None;
                 for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
                     ui.vertical(|ui| {
                         ui.horizontal(|ui| {
@@ -142,16 +143,38 @@ impl View {
                                 "Alliance",
                             );
                         });
-                        ui.add(DropDownBox::from_iter(
-                            match selection.from_type {
-                                FromType::Player => &mut self.ui_data.name_players,
-                                FromType::Alliance => &mut self.ui_data.name_alliances,
-                            },
-                            format!("Selection {}", index),
-                            &mut selection.value,
-                            |ui, text| ui.selectable_label(false, text),
-                        ))
+                        ui.horizontal(|ui| {
+                            let ddb = DropDownBox::from_iter(
+                                match selection.from_type {
+                                    FromType::Player => &mut self.ui_data.name_players,
+                                    FromType::Alliance => &mut self.ui_data.name_alliances,
+                                },
+                                format!("Selection {}", index),
+                                &mut selection.value,
+                                |ui, text| ui.selectable_label(false, text),
+                            );
+                            if ui.add(ddb).changed() {
+                                // TODO request data
+                                self.channel_presenter_tx
+                                    .send(MessageToModel::FetchTowns(selection.clone()))
+                                    .expect(&format!(
+                                        "Failed to send Message to Model for Selection {}",
+                                        selection
+                                    ))
+                            };
+
+                            ui.color_edit_button_srgba(&mut selection.color);
+                        });
+                        ui.horizontal(|ui| {
+                            if ui.button("Remove").clicked() {
+                                remove_index = Some(index);
+                            }
+                        });
                     });
+                }
+
+                if let Some(index) = remove_index {
+                    let _elem = self.ui_data.selections.remove(index);
                 }
             });
         });
@@ -352,7 +375,7 @@ impl View {
 }
 
 impl eframe::App for View {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if let Ok(message) = self.channel_presenter_rx.try_recv() {
             println!("Got Message from Model to View: {}", message);
             match message {
@@ -373,8 +396,16 @@ impl eframe::App for View {
                 }
                 MessageToView::TownList(constraint, town_list) => {
                     self.ui_state = State::Show;
-                    self.ui_data.ghost_towns = town_list;
-                    // TODO don't assign the value to the ghost towns, assign it to the correct user selection
+                    let optional_selection = self
+                        .ui_data
+                        .selections
+                        .iter_mut()
+                        .find(|element| *element == constraint);
+                    if let Some(selection) = optional_selection {
+                        selection.towns = town_list;
+                    } else {
+                        println!("No existing selection found for {}", constraint);
+                    }
                 }
                 MessageToView::AllTowns(towns) => {
                     self.ui_state = State::Show;
