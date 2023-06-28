@@ -52,10 +52,10 @@ impl Presenter {
                         .send(MessageToView::DropDownValues(constraint_type, names))
                         .expect("Failed to send drop down value list to view");
                 }
-                MessageToModel::FetchTowns(constraint) => {
-                    let towns = self.model.get_towns_for_selection(&constraint);
+                MessageToModel::FetchTowns(selection) => {
+                    let towns = self.model.get_towns_for_selection(&selection);
                     self.channel_tx
-                        .send(MessageToView::TownList(constraint, towns))
+                        .send(MessageToView::TownList(selection, towns))
                         .expect("Failed to send town list to view");
                 }
             }
