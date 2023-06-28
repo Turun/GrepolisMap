@@ -25,7 +25,7 @@ impl fmt::Display for MessageToView {
             }
             MessageToView::TownList(selection, towns) => write!(
                 f,
-                "MessageToView::TownList({:?}, {} towns)",
+                "MessageToView::TownList({}, {} towns)",
                 selection,
                 towns.len()
             ),
@@ -130,6 +130,7 @@ impl Town {
 
 #[derive(Debug, Clone)]
 pub struct TownConstraint {
+    // TODO more flexible constraints: e.g. any player not in Alliance X, Y, or Z, with Player Points between 123 and 345
     uuid: uuid::Uuid,
     pub from_type: FromType,
     pub color: egui::Color32,
@@ -165,7 +166,7 @@ impl fmt::Display for TownConstraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "TownConstraint({}, {},, {} towns)",
+            "TownConstraint({}, {}, {} towns)",
             match self.from_type {
                 FromType::Player => "Player",
                 FromType::Alliance => "Alliance",
