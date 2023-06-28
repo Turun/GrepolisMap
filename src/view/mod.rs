@@ -1,13 +1,14 @@
 mod data;
+mod dropdownbox;
 pub(crate) mod state;
 
 use std::sync::mpsc;
 
 use egui::{ProgressBar, Shape, Ui};
-use egui_dropdown::DropDownBox;
 
 use crate::message::{MessageToModel, MessageToView, Progress, Server, Town, TownSelection};
 use crate::view::data::{CanvasData, Data};
+use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
 
 pub struct View {
@@ -93,16 +94,17 @@ impl View {
                     self.ui_data.towns_shown.len()
                 ));
                 ui.separator();
-                ui.add(DropDownBox::from_iter(
+                let ddb = DropDownBox::from_iter(
                     self.ui_data
-                        .towns_all
+                        .towns_shown
                         .iter()
                         .map(|town| town.name.to_owned())
                         .collect::<Vec<String>>(),
                     "dropdown box",
                     &mut self.ui_data.drop_down_string,
                     |ui, text| ui.selectable_label(false, text),
-                ));
+                );
+                ui.add(ddb);
             });
         });
 
