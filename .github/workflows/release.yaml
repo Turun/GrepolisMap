@@ -1,10 +1,16 @@
 # from https://github.com/rust-build/rust-build.action
+# and https://github.com/BamPeers/rust-ci-github-actions-workflow/blob/main/.github/workflows/release-packaging.yaml
+
+# Docs: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
 
 name: Rust Release Build
 
 on:
   release:
     types: [created]
+  # enable on push to test CI
+  push:
+    branches: [master]
 
 jobs:
   release:
