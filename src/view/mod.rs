@@ -1,5 +1,6 @@
 mod data;
 mod dropdownbox;
+mod selectable_label;
 pub(crate) mod state;
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
