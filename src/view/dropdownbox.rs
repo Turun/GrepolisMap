@@ -3,6 +3,8 @@ use egui_extras::{Column, TableBuilder};
 
 use std::{hash::Hash, sync::Arc};
 
+use super::selectable_label::SelectableLabel;
+
 /// Dropdown widget
 pub struct DropDownBox<'a> {
     buf: &'a mut String,
@@ -117,7 +119,10 @@ impl<'a> Widget for DropDownBox<'a> {
                                 // TODO: it would be nice if the clickable area is always the same size.
                                 //  at the moment this is impossible, because SelectableLabel simply does
                                 // not implement a way to set the width
-                                if ui.selectable_label(false, layoutjob).clicked() {
+
+                                // if ui.selectable_label(false, layoutjob).clicked() {
+                                let label = SelectableLabel::new(false, layoutjob).ui(ui);
+                                if label.clicked() {
                                     *buf = text;
                                     changed = true;
                                     ui.memory_mut(egui::Memory::close_popup);
