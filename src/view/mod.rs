@@ -1,7 +1,7 @@
 mod data;
 mod dropdownbox;
 pub(crate) mod state;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use std::time::Duration;
 use strum::IntoEnumIterator;
 
@@ -83,9 +83,12 @@ impl View {
             self.ui_state = State::Uninitialized(Progress::None);
             self.ui_data = Data {
                 server_id: self.ui_data.server_id.clone(),
+                canvas: Default::default(),
                 settings_all: self.ui_data.settings_all.clone(),
                 settings_ghosts: self.ui_data.settings_ghosts.clone(),
-                ..Data::default()
+                selections: self.ui_data.selections.clone(),
+                all_towns: Arc::new(Vec::new()),
+                ghost_towns: Arc::new(Vec::new()),
             };
             self.channel_presenter_tx
                 .send(MessageToModel::SetServer(
