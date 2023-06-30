@@ -40,7 +40,6 @@ pub enum Change {
 }
 #[derive(Debug, Clone)]
 pub struct Constraint {
-    uuid: uuid::Uuid,
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
     pub value: String,
@@ -50,7 +49,6 @@ pub struct Constraint {
 impl Constraint {
     pub fn partial_clone(&self) -> Self {
         Self {
-            uuid: self.uuid, // implements copy
             constraint_type: self.constraint_type.clone(),
             comparator: self.comparator.clone(),
             value: self.value.clone(),
@@ -72,7 +70,6 @@ impl fmt::Display for Constraint {
 impl Default for Constraint {
     fn default() -> Self {
         Self {
-            uuid: uuid::Uuid::new_v4(),
             constraint_type: ConstraintType::PlayerName,
             comparator: Comparator::Equal,
             value: String::new(),
@@ -84,7 +81,9 @@ impl Default for Constraint {
 impl Eq for Constraint {}
 impl PartialEq for Constraint {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid
+        self.constraint_type == other.constraint_type
+            && self.comparator == other.comparator
+            && self.value == other.value
     }
 }
 

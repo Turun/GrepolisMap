@@ -527,7 +527,7 @@ impl eframe::App for View {
                             ));
                     }
                 }
-                MessageToView::TownListSelection(selection, town_list) => {
+                MessageToView::TownListForSelection(selection, town_list) => {
                     self.ui_state = State::Show;
                     let optional_selection = self
                         .ui_data
@@ -541,7 +541,7 @@ impl eframe::App for View {
                         println!("No existing selection found for {selection}");
                     }
                 }
-                MessageToView::TownListConstraint(constraint, selection, towns) => {
+                MessageToView::ValueListForConstraint(constraint, selection, towns) => {
                     self.ui_state = State::Show;
                     let optional_selection = self
                         .ui_data

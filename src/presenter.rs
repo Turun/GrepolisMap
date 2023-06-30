@@ -71,7 +71,7 @@ impl Presenter {
 
                     let towns = self.model.get_towns_for_constraints(&filled_constraints);
                     self.channel_tx
-                        .send(MessageToView::TownListSelection(
+                        .send(MessageToView::TownListForSelection(
                             selection.partial_clone(),
                             towns,
                         ))
@@ -85,7 +85,7 @@ impl Presenter {
                         let constraint_towns =
                             self.model.get_names_for_constraint_type(&c.constraint_type);
                         self.channel_tx
-                            .send(MessageToView::TownListConstraint(
+                            .send(MessageToView::ValueListForConstraint(
                                 c.partial_clone(),
                                 selection.partial_clone(),
                                 constraint_towns,
@@ -104,7 +104,7 @@ impl Presenter {
                                 );
 
                             self.channel_tx
-                                .send(MessageToView::TownListConstraint(
+                                .send(MessageToView::ValueListForConstraint(
                                     c.partial_clone(),
                                     selection.partial_clone(),
                                     constraint_towns,
@@ -123,7 +123,7 @@ impl Presenter {
                                 );
 
                             self.channel_tx
-                                .send(MessageToView::TownListConstraint(
+                                .send(MessageToView::ValueListForConstraint(
                                     c.partial_clone(),
                                     selection.partial_clone(),
                                     constraint_towns,

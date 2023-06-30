@@ -13,8 +13,8 @@ pub enum MessageToView {
     AllTowns(Vec<Town>),
     GhostTowns(Vec<Town>),
     DropDownValues(ConstraintType, Vec<String>),
-    TownListSelection(TownSelection, Vec<Town>),
-    TownListConstraint(Constraint, TownSelection, Vec<String>),
+    TownListForSelection(TownSelection, Vec<Town>),
+    ValueListForConstraint(Constraint, TownSelection, Vec<String>),
 }
 
 impl fmt::Display for MessageToView {
@@ -23,13 +23,13 @@ impl fmt::Display for MessageToView {
             MessageToView::GotServer => {
                 write!(f, "MessageToView::GotServer",)
             }
-            MessageToView::TownListSelection(selection, towns) => write!(
+            MessageToView::TownListForSelection(selection, towns) => write!(
                 f,
                 "MessageToView::TownList({}, {} towns)",
                 selection,
                 towns.len()
             ),
-            MessageToView::TownListConstraint(constraint, selection, towns) => {
+            MessageToView::ValueListForConstraint(constraint, selection, towns) => {
                 write!(
                     f,
                     "MessageToView::TownListConstraint({}, {}, {} towns)",
