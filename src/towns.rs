@@ -1,6 +1,8 @@
 use rusqlite::Row;
 use std::default::Default;
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 use strum_macros::EnumIter;
 
 #[derive(Debug, Clone)]
@@ -43,14 +45,14 @@ pub struct Constraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
     pub value: String,
-    pub drop_down_values: Option<Vec<String>>,
+    pub drop_down_values: Option<Arc<Vec<String>>>,
 }
 
 impl Constraint {
     pub fn partial_clone(&self) -> Self {
         Self {
-            constraint_type: self.constraint_type.clone(),
-            comparator: self.comparator.clone(),
+            constraint_type: self.constraint_type,
+            comparator: self.comparator,
             value: self.value.clone(),
             drop_down_values: None,
         }
@@ -87,7 +89,15 @@ impl PartialEq for Constraint {
     }
 }
 
-#[derive(Debug, Clone, EnumIter, PartialEq, Eq, Hash)]
+impl Hash for Constraint {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.constraint_type.hash(state);
+        self.comparator.hash(state);
+        self.value.hash(state);
+    }
+}
+
+#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash)]
 pub enum ConstraintType {
     PlayerName,
     PlayerPoints,
@@ -131,7 +141,7 @@ impl fmt::Display for ConstraintType {
 }
 
 impl ConstraintType {
-    pub fn table(&self) -> String {
+    pub fn table(self) -> String {
         match self {
             ConstraintType::PlayerName
             | ConstraintType::PlayerPoints
@@ -151,7 +161,7 @@ impl ConstraintType {
         }
     }
 
-    pub fn property(&self) -> String {
+    pub fn property(self) -> String {
         match self {
             ConstraintType::PlayerName
             | ConstraintType::AllianceName
@@ -171,7 +181,7 @@ impl ConstraintType {
         }
     }
 
-    pub fn is_string(&self) -> bool {
+    pub fn is_string(self) -> bool {
         match self {
             ConstraintType::PlayerName
             | ConstraintType::AllianceName
@@ -194,7 +204,7 @@ impl ConstraintType {
     }
 }
 
-#[derive(Debug, Clone, EnumIter, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash)]
 pub enum Comparator {
     LessThan,
     Equal,
@@ -226,7 +236,7 @@ pub struct TownSelection {
     pub state: SelectionState,
     pub constraints: Vec<Constraint>,
     pub color: egui::Color32,
-    pub towns: Vec<Town>,
+    pub towns: Arc<Vec<Town>>,
 }
 
 impl TownSelection {
@@ -235,7 +245,7 @@ impl TownSelection {
     /// the list of constraints.
     pub fn partial_clone(&self) -> Self {
         Self {
-            towns: Vec::new(),
+            towns: Arc::new(Vec::new()),
             uuid: self.uuid,   // implements copy
             state: self.state, // implements copy
             constraints: self.constraints.clone(),
@@ -249,7 +259,7 @@ impl Default for TownSelection {
         Self {
             uuid: uuid::Uuid::new_v4(),
             state: SelectionState::NewlyCreated,
-            towns: Vec::new(),
+            towns: Arc::new(Vec::new()),
             constraints: vec![Constraint::default()],
             color: egui::Color32::GREEN,
         }

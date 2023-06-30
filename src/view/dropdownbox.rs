@@ -1,31 +1,31 @@
 use egui::{text::LayoutJob, Id, Response, TextFormat, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
 
-use std::hash::Hash;
+use std::{hash::Hash, sync::Arc};
 
 /// Dropdown widget
-pub struct DropDownBox<'a, V: AsRef<str>, I: Iterator<Item = V>> {
+pub struct DropDownBox<'a> {
     buf: &'a mut String,
     popup_id: Id,
-    opt_it: Option<I>,
+    opt_it: Option<&'a Arc<Vec<String>>>,
 }
 
-impl<'a, V: AsRef<str>, I: Iterator<Item = V>> DropDownBox<'a, V, I> {
+impl<'a> DropDownBox<'a> {
     /// Creates new dropdown box.
     pub fn from_iter(
-        opt_it: Option<impl IntoIterator<IntoIter = I>>,
+        opt_it: Option<&'a Arc<Vec<String>>>,
         id_source: impl Hash,
         buf: &'a mut String,
     ) -> Self {
         Self {
             popup_id: Id::new(id_source),
-            opt_it: opt_it.map(IntoIterator::into_iter),
+            opt_it,
             buf,
         }
     }
 }
 
-impl<'a, V: AsRef<str>, I: Iterator<Item = V>> Widget for DropDownBox<'a, V, I> {
+impl<'a> Widget for DropDownBox<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
             popup_id,
@@ -51,7 +51,8 @@ impl<'a, V: AsRef<str>, I: Iterator<Item = V>> Widget for DropDownBox<'a, V, I> 
                     color: ui.style().visuals.warn_fg_color,
                     ..Default::default()
                 };
-                for var in it {
+
+                for var in &**it {
                     let s = var.as_ref();
                     if buf.is_empty() {
                         let mut job = LayoutJob::default();

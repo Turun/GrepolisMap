@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     ops::{Add, Div, Mul, Sub},
+    sync::Arc,
 };
 
 use crate::towns::{ConstraintType, Town, TownSelection};
@@ -21,10 +22,10 @@ pub struct Data {
 
     pub selections: Vec<TownSelection>,
 
-    pub all_towns: Vec<Town>,
-    pub ghost_towns: Vec<Town>,
+    pub all_towns: Arc<Vec<Town>>,
+    pub ghost_towns: Arc<Vec<Town>>,
 
-    pub dropdown_values: HashMap<ConstraintType, Vec<String>>,
+    pub dropdown_values: HashMap<ConstraintType, Arc<Vec<String>>>,
 }
 
 impl Default for Data {
@@ -32,8 +33,8 @@ impl Default for Data {
         Self {
             server_id: String::from("de99"),
             canvas: None,
-            all_towns: Vec::new(),
-            ghost_towns: Vec::new(),
+            all_towns: Arc::new(Vec::new()),
+            ghost_towns: Arc::new(Vec::new()),
             selections: vec![TownSelection::default()],
             settings_ghosts: DefaultTownGroup {
                 enabled: true,

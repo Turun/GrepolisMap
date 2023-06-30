@@ -95,7 +95,7 @@ impl Database {
         rows
     }
 
-    pub fn get_names_for_constraint_type(&self, constraint_type: &ConstraintType) -> Vec<String> {
+    pub fn get_names_for_constraint_type(&self, constraint_type: ConstraintType) -> Vec<String> {
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
 
@@ -135,8 +135,8 @@ impl Database {
 
     pub fn get_names_for_constraint_type_in_constraints(
         &self,
-        constraint_type: &ConstraintType,
-        constraints: &[&Constraint],
+        constraint_type: ConstraintType,
+        constraints: &[Constraint],
     ) -> Vec<String> {
         if constraints.is_empty() {
             return self.get_names_for_constraint_type(constraint_type);
@@ -217,7 +217,7 @@ impl Database {
         rows
     }
 
-    pub fn get_towns_for_constraints(&self, constraints: &[&Constraint]) -> Vec<Town> {
+    pub fn get_towns_for_constraints(&self, constraints: &[Constraint]) -> Vec<Town> {
         if constraints.is_empty() {
             return Vec::new();
         }

@@ -1,3 +1,5 @@
+use eframe::epaint::ahash::HashMap;
+
 use crate::message::{MessageToModel, MessageToView};
 use crate::model::download::Database;
 use crate::model::Model;
@@ -19,6 +21,7 @@ impl Presenter {
             channel_rx: rx,
         }
     }
+
     pub fn start(&mut self) {
         for message in &self.channel_rx {
             println!("Got Message from View to Model: {message}");
@@ -31,7 +34,12 @@ impl Presenter {
                 MessageToModel::SetServer(server, ctx) => {
                     // TODO: automatically save each db we load (with timestamp) and let the user choose previous versions.
                     let db = Database::create_for_world(&server.id, &self.channel_tx, &ctx);
-                    self.model = Model::Loaded { db, ctx };
+                    self.model = Model::Loaded {
+                        db,
+                        ctx,
+                        cache_strings: HashMap::default(),
+                        cache_towns: HashMap::default(),
+                    };
                     self.channel_tx
                         .send(MessageToView::GotServer)
                         .expect("Failed to send message 'got server'");
@@ -49,17 +57,18 @@ impl Presenter {
                         .expect("Failed to send ghost town list to view");
                 }
                 MessageToModel::FetchDropDownValues(constraint_type) => {
-                    let names = self.model.get_names_for_constraint_type(&constraint_type);
+                    let names = self.model.get_names_for_constraint_type(constraint_type);
                     self.channel_tx
                         .send(MessageToView::DropDownValues(constraint_type, names))
                         .expect("Failed to send drop down value list to view");
                 }
                 MessageToModel::FetchTowns(selection) => {
                     // a list of filled constraints. For each one, filter the ddv list by all _other_ filled constratins
-                    let filled_constraints: Vec<&Constraint> = selection
+                    let filled_constraints: Vec<Constraint> = selection
                         .constraints
                         .iter()
                         .filter(|c| !c.value.is_empty())
+                        .map(Constraint::partial_clone)
                         .collect();
 
                     // a list of empty constraints. Filter the ddv list by all non empty constraints
@@ -81,12 +90,12 @@ impl Presenter {
                     if filled_constraints.is_empty() {
                         // nothing
                     } else if filled_constraints.len() == 1 {
-                        let c = filled_constraints[0];
+                        let c = filled_constraints[0].partial_clone();
                         let constraint_towns =
-                            self.model.get_names_for_constraint_type(&c.constraint_type);
+                            self.model.get_names_for_constraint_type(c.constraint_type);
                         self.channel_tx
                             .send(MessageToView::ValueListForConstraint(
-                                c.partial_clone(),
+                                c,
                                 selection.partial_clone(),
                                 constraint_towns,
                             ))
@@ -99,7 +108,7 @@ impl Presenter {
 
                             let constraint_towns =
                                 self.model.get_names_for_constraint_type_with_constraints(
-                                    &c.constraint_type,
+                                    c.constraint_type,
                                     &other_constraints,
                                 );
 
@@ -118,7 +127,7 @@ impl Presenter {
                         for c in empty_constraints {
                             let constraint_towns =
                                 self.model.get_names_for_constraint_type_with_constraints(
-                                    &c.constraint_type,
+                                    c.constraint_type,
                                     &filled_constraints,
                                 );
 

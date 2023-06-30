@@ -521,7 +521,7 @@ impl eframe::App for View {
                         .expect("Failed to send message to model: FetchGhosts");
                     for variant in ConstraintType::iter() {
                         self.channel_presenter_tx
-                            .send(MessageToModel::FetchDropDownValues(variant.clone()))
+                            .send(MessageToModel::FetchDropDownValues(variant))
                             .expect(&format!(
                                 "Failed to send message to model: FetchDropDownValues({variant})"
                             ));

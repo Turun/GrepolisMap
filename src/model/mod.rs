@@ -1,4 +1,6 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
+
+use eframe::epaint::ahash::HashMap;
 
 //the entry point for model
 use crate::towns::{Constraint, ConstraintType, Town};
@@ -11,57 +13,100 @@ pub enum Model {
     Loaded {
         db: download::Database,
         ctx: egui::Context,
+        cache_strings: HashMap<(ConstraintType, Vec<Constraint>), Arc<Vec<String>>>,
+        cache_towns: HashMap<Vec<Constraint>, Arc<Vec<Town>>>,
     },
 }
-
-// TODO: cache the methods here. This struct is replaced any time the Server/DB is changed, so we don't even have to think about cache invalidation
 
 impl Model {
     pub fn request_repaint_after(&self, duration: Duration) {
         match self {
             Model::Uninitialized => { /*do nothing*/ }
-            Model::Loaded { db: _db, ctx } => ctx.request_repaint_after(duration),
+            Model::Loaded {
+                db: _db,
+                ctx,
+                cache_strings: _,
+                cache_towns: _,
+            } => ctx.request_repaint_after(duration),
         }
     }
 
-    pub fn get_towns_for_constraints(&self, constraints: &[&Constraint]) -> Vec<Town> {
+    pub fn get_towns_for_constraints(&mut self, constraints: &[Constraint]) -> Arc<Vec<Town>> {
         match self {
-            Model::Uninitialized => Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => db.get_towns_for_constraints(constraints),
+            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Loaded {
+                db,
+                ctx: _ctx,
+                cache_strings: _,
+                cache_towns,
+            } => cache_towns
+                .entry(constraints.to_vec())
+                .or_insert(Arc::new(db.get_towns_for_constraints(constraints)))
+                .clone(),
         }
     }
 
     pub fn get_names_for_constraint_type_with_constraints(
-        &self,
-        constraint_type: &ConstraintType,
-        constraints: &[&Constraint],
-    ) -> Vec<String> {
+        &mut self,
+        constraint_type: ConstraintType,
+        constraints: &[Constraint],
+    ) -> Arc<Vec<String>> {
         match self {
-            Model::Uninitialized => Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => {
-                db.get_names_for_constraint_type_in_constraints(constraint_type, constraints)
-            }
+            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Loaded {
+                db,
+                ctx: _ctx,
+                cache_strings,
+                cache_towns: _,
+            } => cache_strings
+                .entry((constraint_type, constraints.to_vec()))
+                .or_insert(Arc::new(db.get_names_for_constraint_type_in_constraints(
+                    constraint_type,
+                    constraints,
+                )))
+                .clone(),
         }
     }
 
-    pub fn get_ghost_towns(&self) -> Vec<Town> {
+    pub fn get_ghost_towns(&self) -> Arc<Vec<Town>> {
         match self {
-            Model::Uninitialized => Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => db.get_ghost_towns(),
+            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Loaded {
+                db,
+                ctx: _ctx,
+                cache_strings: _,
+                cache_towns: _,
+            } => Arc::new(db.get_ghost_towns()),
         }
     }
 
-    pub fn get_all_towns(&self) -> Vec<Town> {
+    pub fn get_all_towns(&self) -> Arc<Vec<Town>> {
         match self {
-            Model::Uninitialized => Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => db.get_all_towns(),
+            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Loaded {
+                db,
+                ctx: _ctx,
+                cache_strings: _,
+                cache_towns: _,
+            } => Arc::new(db.get_all_towns()),
         }
     }
 
-    pub fn get_names_for_constraint_type(&self, constraint_type: &ConstraintType) -> Vec<String> {
+    pub fn get_names_for_constraint_type(
+        &mut self,
+        constraint_type: ConstraintType,
+    ) -> Arc<Vec<String>> {
         match self {
-            Model::Uninitialized => Vec::new(),
-            Model::Loaded { db, ctx: _ctx } => db.get_names_for_constraint_type(constraint_type),
+            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Loaded {
+                db,
+                ctx: _ctx,
+                cache_strings,
+                cache_towns: _,
+            } => cache_strings
+                .entry((constraint_type, Vec::new()))
+                .or_insert(Arc::new(db.get_names_for_constraint_type(constraint_type)))
+                .clone(),
         }
     }
 }

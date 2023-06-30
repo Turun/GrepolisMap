@@ -1,4 +1,5 @@
 use core::fmt;
+use std::sync::Arc;
 
 use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
 
@@ -10,11 +11,11 @@ use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
 pub enum MessageToView {
     Loading(Progress),
     GotServer,
-    AllTowns(Vec<Town>),
-    GhostTowns(Vec<Town>),
-    DropDownValues(ConstraintType, Vec<String>),
-    TownListForSelection(TownSelection, Vec<Town>),
-    ValueListForConstraint(Constraint, TownSelection, Vec<String>),
+    AllTowns(Arc<Vec<Town>>),
+    GhostTowns(Arc<Vec<Town>>),
+    DropDownValues(ConstraintType, Arc<Vec<String>>),
+    TownListForSelection(TownSelection, Arc<Vec<Town>>),
+    ValueListForConstraint(Constraint, TownSelection, Arc<Vec<String>>),
 }
 
 impl fmt::Display for MessageToView {
@@ -25,14 +26,14 @@ impl fmt::Display for MessageToView {
             }
             MessageToView::TownListForSelection(selection, towns) => write!(
                 f,
-                "MessageToView::TownList({}, {} towns)",
+                "MessageToView::TownListForSelection({}, {} towns)",
                 selection,
                 towns.len()
             ),
             MessageToView::ValueListForConstraint(constraint, selection, towns) => {
                 write!(
                     f,
-                    "MessageToView::TownListConstraint({}, {}, {} towns)",
+                    "MessageToView::TownListForConstraint({}, {}, {} towns)",
                     constraint,
                     selection,
                     towns.len()
