@@ -162,8 +162,6 @@ impl View {
                             change = Some(Change::MoveDown(index));
                         }
 
-                        // TODO list the number of cities in this selection here
-
                         ui.label(format!("{} Towns", selection.towns.len()));
 
                         if selection.state == SelectionState::Loading {
@@ -519,13 +517,6 @@ impl eframe::App for View {
                     self.channel_presenter_tx
                         .send(MessageToModel::FetchGhosts)
                         .expect("Failed to send message to model: FetchGhosts");
-                    for variant in ConstraintType::iter() {
-                        self.channel_presenter_tx
-                            .send(MessageToModel::FetchDropDownValues(variant))
-                            .expect(&format!(
-                                "Failed to send message to model: FetchDropDownValues({variant})"
-                            ));
-                    }
                 }
                 MessageToView::TownListForSelection(selection, town_list) => {
                     self.ui_state = State::Show;
@@ -569,9 +560,6 @@ impl eframe::App for View {
                 MessageToView::GhostTowns(towns) => {
                     self.ui_state = State::Show;
                     self.ui_data.ghost_towns = towns;
-                }
-                MessageToView::DropDownValues(constraint_type, values) => {
-                    let _old_value = self.ui_data.dropdown_values.insert(constraint_type, values);
                 }
                 MessageToView::Loading(progress) => {
                     self.ui_state = State::Uninitialized(progress);

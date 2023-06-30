@@ -1,10 +1,9 @@
 use std::{
-    collections::HashMap,
     ops::{Add, Div, Mul, Sub},
     sync::Arc,
 };
 
-use crate::towns::{ConstraintType, Town, TownSelection};
+use crate::towns::{Town, TownSelection};
 
 #[derive(Clone)]
 pub struct DefaultTownGroup {
@@ -24,8 +23,6 @@ pub struct Data {
 
     pub all_towns: Arc<Vec<Town>>,
     pub ghost_towns: Arc<Vec<Town>>,
-
-    pub dropdown_values: HashMap<ConstraintType, Arc<Vec<String>>>,
 }
 
 impl Default for Data {
@@ -44,7 +41,6 @@ impl Default for Data {
                 enabled: true,
                 color: egui::Color32::from_rgb(48, 48, 48),
             },
-            dropdown_values: HashMap::new(),
         }
     }
 }

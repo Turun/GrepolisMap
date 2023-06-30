@@ -56,12 +56,6 @@ impl Presenter {
                         .send(MessageToView::GhostTowns(towns))
                         .expect("Failed to send ghost town list to view");
                 }
-                MessageToModel::FetchDropDownValues(constraint_type) => {
-                    let names = self.model.get_names_for_constraint_type(constraint_type);
-                    self.channel_tx
-                        .send(MessageToView::DropDownValues(constraint_type, names))
-                        .expect("Failed to send drop down value list to view");
-                }
                 MessageToModel::FetchTowns(selection) => {
                     // a list of filled constraints. For each one, filter the ddv list by all _other_ filled constratins
                     let filled_constraints: Vec<Constraint> = selection

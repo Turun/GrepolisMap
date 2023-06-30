@@ -1,7 +1,7 @@
 use core::fmt;
 use std::sync::Arc;
 
-use crate::towns::{Constraint, ConstraintType, Town, TownSelection};
+use crate::towns::{Constraint, Town, TownSelection};
 
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene
@@ -13,7 +13,6 @@ pub enum MessageToView {
     GotServer,
     AllTowns(Arc<Vec<Town>>),
     GhostTowns(Arc<Vec<Town>>),
-    DropDownValues(ConstraintType, Arc<Vec<String>>),
     TownListForSelection(TownSelection, Arc<Vec<Town>>),
     ValueListForConstraint(Constraint, TownSelection, Arc<Vec<String>>),
 }
@@ -33,7 +32,7 @@ impl fmt::Display for MessageToView {
             MessageToView::ValueListForConstraint(constraint, selection, towns) => {
                 write!(
                     f,
-                    "MessageToView::TownListForConstraint({}, {}, {} towns)",
+                    "MessageToView::ValueListForConstraint({}, {}, {} Values)",
                     constraint,
                     selection,
                     towns.len()
@@ -46,14 +45,6 @@ impl fmt::Display for MessageToView {
             MessageToView::GhostTowns(towns) => {
                 write!(f, "MessageToView::GhostTowns({} towns)", towns.len())
             }
-            MessageToView::DropDownValues(constraint_type, values) => {
-                write!(
-                    f,
-                    "MessageToView::DropDownValues({}: {} entries)",
-                    constraint_type,
-                    values.len()
-                )
-            }
         }
     }
 }
@@ -63,7 +54,6 @@ pub enum MessageToModel {
     SetServer(Server, egui::Context),
     FetchAll,
     FetchGhosts,
-    FetchDropDownValues(ConstraintType),
     FetchTowns(TownSelection),
 }
 
@@ -81,9 +71,6 @@ impl fmt::Display for MessageToModel {
             }
             MessageToModel::FetchGhosts => {
                 write!(f, "MessageToModel::FetchGhosts")
-            }
-            MessageToModel::FetchDropDownValues(constraint_type) => {
-                write!(f, "MessageToModel::FetchDropDownValues({constraint_type})")
             }
         }
     }
