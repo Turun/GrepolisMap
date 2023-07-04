@@ -91,6 +91,12 @@ impl View {
                 all_towns: Arc::new(Vec::new()),
                 ghost_towns: Arc::new(Vec::new()),
             };
+            // ensure the towns in the selection are fetched anew after loading the data from the server.
+            // If we don't do this the selection may become stale and show towns from server ab12 on a
+            // map that is otherwise pulled from server cd34
+            for selection in self.ui_data.selections.iter_mut() {
+                selection.state = SelectionState::NewlyCreated;
+            }
             self.channel_presenter_tx
                 .send(MessageToModel::SetServer(
                     Server {
