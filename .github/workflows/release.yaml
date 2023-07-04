@@ -1,16 +1,16 @@
 # from https://github.com/rust-build/rust-build.action
 # and https://github.com/BamPeers/rust-ci-github-actions-workflow/blob/main/.github/workflows/release-packaging.yaml
+# and https://trstringer.com/github-actions-create-release-upload-artifacts/
 
 # Docs: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
 
-name: Rust Release Build
+name: Rust Release Build & Draft
 
 on:
-  release:
-    types: [created]
-  # enable on push to test CI
-  # push:
-    # branches: [master]
+  # draft a release when pushing a tag
+  push:
+    tags:
+      - "*"
 
 jobs:
   release:
@@ -24,10 +24,37 @@ jobs:
           - target: x86_64-unknown-linux-musl
           - target: x86_64-apple-darwin
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Draft Github Release
+        id: create_release
+        uses: actions/create-release@V1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          draft: true
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+
       - name: Compile and release
+        id: build_artifact
         uses: rust-build/rust-build.action@v1.4.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           RUSTTARGET: ${{ matrix.target }}
+          UPLOAD_MODE: none
+
+      - name: Upload artifact to release
+        id: upload_artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.uplod_url }}
+          asset_name: GrepolisMap-${{ matrix.target }}-${{ github.token }}
+          asset_path: ${{ steps.build_artifact.outputs.BUILT_ARCHIVE }}
