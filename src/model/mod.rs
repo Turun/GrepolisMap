@@ -31,18 +31,21 @@ impl Model {
         }
     }
 
-    pub fn get_towns_for_constraints(&mut self, constraints: &[Constraint]) -> Arc<Vec<Town>> {
+    pub fn get_towns_for_constraints(
+        &mut self,
+        constraints: &[Constraint],
+    ) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
-            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Uninitialized => Ok(Arc::new(Vec::new())),
             Model::Loaded {
                 db,
                 ctx: _ctx,
                 cache_strings: _,
                 cache_towns,
-            } => cache_towns
+            } => Ok(cache_towns
                 .entry(constraints.to_vec())
-                .or_insert(Arc::new(db.get_towns_for_constraints(constraints)))
-                .clone(),
+                .or_insert(Arc::new(db.get_towns_for_constraints(constraints)?))
+                .clone()),
         }
     }
 
@@ -50,63 +53,63 @@ impl Model {
         &mut self,
         constraint_type: ConstraintType,
         constraints: &[Constraint],
-    ) -> Arc<Vec<String>> {
+    ) -> anyhow::Result<Arc<Vec<String>>> {
         match self {
-            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Uninitialized => Ok(Arc::new(Vec::new())),
             Model::Loaded {
                 db,
                 ctx: _ctx,
                 cache_strings,
                 cache_towns: _,
-            } => cache_strings
+            } => Ok(cache_strings
                 .entry((constraint_type, constraints.to_vec()))
                 .or_insert(Arc::new(db.get_names_for_constraint_type_in_constraints(
                     constraint_type,
                     constraints,
-                )))
-                .clone(),
+                )?))
+                .clone()),
         }
     }
 
-    pub fn get_ghost_towns(&self) -> Arc<Vec<Town>> {
+    pub fn get_ghost_towns(&self) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
-            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Uninitialized => Ok(Arc::new(Vec::new())),
             Model::Loaded {
                 db,
                 ctx: _ctx,
                 cache_strings: _,
                 cache_towns: _,
-            } => Arc::new(db.get_ghost_towns()),
+            } => Ok(Arc::new(db.get_ghost_towns()?)),
         }
     }
 
-    pub fn get_all_towns(&self) -> Arc<Vec<Town>> {
+    pub fn get_all_towns(&self) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
-            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Uninitialized => Ok(Arc::new(Vec::new())),
             Model::Loaded {
                 db,
                 ctx: _ctx,
                 cache_strings: _,
                 cache_towns: _,
-            } => Arc::new(db.get_all_towns()),
+            } => Ok(Arc::new(db.get_all_towns()?)),
         }
     }
 
     pub fn get_names_for_constraint_type(
         &mut self,
         constraint_type: ConstraintType,
-    ) -> Arc<Vec<String>> {
+    ) -> anyhow::Result<Arc<Vec<String>>> {
         match self {
-            Model::Uninitialized => Arc::new(Vec::new()),
+            Model::Uninitialized => Ok(Arc::new(Vec::new())),
             Model::Loaded {
                 db,
                 ctx: _ctx,
                 cache_strings,
                 cache_towns: _,
-            } => cache_strings
+            } => Ok(cache_strings
                 .entry((constraint_type, Vec::new()))
-                .or_insert(Arc::new(db.get_names_for_constraint_type(constraint_type)))
-                .clone(),
+                .or_insert(Arc::new(db.get_names_for_constraint_type(constraint_type)?))
+                .clone()),
         }
     }
 }

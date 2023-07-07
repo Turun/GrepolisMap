@@ -1,6 +1,7 @@
 /// this takes care of fetching the data and putting it into a database
 use std::sync::mpsc;
 
+use anyhow::{Context, Result};
 use reqwest;
 use rusqlite::{self, types::ToSqlOutput, ToSql};
 
@@ -9,7 +10,10 @@ use crate::towns::{Constraint, ConstraintType, Town};
 
 use super::offset_data;
 
-fn download_generic<U>(client: &reqwest::blocking::Client, url: U) -> Result<String, reqwest::Error>
+fn download_generic<U>(
+    client: &reqwest::blocking::Client,
+    url: U,
+) -> std::result::Result<String, reqwest::Error>
 where
     U: reqwest::IntoUrl + std::fmt::Display,
 {
@@ -49,7 +53,7 @@ impl ToSql for EitherOr {
 }
 
 impl Database {
-    pub fn get_all_towns(&self) -> Vec<Town> {
+    pub fn get_all_towns(&self) -> anyhow::Result<Vec<Town>> {
         let mut statement = self
             .connection
             .prepare(
@@ -61,18 +65,18 @@ impl Database {
                 LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
                 WHERE islands.type = offsets.type",
             )
-            .expect("Failed to get towns from database (build statement)");
+            .context("Failed to get towns from database (build statement)")?;
         let rows = statement
             .query([])
-            .expect("Failed to get towns from the database (perform query)")
+            .context("Failed to get towns from the database (perform query)")?
             .mapped(Town::from)
-            .map(|town_option| town_option.expect("Failed to create a town from row"))
-            .collect();
+            .collect::<std::result::Result<Vec<Town>, rusqlite::Error>>()
+            .context("Failed to create a town from row")?;
 
-        rows
+        Ok(rows)
     }
 
-    pub fn get_ghost_towns(&self) -> Vec<Town> {
+    pub fn get_ghost_towns(&self) -> anyhow::Result<Vec<Town>> {
         let mut statement = self
             .connection
             .prepare(
@@ -84,18 +88,21 @@ impl Database {
                 LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
                 WHERE islands.type = offsets.type AND towns.player_id IS NULL",
             )
-            .expect("Failed to get ghost towns from database (build statement)");
+            .context("Failed to get ghost towns from database (build statement)")?;
         let rows = statement
             .query([])
-            .expect("Failed to get ghost towns from the database (perform query)")
+            .context("Failed to get ghost towns from the database (perform query)")?
             .mapped(Town::from)
-            .map(|town_option| town_option.expect("Failed to create a town from row"))
-            .collect();
+            .collect::<std::result::Result<Vec<Town>, rusqlite::Error>>()
+            .context("Failed to create a town from row")?;
 
-        rows
+        Ok(rows)
     }
 
-    pub fn get_names_for_constraint_type(&self, constraint_type: ConstraintType) -> Vec<String> {
+    pub fn get_names_for_constraint_type(
+        &self,
+        constraint_type: ConstraintType,
+    ) -> anyhow::Result<Vec<String>> {
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
 
@@ -112,32 +119,28 @@ impl Database {
         let mut statement = self
             .connection
             .prepare(&statement_text)
-            .expect("Failed to get names from database (build statement)");
+            .context("Failed to get names from database (build statement)")?;
         let rows = statement
             .query([])
-            .expect("Failed to get names from the database (perform query)")
+            .context("Failed to get names from the database (perform query)")?
             .mapped(|row| {
                 if constraint_type.is_string() {
-                    let value_option = row.get::<usize, String>(0);
-                    let value = value_option.expect("Failed to collect names from rows");
-                    Ok(value)
+                    row.get::<usize, String>(0)
                 } else {
-                    let value_option = row.get::<usize, usize>(0);
-                    let value = value_option.expect("Failed to collect names from rows");
-                    Ok(format!("{value}"))
+                    row.get::<usize, usize>(0).map(|value| format!("{value}"))
                 }
             })
-            .map(Result::unwrap)
-            .collect();
+            .collect::<std::result::Result<Vec<String>, rusqlite::Error>>()
+            .context("Failed to collect names from rows")?;
 
-        rows
+        Ok(rows)
     }
 
     pub fn get_names_for_constraint_type_in_constraints(
         &self,
         constraint_type: ConstraintType,
         constraints: &[Constraint],
-    ) -> Vec<String> {
+    ) -> anyhow::Result<Vec<String>> {
         if constraints.is_empty() {
             return self.get_names_for_constraint_type(constraint_type);
         }
@@ -183,7 +186,7 @@ impl Database {
                 if let Ok(parsed) = opt_parsed {
                     query_parameters.push(EitherOr::B(parsed));
                 } else {
-                    return Vec::new();
+                    return Ok(Vec::new());
                 }
             }
         }
@@ -196,10 +199,10 @@ impl Database {
         let mut statement = self
             .connection
             .prepare(&statement_text)
-            .expect("Failed to get names from database (build statement)");
+            .context("Failed to get names from database (build statement)")?;
         let rows = statement
             .query(query_parameters.as_slice())
-            .expect("Failed to get names from the database (perform query)")
+            .context("Failed to get names from the database (perform query)")?
             .mapped(|row| {
                 if constraint_type.is_string() {
                     row.get::<usize, String>(0)
@@ -214,12 +217,15 @@ impl Database {
             .filter_map(Result::ok)
             .collect();
 
-        rows
+        Ok(rows)
     }
 
-    pub fn get_towns_for_constraints(&self, constraints: &[Constraint]) -> Vec<Town> {
+    pub fn get_towns_for_constraints(
+        &self,
+        constraints: &[Constraint],
+    ) -> anyhow::Result<Vec<Town>> {
         if constraints.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         let mut statement_text = String::from(
@@ -255,7 +261,7 @@ impl Database {
                 if let Ok(parsed) = opt_parsed {
                     query_parameters.push(EitherOr::B(parsed));
                 } else {
-                    return Vec::new();
+                    return Ok(Vec::new());
                 }
             }
         }
@@ -268,26 +274,26 @@ impl Database {
         let mut statement = self
             .connection
             .prepare(&statement_text)
-            .expect("Failed to get ghost towns from database (build statement)");
+            .context("Failed to get ghost towns from database (build statement)")?;
         let rows = statement
             .query(query_parameters.as_slice())
-            .expect("Failed to get ghost towns from the database (perform query)")
+            .context("Failed to get ghost towns from the database (perform query)")?
             .mapped(Town::from)
-            .map(|town_option| town_option.expect("Failed to create a town from row"))
-            .collect();
+            .collect::<std::result::Result<Vec<Town>, rusqlite::Error>>()
+            .context("Failed to create a town from row")?;
 
-        rows
+        Ok(rows)
     }
 
     pub fn create_for_world(
         server_id: &str,
         sender: &mpsc::Sender<MessageToView>,
         ctx: &egui::Context,
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
         let reqwest_client = make_client();
 
         let mut conn =
-            rusqlite::Connection::open_in_memory().expect("Failed to open in memory database");
+            rusqlite::Connection::open_in_memory().context("Failed to open in memory database")?;
         let thread_client = reqwest_client.clone();
         let thread_server_id = String::from(server_id);
         let handle_data_players = std::thread::spawn(move || {
@@ -323,57 +329,57 @@ impl Database {
 
         sender
             .send(MessageToView::Loading(Progress::Started))
-            .expect("Failed to send progressupdate 1 to view");
+            .context("Failed to send progressupdate 1 to view")?;
         ctx.request_repaint();
 
-        Database::create_table_offsets(&mut conn);
+        Database::create_table_offsets(&mut conn)?;
         sender
             .send(MessageToView::Loading(Progress::IslandOffsets))
-            .expect("Failed to send progressupdate 2 to view");
+            .context("Failed to send progressupdate 2 to view")?;
         ctx.request_repaint();
 
         let data_alliances = handle_data_alliances
             .join()
             .expect("Failed to join AllianceData fetching thread");
-        Database::create_table_alliances(&mut conn, data_alliances);
+        Database::create_table_alliances(&mut conn, data_alliances)?;
         sender
             .send(MessageToView::Loading(Progress::Alliances))
-            .expect("Failed to send progressupdate 3 to view");
+            .context("Failed to send progressupdate 3 to view")?;
         ctx.request_repaint();
 
         let data_players = handle_data_players
             .join()
             .expect("Failed to join PlayerData fetching thread");
-        Database::create_table_players(&mut conn, data_players);
+        Database::create_table_players(&mut conn, data_players)?;
         sender
             .send(MessageToView::Loading(Progress::Players))
-            .expect("Failed to send progressupdate 4 to view");
+            .context("Failed to send progressupdate 4 to view")?;
         ctx.request_repaint();
 
         let data_towns = handle_data_towns
             .join()
             .expect("Failed to join AllianceData fetching thread");
-        Database::create_table_towns(&mut conn, data_towns);
+        Database::create_table_towns(&mut conn, data_towns)?;
         sender
             .send(MessageToView::Loading(Progress::Towns))
-            .expect("Failed to send progressupdate 5 to view");
+            .context("Failed to send progressupdate 5 to view")?;
         ctx.request_repaint();
 
         let data_islands = handle_data_islands
             .join()
             .expect("Failed to join AllianceData fetching thread");
-        Database::create_table_islands(&mut conn, data_islands);
+        Database::create_table_islands(&mut conn, data_islands)?;
         sender
             .send(MessageToView::Loading(Progress::Islands))
-            .expect("Failed to send progressupdate 6 to view");
+            .context("Failed to send progressupdate 6 to view")?;
         ctx.request_repaint();
-        Self { connection: conn }
+        Ok(Self { connection: conn })
     }
 
     fn create_table_players(
         connection: &mut rusqlite::Connection,
         data: Result<String, reqwest::Error>,
-    ) {
+    ) -> anyhow::Result<()> {
         connection
             .execute(
                 "CREATE TABLE players(
@@ -386,51 +392,64 @@ impl Database {
                 FOREIGN KEY(alliance_id) REFERENCES alliances(alliance_id) DEFERRABLE)",
                 (),
             )
-            .expect("Failed to create players table");
+            .context("Failed to create players table")?;
 
         let transaction = connection
             .transaction()
-            .expect("Failed to start transaction for table creation players");
+            .context("Failed to start transaction for table creation players")?;
 
         let mut prepared_statement = transaction
             .prepare("INSERT INTO players VALUES(?1, ?2, ?3, ?4, ?5, ?6)")
-            .expect("Failed to prepare statement for players");
-        for line in data.expect("Failed to download player data").lines() {
+            .context("Failed to prepare statement for players")?;
+        for line in data.context("Failed to download player data")?.lines() {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No player id in {line}")),
+                    values
+                        .next()
+                        .with_context(|| format!("No player id in {line}"))?,
                     {
-                        let text = values.next().expect(&format!("No player name in {line}"));
+                        let text = values
+                            .next()
+                            .with_context(|| format!("No player name in {line}"))?;
                         let decoded = form_urlencoded::parse(text.as_bytes())
                             .map(|(key, val)| [key, val].concat())
                             .collect::<String>();
                         decoded
                     },
                     {
-                        let text = values.next().expect(&format!("No alliance id in {line}"));
+                        let text = values
+                            .next()
+                            .with_context(|| format!("No alliance id in {line}"))?;
                         if text.is_empty() {
                             None
                         } else {
                             Some(text)
                         }
                     },
-                    values.next().expect(&format!("No player pts in {line}")),
-                    values.next().expect(&format!("No player rank in {line}")),
-                    values.next().expect(&format!("No player town in {line}")),
+                    values
+                        .next()
+                        .with_context(|| format!("No player pts in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No player rank in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No player town in {line}"))?,
                 ))
-                .expect(&format!("Failed to insert into players from line {line}"));
+                .with_context(|| format!("Failed to insert into players from line {line}"))?;
         }
         drop(prepared_statement);
         transaction
             .commit()
-            .expect("Failed to commit transaction for table players");
+            .context("Failed to commit transaction for table players")?;
+        Ok(())
     }
 
     fn create_table_alliances(
         connection: &mut rusqlite::Connection,
         data: Result<String, reqwest::Error>,
-    ) {
+    ) -> anyhow::Result<()> {
         connection
             .execute(
                 "CREATE TABLE alliances(
@@ -442,43 +461,56 @@ impl Database {
                 rank INTEGER)",
                 (),
             )
-            .expect("Failed to create table alliances");
+            .context("Failed to create table alliances")?;
 
         let transaction = connection
             .transaction()
-            .expect("Failed to start transaction for table creation alliances");
+            .context("Failed to start transaction for table creation alliances")?;
         let mut prepared_statement = transaction
             .prepare("INSERT INTO alliances VALUES(?1, ?2, ?3, ?4, ?5, ?6)")
-            .expect("Failed to prepare statement for alliances");
-        for line in data.expect("Failed to download alliance data").lines() {
+            .context("Failed to prepare statement for alliances")?;
+        for line in data.context("Failed to download alliance data")?.lines() {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No ally id in {line}")),
+                    values
+                        .next()
+                        .with_context(|| format!("No ally id in {line}"))?,
                     {
-                        let text = values.next().expect(&format!("No ally name in {line}"));
+                        let text = values
+                            .next()
+                            .with_context(|| format!("No ally name in {line}"))?;
                         let decoded = form_urlencoded::parse(text.as_bytes())
                             .map(|(key, val)| [key, val].concat())
                             .collect::<String>();
                         decoded
                     },
-                    values.next().expect(&format!("No ally pts in {line}")),
-                    values.next().expect(&format!("No ally towns in {line}")),
-                    values.next().expect(&format!("No ally membrs in {line}")),
-                    values.next().expect(&format!("No ally rank in {line}")),
+                    values
+                        .next()
+                        .with_context(|| format!("No ally pts in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No ally towns in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No ally membrs in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No ally rank in {line}"))?,
                 ))
-                .expect(&format!("Failed to insert into alliances for line {line}"));
+                .with_context(|| format!("Failed to insert into alliances for line {line}"))?;
         }
         drop(prepared_statement);
         transaction
             .commit()
-            .expect("Failed to commit transaction for table alliances");
+            .context("Failed to commit transaction for table alliances")?;
+        Ok(())
     }
 
     fn create_table_towns(
         connection: &mut rusqlite::Connection,
         data: Result<String, reqwest::Error>,
-    ) {
+    ) -> anyhow::Result<()> {
         connection
             .execute(
                 "CREATE TABLE towns(
@@ -492,21 +524,25 @@ impl Database {
                 FOREIGN KEY(player_id) REFERENCES players(player_id) DEFERRABLE)",
                 (),
             )
-            .expect("Failed to create table towns");
+            .context("Failed to create table towns")?;
 
         let transaction = connection
             .transaction()
-            .expect("Failed to start transaction for table towns creation ");
+            .context("Failed to start transaction for table towns creation ")?;
         let mut prepared_statement = transaction
             .prepare("INSERT INTO towns VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)")
-            .expect("Failed to prepare statement for towns");
-        for line in data.expect("Failed to download town data").lines() {
+            .context("Failed to prepare statement for towns")?;
+        for line in data.context("Failed to download town data")?.lines() {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No town id in {line}")),
+                    values
+                        .next()
+                        .with_context(|| format!("No town id in {line}"))?,
                     {
-                        let text = values.next().expect(&format!("No player id in {line}"));
+                        let text = values
+                            .next()
+                            .with_context(|| format!("No player id in {line}"))?;
                         if text.is_empty() {
                             None
                         } else {
@@ -514,29 +550,40 @@ impl Database {
                         }
                     },
                     {
-                        let text = values.next().expect(&format!("No town name in {line}"));
+                        let text = values
+                            .next()
+                            .with_context(|| format!("No town name in {line}"))?;
                         let decoded = form_urlencoded::parse(text.as_bytes())
                             .map(|(key, val)| [key, val].concat())
                             .collect::<String>();
                         decoded
                     },
-                    values.next().expect(&format!("No town x in {line}")),
-                    values.next().expect(&format!("No town y pts in {line}")),
-                    values.next().expect(&format!("No town slotnr in {line}")),
-                    values.next().expect(&format!("No town points in {line}")),
+                    values
+                        .next()
+                        .with_context(|| format!("No town x in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No town y pts in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No town slotnr in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No town points in {line}"))?,
                 ))
-                .expect(&format!("Failed to insert into towns from line {line}"));
+                .with_context(|| format!("Failed to insert into towns from line {line}"))?;
         }
         drop(prepared_statement);
         transaction
             .commit()
-            .expect("Failed to commit transaction for table towns");
+            .context("Failed to commit transaction for table towns")?;
+        Ok(())
     }
 
     fn create_table_islands(
         connection: &mut rusqlite::Connection,
         data: Result<String, reqwest::Error>,
-    ) {
+    ) -> anyhow::Result<()> {
         connection
             .execute(
                 "CREATE TABLE islands(
@@ -549,34 +596,49 @@ impl Database {
                 ressource_minus TEXT)",
                 (),
             )
-            .expect("Failed to create table islands");
+            .context("Failed to create table islands")?;
         let transaction = connection
             .transaction()
-            .expect("Failed to start transaction for table creation islands");
+            .context("Failed to start transaction for table creation islands")?;
         let mut prepared_statement = transaction
             .prepare("INSERT INTO islands VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)")
-            .expect("Failed to prepare statement for islands");
-        for line in data.expect("Failed to download island data").lines() {
+            .context("Failed to prepare statement for islands")?;
+        for line in data.context("Failed to download island data")?.lines() {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No island id in {line}")),
-                    values.next().expect(&format!("No island x in {line}")),
-                    values.next().expect(&format!("No island y in {line}")),
-                    values.next().expect(&format!("No island type in {line}")),
-                    values.next().expect(&format!("No island town in {line}")),
-                    values.next().expect(&format!("No island more in {line}")),
-                    values.next().expect(&format!("No island less in {line}")),
+                    values
+                        .next()
+                        .with_context(|| format!("No island id in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No island x in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No island y in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No island type in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No island town in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No island more in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No island less in {line}"))?,
                 ))
-                .expect(&format!("Failed to insert into islands from line {line}"));
+                .with_context(|| format!("Failed to insert into islands from line {line}"))?;
         }
         drop(prepared_statement);
         transaction
             .commit()
-            .expect("Failed to commit transaction for table islands");
+            .context("Failed to commit transaction for table islands")?;
+        Ok(())
     }
 
-    fn create_table_offsets(connection: &mut rusqlite::Connection) {
+    fn create_table_offsets(connection: &mut rusqlite::Connection) -> anyhow::Result<()> {
         connection
             .execute(
                 "CREATE TABLE offsets(
@@ -587,27 +649,36 @@ impl Database {
                 PRIMARY KEY (type, slot_number))",
                 (),
             )
-            .expect("Failed to create table offsets");
+            .context("Failed to create table offsets")?;
         let transaction = connection
             .transaction()
-            .expect("Failed to start transaction for table creation offsets");
+            .context("Failed to start transaction for table creation offsets")?;
         let mut prepared_statement = transaction
             .prepare("INSERT INTO offsets VALUES(?1, ?2, ?3, ?4)")
-            .expect("Failed to prepare statement for offsets");
+            .context("Failed to prepare statement for offsets")?;
         for line in offset_data::OFFSET_DATA.lines() {
             let mut values = line.split(',');
             prepared_statement
                 .execute((
-                    values.next().expect(&format!("No offset tyep in {line}")),
-                    values.next().expect(&format!("No offset x in {line}")),
-                    values.next().expect(&format!("No offset y in {line}")),
-                    values.next().expect(&format!("No offset slot in {line}")),
+                    values
+                        .next()
+                        .with_context(|| format!("No offset tyep in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No offset x in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No offset y in {line}"))?,
+                    values
+                        .next()
+                        .with_context(|| format!("No offset slot in {line}"))?,
                 ))
-                .expect(&format!("Failed to insert into offsets from line {line}"));
+                .with_context(|| format!("Failed to insert into offsets from line {line}"))?;
         }
         drop(prepared_statement);
         transaction
             .commit()
-            .expect("Failed to commit transaction for table offsets");
+            .context("Failed to commit transaction for table offsets")?;
+        Ok(())
     }
 }

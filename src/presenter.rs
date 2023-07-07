@@ -1,3 +1,4 @@
+use anyhow::Context;
 use eframe::epaint::ahash::HashMap;
 
 use crate::message::{MessageToModel, MessageToView};
@@ -22,41 +23,70 @@ impl Presenter {
         }
     }
 
+    /// Given a Result<MessageToView>, send it to the View if it is ok. If the sending
+    /// fails, output to stderr with the message given in `error_channel`. If the given
+    /// message result is error, simply output it to stderr.
+    fn send_to_view(&self, msg_opt: anyhow::Result<MessageToView>, error_channel: String) {
+        match msg_opt {
+            Ok(msg) => {
+                let res = self.channel_tx.send(msg).context(error_channel);
+                if let Err(err) = res {
+                    eprintln!("{err}");
+                }
+            }
+            Err(err) => {
+                eprintln!("{err}");
+                let res = self
+                    .channel_tx
+                    .send(MessageToView::BackendCrashed(err))
+                    .context(error_channel);
+                if let Err(err) = res {
+                    eprintln!("We crashed so hard we couldn't even tell the frontend we did! Error: {err}");
+                }
+            }
+        }
+    }
+
     #[allow(clippy::too_many_lines)] // processing all variants of incoming messages simply needs a lot of lines
+    /// Start the service that handles incoming messages, calls the appropriate backend code and sends the resutls to the view
     pub fn start(&mut self) {
         for message in &self.channel_rx {
             println!("Got Message from View to Model: {message}");
-            //TODO better error handling for the database. We MUST NOT let the model
-            //  thread crash due to DB issues. In
-            //  the worst case the user can just try to reload the data
             match message {
                 MessageToModel::SetServer(server, ctx) => {
-                    // TODO we maybe should invalidate the cache. We can't clean out the data,
-                    // because we are not the only ones holding references to it, but we could
-                    // replace the Vector in every Arc with an empty vector.
                     // TODO: automatically save each db we load (with timestamp) and let the user choose previous versions.
-                    let db = Database::create_for_world(&server.id, &self.channel_tx, &ctx);
-                    self.model = Model::Loaded {
-                        db,
-                        ctx,
-                        cache_strings: HashMap::default(),
-                        cache_towns: HashMap::default(),
-                    };
-                    self.channel_tx
-                        .send(MessageToView::GotServer)
-                        .expect("Failed to send message 'got server'");
+                    let db_result = Database::create_for_world(&server.id, &self.channel_tx, &ctx);
+                    match db_result {
+                        Ok(db) => {
+                            self.model = Model::Loaded {
+                                db,
+                                ctx,
+                                cache_strings: HashMap::default(),
+                                cache_towns: HashMap::default(),
+                            };
+                            self.send_to_view(
+                                Ok(MessageToView::GotServer),
+                                String::from("Failed to send message 'got server'"),
+                            );
+                        }
+                        Err(err) => {
+                            self.model = Model::Uninitialized;
+                            self.send_to_view(
+                                Ok(MessageToView::BackendCrashed(err)),
+                                String::from("Failed to send crash message to view"),
+                            );
+                        }
+                    }
                 }
                 MessageToModel::FetchAll => {
                     let towns = self.model.get_all_towns();
-                    self.channel_tx
-                        .send(MessageToView::AllTowns(towns))
-                        .expect("Failed to send all town list to view");
+                    let msg = towns.map(MessageToView::AllTowns);
+                    self.send_to_view(msg, String::from("Failed to send all town list to view"));
                 }
                 MessageToModel::FetchGhosts => {
                     let towns = self.model.get_ghost_towns();
-                    self.channel_tx
-                        .send(MessageToView::GhostTowns(towns))
-                        .expect("Failed to send ghost town list to view");
+                    let msg = towns.map(MessageToView::GhostTowns);
+                    self.send_to_view(msg, String::from("Failed to send ghost town list to view"));
                 }
                 MessageToModel::FetchTowns(selection) => {
                     // a list of filled constraints. For each one, filter the ddv list by all _other_ filled constratins
@@ -75,65 +105,64 @@ impl Presenter {
                         .collect();
 
                     let towns = self.model.get_towns_for_constraints(&filled_constraints);
-                    self.channel_tx
-                        .send(MessageToView::TownListForSelection(
-                            selection.partial_clone(),
-                            towns,
-                        ))
-                        .expect("Failed to send town list to view");
+                    let msg = towns
+                        .map(|t| MessageToView::TownListForSelection(selection.partial_clone(), t));
+                    self.send_to_view(msg, String::from("Failed to send town list to view"));
 
                     // filled constraints
                     if filled_constraints.is_empty() {
                         // nothing
                     } else if filled_constraints.len() == 1 {
                         let c = filled_constraints[0].partial_clone();
-                        let constraint_towns =
-                            self.model.get_names_for_constraint_type(c.constraint_type);
-                        self.channel_tx
-                            .send(MessageToView::ValueListForConstraint(
-                                c,
-                                selection.partial_clone(),
-                                constraint_towns,
-                            ))
-                            .expect("Failed to send town list to view");
+                        let c_towns = self.model.get_names_for_constraint_type(c.constraint_type);
+                        let msg = c_towns.map(|t| {
+                            MessageToView::ValueListForConstraint(c, selection.partial_clone(), t)
+                        });
+                        self.send_to_view(msg, String::from("Failed to send town list to view"));
                     } else {
                         // for each constraint, make a list of all other filled constraints and get the ddv list filtered by those
                         for (i, c) in filled_constraints.iter().enumerate() {
                             let mut other_constraints = filled_constraints.clone();
                             let _this_constraint = other_constraints.swap_remove(i);
 
-                            let constraint_towns =
+                            let c_towns =
                                 self.model.get_names_for_constraint_type_with_constraints(
                                     c.constraint_type,
                                     &other_constraints,
                                 );
-
-                            self.channel_tx
-                                .send(MessageToView::ValueListForConstraint(
+                            let msg = c_towns.map(|t| {
+                                MessageToView::ValueListForConstraint(
                                     c.partial_clone(),
                                     selection.partial_clone(),
-                                    constraint_towns,
-                                ))
-                                .expect("Failed to send town list to view");
+                                    t,
+                                )
+                            });
+                            self.send_to_view(
+                                msg,
+                                String::from("Failed to send town list to view"),
+                            );
                         }
                     }
 
                     // empty constraints
                     if !empty_constraints.is_empty() {
                         for c in empty_constraints {
-                            let constraint_towns =
+                            let c_towns =
                                 self.model.get_names_for_constraint_type_with_constraints(
                                     c.constraint_type,
                                     &filled_constraints,
                                 );
-
-                            self.channel_tx
-                                .send(MessageToView::ValueListForConstraint(
+                            let msg = c_towns.map(|t| {
+                                MessageToView::ValueListForConstraint(
                                     c.partial_clone(),
                                     selection.partial_clone(),
-                                    constraint_towns,
-                                ))
-                                .expect("Failed to send town list to view");
+                                    t,
+                                )
+                            });
+                            self.send_to_view(
+                                msg,
+                                String::from("Failed to send town list to view"),
+                            );
                         }
                     }
                 }

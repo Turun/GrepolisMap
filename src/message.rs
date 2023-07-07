@@ -15,6 +15,7 @@ pub enum MessageToView {
     GhostTowns(Arc<Vec<Town>>),
     TownListForSelection(TownSelection, Arc<Vec<Town>>),
     ValueListForConstraint(Constraint, TownSelection, Arc<Vec<String>>),
+    BackendCrashed(anyhow::Error),
 }
 
 impl fmt::Display for MessageToView {
@@ -44,6 +45,9 @@ impl fmt::Display for MessageToView {
             }
             MessageToView::GhostTowns(towns) => {
                 write!(f, "MessageToView::GhostTowns({} towns)", towns.len())
+            }
+            MessageToView::BackendCrashed(err) => {
+                write!(f, "MessageToView::BackendCrashed({err:?})")
             }
         }
     }
@@ -79,6 +83,7 @@ impl fmt::Display for MessageToModel {
 #[derive(Debug, Clone, Copy)]
 pub enum Progress {
     None,
+    BackendCrashed,
     Started,
     IslandOffsets,
     Alliances,

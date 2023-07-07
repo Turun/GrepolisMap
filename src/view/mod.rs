@@ -6,7 +6,7 @@ use std::sync::{mpsc, Arc};
 use std::time::Duration;
 use strum::IntoEnumIterator;
 
-use egui::{FontData, ProgressBar, Shape, Ui};
+use egui::{FontData, ProgressBar, RichText, Shape, Ui};
 
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
 use crate::towns::{
@@ -96,6 +96,7 @@ impl View {
             // map that is otherwise pulled from server cd34
             for selection in &mut self.ui_data.selections {
                 selection.state = SelectionState::NewlyCreated;
+                selection.towns = Arc::new(Vec::new());
             }
             self.channel_presenter_tx
                 .send(MessageToModel::SetServer(
@@ -114,6 +115,12 @@ impl View {
                 self.ui_server_input(ui, ctx);
                 match progress {
                     Progress::None => {}
+                    Progress::BackendCrashed => {
+                        ui.label(
+                            RichText::new("The Database Crashed. Please Reload The Data.")
+                                .color(ui.style().visuals.warn_fg_color),
+                        );
+                    }
                     Progress::Started => {
                         ui.add(ProgressBar::new(0.0).text(format!("{progress:?}")));
                     }
@@ -329,6 +336,9 @@ impl View {
                     self.ui_data.canvas =
                         Some(CanvasData::new(-response.rect.left_top().to_vec2()));
                 }
+                // we need to have this as an option so we are reminded when we have to
+                // reset it. The .unwrap here is fine, because if it is none we make it
+                // Some() just a line above this comment.
                 let canvas_data = self.ui_data.canvas.as_mut().unwrap();
 
                 //DRAG
@@ -574,6 +584,12 @@ impl eframe::App for View {
                 }
                 MessageToView::Loading(progress) => {
                     self.ui_state = State::Uninitialized(progress);
+                }
+                MessageToView::BackendCrashed(_err) => {
+                    // technically we don't need to remove the displayed stuff yet. The data that
+                    // is already loaded can persist. It's just that the user can't fetch any new data
+                    // from the backend, so a warning about that should be fine.
+                    self.ui_state = State::Uninitialized(Progress::BackendCrashed);
                 }
             }
         }
