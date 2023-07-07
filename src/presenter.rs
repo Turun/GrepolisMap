@@ -22,6 +22,7 @@ impl Presenter {
         }
     }
 
+    #[allow(clippy::too_many_lines)] // processing all variants of incoming messages simply needs a lot of lines
     pub fn start(&mut self) {
         for message in &self.channel_rx {
             println!("Got Message from View to Model: {message}");
@@ -30,6 +31,9 @@ impl Presenter {
             //  the worst case the user can just try to reload the data
             match message {
                 MessageToModel::SetServer(server, ctx) => {
+                    // TODO we maybe should invalidate the cache. We can't clean out the data,
+                    // because we are not the only ones holding references to it, but we could
+                    // replace the Vector in every Arc with an empty vector.
                     // TODO: automatically save each db we load (with timestamp) and let the user choose previous versions.
                     let db = Database::create_for_world(&server.id, &self.channel_tx, &ctx);
                     self.model = Model::Loaded {

@@ -84,7 +84,7 @@ impl View {
             self.ui_state = State::Uninitialized(Progress::None);
             self.ui_data = Data {
                 server_id: self.ui_data.server_id.clone(),
-                canvas: Default::default(),
+                canvas: Option::default(),
                 settings_all: self.ui_data.settings_all.clone(),
                 settings_ghosts: self.ui_data.settings_ghosts.clone(),
                 selections: self.ui_data.selections.clone(),
@@ -94,7 +94,7 @@ impl View {
             // ensure the towns in the selection are fetched anew after loading the data from the server.
             // If we don't do this the selection may become stale and show towns from server ab12 on a
             // map that is otherwise pulled from server cd34
-            for selection in self.ui_data.selections.iter_mut() {
+            for selection in &mut self.ui_data.selections {
                 selection.state = SelectionState::NewlyCreated;
             }
             self.channel_presenter_tx
@@ -137,6 +137,7 @@ impl View {
         });
     }
 
+    #[allow(clippy::too_many_lines)] // UI Code, am I right, hahah
     fn ui_init(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {

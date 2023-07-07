@@ -1,8 +1,7 @@
 // copied from egui source 0.22 as of 2023-06-30
 
 use egui::{
-    Align, Layout, NumExt, Response, Sense, TextStyle, Ui, Widget, WidgetInfo, WidgetText,
-    WidgetType,
+    Align, NumExt, Response, Sense, TextStyle, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
 /// One out of several alternatives, either selected or not.
@@ -65,7 +64,7 @@ impl Widget for SelectableLabel {
 
         if ui.is_rect_visible(response.rect) {
             // my addition, pin the alignment
-            let mut layout = ui.layout().clone();
+            let mut layout = *ui.layout();
             layout.main_align = Align::LEFT;
             let text_pos = layout
                 .align_size_within_rect(text.size(), rect.shrink2(button_padding))
