@@ -288,6 +288,7 @@ impl View {
                     }
 
                     if request_update {
+                        // TODO FetchTowns Message needs an additional argument to tell the backend which constraint is currently edited.
                         self.channel_presenter_tx
                             .send(MessageToModel::FetchTowns(selection.partial_clone()))
                             .expect(&format!(

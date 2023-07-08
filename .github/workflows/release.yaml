@@ -12,61 +12,74 @@ on:
     tags:
       - "*"
 
-jobs:
-  release:
-    name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: Draft Github Release
-        id: create_release
+jobs:
+  create-release:
+    name: create-release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      version: ${{ env.VERSION }}
+    steps:
+      - name: Get the release version from the tag
+        shell: bash
+        if: env.VERSION == ''
+        run: |
+          # Apparently, this is the right way to get a tag name. Really?
+          #
+          # See: https://github.community/t5/GitHub-Actions/How-to-get-just-the-tag-name/m-p/32167/highlight/true#M1027
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "version is: ${{ env.VERSION }}"
+
+      - name: Create GitHub release
+        id: release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           draft: true
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
+          tag_name: ${{ env.VERSION }}
+          release_name: ${{ env.VERSION }}
 
-      - name: Compile for Windows
-        id: build_artifact_win
-        uses: rust-build/rust-build.action@v1.4.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          RUSTTARGET: x86_64-pc-windows-gnu
-          UPLOAD_MODE: none
+  build-release:
+    name: build-release
+    needs: ['create-release']
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+            archive: zip
+          - target: x86_64-unknown-linux-musl
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            archive: zip
+    steps:
+    - name: Checkout repository
+      id: checkout
+      uses: actions/checkout@v3
+      with: 
+        fetch-depth: 0
 
-      # - name: Compile for Linux
-      #   id: build_artifact_linux
-      #   uses: rust-build/rust-build.action@v1.4.3
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     RUSTTARGET: x86_64-unknown-linux-musl
-      #     UPLOAD_MODE: none
+    - name: Compile ${{ matrix.target }}
+      id: compile
+      uses: rust-build/rust-build.action@v1.4.3
+      # env:
+      #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        RUSTTARGET: ${{ matrix.target }}
+        ARCHIVE_TYPES: ${{ matrix.archive }}
+        ARCHIVE_NAME: TurunMap-${{ needs.create-release.outputs.version }}.${{ matrix.archive }}
+        MINIFY: true
+        UPLOAD_MODE: none
 
-      # - name: Compile for Apple
-      #   id: build_artifact_apple
-      #   uses: rust-build/rust-build.action@v1.4.3
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     RUSTTARGET: x86_64-apple-darwin
-      #     UPLOAD_MODE: none
-
-      - name: Upload artifact to release
-        id: upload_artifact
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_name: TurunMap-${{ steps.build_artifact_win.target }}-${{ github.ref }}
-          asset_path: ${{ steps.build_artifact_win.outputs.BUILT_ARCHIVE }}
-          asset_content_type: application/zip
+    - name: Upload ${{ matrix.target }} to Release
+      id: upload
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_name: TurunMap-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
+        asset_path: ${{ steps.compile.outputs.BUILT_ARCHIVE }}
+        asset_content_type: application/octet-stream
