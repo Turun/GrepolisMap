@@ -53,7 +53,7 @@ impl View {
         let native_options = eframe::NativeOptions::default();
         // TODO Save config between app runs.
         let _result = eframe::run_native(
-            "Grepolis Map",
+            "Turun Map",
             native_options,
             Box::new(|cc| Box::new(self.setup(cc))),
         );
