@@ -69,3 +69,4 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_name: TurunMap-${{ steps.build_artifact_win.target }}-${{ github.ref }}
           asset_path: ${{ steps.build_artifact_win.outputs.BUILT_ARCHIVE }}
+          asset_content_type: application/zip
