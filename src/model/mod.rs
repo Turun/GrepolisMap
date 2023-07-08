@@ -1,11 +1,17 @@
 use crate::towns::{Constraint, ConstraintType, Town};
-use anyhow::Context;
 use eframe::epaint::ahash::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::time::Duration;
 
 pub mod download;
 mod offset_data;
+
+// keep track how well our cache is utilized
+pub struct CacheCounter {
+    pub hit: u32,
+    pub mis: u32,
+}
 
 pub enum Model {
     Uninitialized,
@@ -14,6 +20,7 @@ pub enum Model {
         ctx: egui::Context,
         cache_strings: HashMap<(ConstraintType, Vec<Constraint>), Arc<Vec<String>>>,
         cache_towns: HashMap<Vec<Constraint>, Arc<Vec<Town>>>,
+        cache_counter: CacheCounter,
     },
 }
 
@@ -26,7 +33,17 @@ impl Model {
                 ctx,
                 cache_strings: _,
                 cache_towns: _,
-            } => ctx.request_repaint_after(duration),
+                cache_counter,
+            } => {
+                println!(
+                    "hit: {}, mis: {}, total: {}, hit fraction: {} ",
+                    cache_counter.hit,
+                    cache_counter.mis,
+                    cache_counter.hit + cache_counter.mis,
+                    f64::from(cache_counter.hit) / f64::from(cache_counter.hit + cache_counter.mis)
+                );
+                ctx.request_repaint_after(duration);
+            }
         }
     }
 
@@ -41,24 +58,21 @@ impl Model {
                 ctx: _ctx,
                 cache_strings: _,
                 cache_towns,
+                cache_counter,
             } => {
                 let key = constraints.to_vec();
-                let value = if cache_towns.contains_key(&key) {
-                    println!("Use Cached");
-                    let value_option = cache_towns.get(&key);
-                    let value = value_option.with_context(|| format!("Race condition encountered between checking the cache for key {constraints:?} and fetching their associated value"))?;
-                    Arc::clone(value)
-                } else {
-                    println!("Recompute");
-                    let value = Arc::new(db.get_towns_for_constraints(constraints)?);
-                    cache_towns.insert(key, value.clone());
-                    value
+                let value = match cache_towns.entry(key) {
+                    Entry::Occupied(entry) => {
+                        cache_counter.hit += 1;
+                        entry.get().clone()
+                    }
+                    Entry::Vacant(entry) => {
+                        cache_counter.mis += 1;
+                        let value = Arc::new(db.get_towns_for_constraints(constraints)?);
+                        entry.insert(value).clone()
+                    }
                 };
                 Ok(value)
-                // Ok(cache_towns
-                // .entry(constraints.to_vec())
-                // .or_insert(Arc::new(db.get_towns_for_constraints(constraints)?))
-                // .clone()),
             }
         }
     }
@@ -75,31 +89,24 @@ impl Model {
                 ctx: _ctx,
                 cache_strings,
                 cache_towns: _,
+                cache_counter,
             } => {
                 let key = (constraint_type, constraints.to_vec());
-                let value = if cache_strings.contains_key(&key) {
-                    println!("Use Cached");
-                    let value_option = cache_strings.get(&key);
-                    let value = value_option.with_context(|| format!("Race condition encountered between checking the cache for key {constraints:?} and fetching their associated value"))?;
-                    Arc::clone(value)
-                } else {
-                    println!("Recompute");
-                    let value = Arc::new(db.get_names_for_constraint_type_in_constraints(
-                        constraint_type,
-                        constraints,
-                    )?);
-                    cache_strings.insert(key, value.clone());
-                    value
+                let value = match cache_strings.entry(key) {
+                    Entry::Occupied(entry) => {
+                        cache_counter.hit += 1;
+                        entry.get().clone()
+                    }
+                    Entry::Vacant(entry) => {
+                        cache_counter.mis += 1;
+                        let value = Arc::new(db.get_names_for_constraint_type_in_constraints(
+                            constraint_type,
+                            constraints,
+                        )?);
+                        entry.insert(value).clone()
+                    }
                 };
                 Ok(value)
-
-                // Ok(cache_strings
-                //     .entry((constraint_type, constraints.to_vec()))
-                //     .or_insert(Arc::new(db.get_names_for_constraint_type_in_constraints(
-                //         constraint_type,
-                //         constraints,
-                //     )?))
-                //     .clone()),
             }
         }
     }
@@ -112,6 +119,7 @@ impl Model {
                 ctx: _ctx,
                 cache_strings: _,
                 cache_towns: _,
+                cache_counter: _,
             } => Ok(Arc::new(db.get_ghost_towns()?)),
         }
     }
@@ -124,6 +132,7 @@ impl Model {
                 ctx: _ctx,
                 cache_strings: _,
                 cache_towns: _,
+                cache_counter: _,
             } => Ok(Arc::new(db.get_all_towns()?)),
         }
     }
@@ -139,10 +148,22 @@ impl Model {
                 ctx: _ctx,
                 cache_strings,
                 cache_towns: _,
-            } => Ok(cache_strings
-                .entry((constraint_type, Vec::new()))
-                .or_insert(Arc::new(db.get_names_for_constraint_type(constraint_type)?))
-                .clone()),
+                cache_counter,
+            } => {
+                let key = (constraint_type, Vec::new());
+                let value = match cache_strings.entry(key) {
+                    Entry::Occupied(entry) => {
+                        cache_counter.hit += 1;
+                        entry.get().clone()
+                    }
+                    Entry::Vacant(entry) => {
+                        cache_counter.mis += 1;
+                        let value = Arc::new(db.get_names_for_constraint_type(constraint_type)?);
+                        entry.insert(value).clone()
+                    }
+                };
+                Ok(value)
+            }
         }
     }
 }

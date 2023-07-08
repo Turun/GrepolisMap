@@ -63,6 +63,7 @@ impl Presenter {
                                 ctx,
                                 cache_strings: HashMap::default(),
                                 cache_towns: HashMap::default(),
+                                cache_counter: crate::model::CacheCounter { hit: 0, mis: 0 },
                             };
                             self.send_to_view(
                                 Ok(MessageToView::GotServer),
