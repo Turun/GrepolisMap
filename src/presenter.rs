@@ -88,24 +88,19 @@ impl Presenter {
                     let msg = towns.map(MessageToView::GhostTowns);
                     self.send_to_view(msg, String::from("Failed to send ghost town list to view"));
                 }
-                MessageToModel::FetchTowns(selection) => {
-                    // TODO at the moment, when the user types something into a drop down list, we refetch the
-                    // possible drop down values for all other drop down boxes as well. And since the box the
-                    // user types in changed its content, the ddvlists of the other ddbs isn't even cached!
-                    // Additionally, the ddvlist of the ddb the user is currently typing in is reset with every
-                    // key stroke, making it painfully slow to get the ddv list suggestions. We need to fix that.
-                    // Getting the ddvlist of the ddb the user is currently typing in has the highest priority!
-                    // All other ddvlists can wait.
-                    // For now, the list of filled constraints it reversed, so that - assuming the user add constraints
-                    // at the bottom in the ui - the relevant results are sent back first.
-                    // Ideally in the future we would process the currently edited ddb first (likely cached anyway),
-                    // then we check if the currently edited ddv is a == or <> type. If it is and the user is currently
-                    // changing its value, the db will probably not return any results for the other ddvlists anyway
-                    // ("New Powe" is not an ally name, it needs to be complete before it matches anything in the db).
-                    // Only if it is of type <= or >= does it make sense to fetch new ddvlists for the other ddb as well.
+                MessageToModel::FetchTowns(selection, constraints_edited) => {
+                    // a list of filled constraints that are not being edited. For each one, filter the ddv list by all _other_ filled, unedited constratins
+                    let constraints_filled_not_edited: Vec<Constraint> = selection
+                        .constraints
+                        .iter()
+                        .rev()
+                        .filter(|c| !c.value.is_empty())
+                        .filter(|c| !constraints_edited.contains(c))
+                        .map(Constraint::partial_clone)
+                        .collect();
 
                     // a list of filled constraints. For each one, filter the ddv list by all _other_ filled constratins
-                    let filled_constraints: Vec<Constraint> = selection
+                    let constraints_filled_all: Vec<Constraint> = selection
                         .constraints
                         .iter()
                         .rev()
@@ -114,37 +109,47 @@ impl Presenter {
                         .collect();
 
                     // a list of empty constraints. Filter the ddv list by all non empty constraints
-                    let empty_constraints: Vec<&Constraint> = selection
+                    let constraints_empty: Vec<&Constraint> = selection
                         .constraints
                         .iter()
                         .filter(|c| c.value.is_empty())
+                        .filter(|c| !constraints_edited.contains(c))
                         .collect();
 
-                    let towns = self.model.get_towns_for_constraints(&filled_constraints);
+                    // The drop down values for the constraints currently being edited
+                    for c in constraints_edited {
+                        let towns = self.model.get_names_for_constraint_type_with_constraints(
+                            c.constraint_type,
+                            &constraints_filled_not_edited,
+                        );
+                        let msg = towns.map(|t| {
+                            MessageToView::ValueListForConstraint(
+                                c.partial_clone(),
+                                selection.partial_clone(),
+                                t,
+                            )
+                        });
+                        self.send_to_view(
+                            msg,
+                            String::from("Failed to send town list for currently edited drop down"),
+                        );
+                    }
+
+                    // Towns of this selection
+                    let towns = self
+                        .model
+                        .get_towns_for_constraints(&constraints_filled_all);
                     let msg = towns
                         .map(|t| MessageToView::TownListForSelection(selection.partial_clone(), t));
                     self.send_to_view(msg, String::from("Failed to send town list to view"));
 
-                    // filled constraints
-                    if filled_constraints.is_empty() {
-                        // nothing
-                    } else if filled_constraints.len() == 1 {
-                        let c = filled_constraints[0].partial_clone();
-                        let c_towns = self.model.get_names_for_constraint_type(c.constraint_type);
-                        let msg = c_towns.map(|t| {
-                            MessageToView::ValueListForConstraint(c, selection.partial_clone(), t)
-                        });
-                        self.send_to_view(msg, String::from("Failed to send town list to view"));
-                    } else {
-                        // for each constraint, make a list of all other filled constraints and get the ddv list filtered by those
-                        for (i, c) in filled_constraints.iter().enumerate() {
-                            let mut other_constraints = filled_constraints.clone();
-                            let _this_constraint = other_constraints.swap_remove(i);
-
+                    // drop down values for the empty constraints
+                    if !constraints_empty.is_empty() {
+                        for c in constraints_empty {
                             let c_towns =
                                 self.model.get_names_for_constraint_type_with_constraints(
                                     c.constraint_type,
-                                    &other_constraints,
+                                    &constraints_filled_all,
                                 );
                             let msg = c_towns.map(|t| {
                                 MessageToView::ValueListForConstraint(
@@ -160,13 +165,37 @@ impl Presenter {
                         }
                     }
 
-                    // empty constraints
-                    if !empty_constraints.is_empty() {
-                        for c in empty_constraints {
+                    // drop down values for the filled constraints
+                    if constraints_filled_not_edited.is_empty() {
+                        // nothing
+                    } else if constraints_filled_not_edited.len() == 1 {
+                        let c = constraints_filled_not_edited[0].partial_clone();
+                        let c_towns = self.model.get_names_for_constraint_type(c.constraint_type);
+                        let msg = c_towns.map(|t| {
+                            MessageToView::ValueListForConstraint(c, selection.partial_clone(), t)
+                        });
+                        self.send_to_view(msg, String::from("Failed to send town list to view"));
+                    } else {
+                        // for each constraint, make a list of all other filled constraints and get the ddv list filtered by those
+                        for (i, c) in constraints_filled_not_edited.iter().enumerate() {
+                            // TODO: only a slight improvement, but we could select the drop down values
+                            //  not by constrain with all other filled constraints, but instead by all other
+                            //  filled constraints that do not, on their own, reduce the result list to zero.
+                            //  What I mean by that is that, when the user has set an alliance name or player
+                            //  name field to == and entered a partial name, that constraint will reduce the
+                            //  ddvlist of all filled constraints to an empty list. But that is not the drop
+                            //  down the user wants to see. They want to see the possible values of ddb xxx
+                            //  to show the possible values, given the other useful constraints.
+                            //  To implement this we will have to set other_constraints to a list of
+                            //  filled_constraints minus the set of filled constraints that give no
+                            //  result from the database.
+                            let mut other_constraints = constraints_filled_all.clone();
+                            let _this_constraint = other_constraints.swap_remove(i);
+
                             let c_towns =
                                 self.model.get_names_for_constraint_type_with_constraints(
                                     c.constraint_type,
-                                    &filled_constraints,
+                                    &other_constraints,
                                 );
                             let msg = c_towns.map(|t| {
                                 MessageToView::ValueListForConstraint(

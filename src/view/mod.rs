@@ -2,6 +2,7 @@ mod data;
 mod dropdownbox;
 mod selectable_label;
 pub(crate) mod state;
+use std::collections::HashSet;
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -163,21 +164,21 @@ impl View {
                     ui.color_edit_button_srgba(&mut self.ui_data.settings_ghosts.color);
                 });
                 ui.separator();
-                let mut change: Option<Change> = None;
+                let mut selection_change_action: Option<Change> = None;
                 for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
                     let _first_row_response = ui.horizontal(|ui| {
                         ui.color_edit_button_srgba(&mut selection.color);
                         if ui.button("Add Towns").clicked() {
-                            change = Some(Change::Add);
+                            selection_change_action = Some(Change::Add);
                         }
                         if ui.button("Remove").clicked() {
-                            change = Some(Change::Remove(index));
+                            selection_change_action = Some(Change::Remove(index));
                         }
                         if ui.button("↑").clicked() {
-                            change = Some(Change::MoveUp(index));
+                            selection_change_action = Some(Change::MoveUp(index));
                         }
                         if ui.button("↓").clicked() {
-                            change = Some(Change::MoveDown(index));
+                            selection_change_action = Some(Change::MoveDown(index));
                         }
 
                         ui.label(format!("{} Towns", selection.towns.len()));
@@ -188,8 +189,10 @@ impl View {
                     });
 
                     let num_constraints = selection.constraints.len();
-                    let mut request_update = selection.state == SelectionState::NewlyCreated; // A newly created one must request an update immediately to fill its ddv list
-                    let mut constraint_change = None;
+                    let mut refresh_complete_selection =
+                        selection.state == SelectionState::NewlyCreated;
+                    let mut edited_constraints = HashSet::new();
+                    let mut constraint_change_action = None;
                     for (cindex, constraint) in selection.constraints.iter_mut().enumerate() {
                         ui.horizontal(|ui| {
                             let _inner_response = egui::ComboBox::from_id_source(format!(
@@ -208,7 +211,7 @@ impl View {
                                         )
                                         .clicked()
                                     {
-                                        request_update = true;
+                                        edited_constraints.insert(constraint.partial_clone());
                                     }
                                 }
                             });
@@ -225,7 +228,7 @@ impl View {
                                         .selectable_value(&mut constraint.comparator, value, text)
                                         .clicked()
                                     {
-                                        request_update = true;
+                                        edited_constraints.insert(constraint.partial_clone());
                                     }
                                 }
                             });
@@ -245,30 +248,30 @@ impl View {
                                 )
                                 .changed()
                             {
-                                request_update = true;
+                                edited_constraints.insert(constraint.partial_clone());
                             };
                             if cindex + 1 == num_constraints {
                                 if ui.button("+").clicked() {
-                                    constraint_change = Some(Change::Add);
-                                    request_update = true;
+                                    constraint_change_action = Some(Change::Add);
+                                    refresh_complete_selection = true;
                                 }
                             } else {
                                 ui.label("and");
                             }
                             if ui.button("-").clicked() {
-                                constraint_change = Some(Change::Remove(cindex));
-                                request_update = true;
+                                constraint_change_action = Some(Change::Remove(cindex));
+                                refresh_complete_selection = true;
                             }
                             if ui.button("↑").clicked() {
-                                constraint_change = Some(Change::MoveUp(cindex));
+                                constraint_change_action = Some(Change::MoveUp(cindex));
                             }
                             if ui.button("↓").clicked() {
-                                constraint_change = Some(Change::MoveDown(cindex));
+                                constraint_change_action = Some(Change::MoveDown(cindex));
                             }
                         });
                     }
 
-                    if let Some(change) = constraint_change {
+                    if let Some(change) = constraint_change_action {
                         match change {
                             Change::MoveUp(index) => {
                                 if index >= 1 {
@@ -277,6 +280,10 @@ impl View {
                             }
                             Change::Remove(index) => {
                                 let _element = selection.constraints.remove(index);
+                                if selection.constraints.is_empty() {
+                                    // ensure there is always at least one constraint
+                                    selection.constraints.push(Constraint::default());
+                                }
                             }
                             Change::MoveDown(index) => {
                                 if index + 1 < selection.constraints.len() {
@@ -287,23 +294,45 @@ impl View {
                         }
                     }
 
-                    if request_update {
-                        // TODO FetchTowns Message needs an additional argument to tell the backend which constraint is currently edited.
-                        self.channel_presenter_tx
-                            .send(MessageToModel::FetchTowns(selection.partial_clone()))
-                            .expect(&format!(
-                                "Failed to send Message to Model for Selection {}",
-                                &selection
-                            ));
+                    if refresh_complete_selection {
                         selection.state = SelectionState::Loading;
                         for constraint in &mut selection.constraints {
                             constraint.drop_down_values = None;
                         }
+
+                        self.channel_presenter_tx
+                            .send(MessageToModel::FetchTowns(
+                                selection.partial_clone(),
+                                HashSet::new(),
+                            ))
+                            .expect(&format!(
+                                "Failed to send Message to Model for Selection {}",
+                                &selection
+                            ));
+                    } else if !edited_constraints.is_empty() {
+                        selection.state = SelectionState::Loading;
+                        for constraint in &mut selection
+                            .constraints
+                            .iter_mut()
+                            .filter(|c| !edited_constraints.contains(c))
+                        {
+                            constraint.drop_down_values = None;
+                        }
+
+                        self.channel_presenter_tx
+                            .send(MessageToModel::FetchTowns(
+                                selection.partial_clone(),
+                                edited_constraints,
+                            ))
+                            .expect(&format!(
+                                "Failed to send Message to Model for Selection {}",
+                                &selection
+                            ));
                     }
                     ui.separator();
                 }
 
-                if let Some(change_action) = change {
+                if let Some(change_action) = selection_change_action {
                     match change_action {
                         Change::MoveUp(index) => {
                             if index >= 1 {
@@ -312,6 +341,10 @@ impl View {
                         }
                         Change::Remove(index) => {
                             let _elem = self.ui_data.selections.remove(index);
+                            if self.ui_data.selections.is_empty() {
+                                // ensure there is always at least one selection
+                                self.ui_data.selections.push(TownSelection::default());
+                            }
                         }
                         Change::MoveDown(index) => {
                             if index + 1 < self.ui_data.selections.len() {

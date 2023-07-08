@@ -1,5 +1,5 @@
 use core::fmt;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use crate::towns::{Constraint, Town, TownSelection};
 
@@ -58,7 +58,7 @@ pub enum MessageToModel {
     SetServer(Server, egui::Context),
     FetchAll,
     FetchGhosts,
-    FetchTowns(TownSelection),
+    FetchTowns(TownSelection, HashSet<Constraint>),
 }
 
 impl fmt::Display for MessageToModel {
@@ -67,8 +67,12 @@ impl fmt::Display for MessageToModel {
             MessageToModel::SetServer(server, _frame) => {
                 write!(f, "MessageToMode::SetServer({})", server.id)
             }
-            MessageToModel::FetchTowns(selection) => {
-                write!(f, "MessageToModel::FetchTowns({selection})")
+            MessageToModel::FetchTowns(selection, constraints) => {
+                write!(
+                    f,
+                    "MessageToModel::FetchTowns({selection}, {} Constraints currently edited)",
+                    constraints.len()
+                )
             }
             MessageToModel::FetchAll => {
                 write!(f, "MessageToModel::FetchAll")
