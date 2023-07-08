@@ -550,7 +550,7 @@ impl eframe::App for View {
                         selection.towns = town_list;
                         selection.state = SelectionState::Finished;
                     } else {
-                        println!("No existing selection found for {selection}");
+                        eprintln!("No existing selection found for {selection}");
                     }
                 }
                 MessageToView::ValueListForConstraint(constraint, selection, towns) => {
@@ -566,12 +566,12 @@ impl eframe::App for View {
                         if let Some(constraint) = optional_constraint {
                             constraint.drop_down_values = Some(towns);
                         } else {
-                            println!(
+                            eprintln!(
                                 "No existing constraint {constraint} found in selection {selection}"
                             );
                         }
                     } else {
-                        println!("No existing selection found for {selection}");
+                        eprintln!("No existing selection found for {selection}");
                     }
                 }
                 MessageToView::AllTowns(towns) => {

@@ -1,9 +1,8 @@
-use std::{sync::Arc, time::Duration};
-
-use eframe::epaint::ahash::HashMap;
-
-//the entry point for model
 use crate::towns::{Constraint, ConstraintType, Town};
+use anyhow::Context;
+use eframe::epaint::ahash::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 
 pub mod download;
 mod offset_data;
@@ -42,10 +41,25 @@ impl Model {
                 ctx: _ctx,
                 cache_strings: _,
                 cache_towns,
-            } => Ok(cache_towns
-                .entry(constraints.to_vec())
-                .or_insert(Arc::new(db.get_towns_for_constraints(constraints)?))
-                .clone()),
+            } => {
+                let key = constraints.to_vec();
+                let value = if cache_towns.contains_key(&key) {
+                    println!("Use Cached");
+                    let value_option = cache_towns.get(&key);
+                    let value = value_option.with_context(|| format!("Race condition encountered between checking the cache for key {constraints:?} and fetching their associated value"))?;
+                    Arc::clone(value)
+                } else {
+                    println!("Recompute");
+                    let value = Arc::new(db.get_towns_for_constraints(constraints)?);
+                    cache_towns.insert(key, value.clone());
+                    value
+                };
+                Ok(value)
+                // Ok(cache_towns
+                // .entry(constraints.to_vec())
+                // .or_insert(Arc::new(db.get_towns_for_constraints(constraints)?))
+                // .clone()),
+            }
         }
     }
 
@@ -61,13 +75,32 @@ impl Model {
                 ctx: _ctx,
                 cache_strings,
                 cache_towns: _,
-            } => Ok(cache_strings
-                .entry((constraint_type, constraints.to_vec()))
-                .or_insert(Arc::new(db.get_names_for_constraint_type_in_constraints(
-                    constraint_type,
-                    constraints,
-                )?))
-                .clone()),
+            } => {
+                let key = (constraint_type, constraints.to_vec());
+                let value = if cache_strings.contains_key(&key) {
+                    println!("Use Cached");
+                    let value_option = cache_strings.get(&key);
+                    let value = value_option.with_context(|| format!("Race condition encountered between checking the cache for key {constraints:?} and fetching their associated value"))?;
+                    Arc::clone(value)
+                } else {
+                    println!("Recompute");
+                    let value = Arc::new(db.get_names_for_constraint_type_in_constraints(
+                        constraint_type,
+                        constraints,
+                    )?);
+                    cache_strings.insert(key, value.clone());
+                    value
+                };
+                Ok(value)
+
+                // Ok(cache_strings
+                //     .entry((constraint_type, constraints.to_vec()))
+                //     .or_insert(Arc::new(db.get_names_for_constraint_type_in_constraints(
+                //         constraint_type,
+                //         constraints,
+                //     )?))
+                //     .clone()),
+            }
         }
     }
 

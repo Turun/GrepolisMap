@@ -89,10 +89,26 @@ impl Presenter {
                     self.send_to_view(msg, String::from("Failed to send ghost town list to view"));
                 }
                 MessageToModel::FetchTowns(selection) => {
+                    // TODO at the moment, when the user types something into a drop down list, we refetch the
+                    // possible drop down values for all other drop down boxes as well. And since the box the
+                    // user types in changed its content, the ddvlists of the other ddbs isn't even cached!
+                    // Additionally, the ddvlist of the ddb the user is currently typing in is reset with every
+                    // key stroke, making it painfully slow to get the ddv list suggestions. We need to fix that.
+                    // Getting the ddvlist of the ddb the user is currently typing in has the highest priority!
+                    // All other ddvlists can wait.
+                    // For now, the list of filled constraints it reversed, so that - assuming the user add constraints
+                    // at the bottom in the ui - the relevant results are sent back first.
+                    // Ideally in the future we would process the currently edited ddb first (likely cached anyway),
+                    // then we check if the currently edited ddv is a == or <> type. If it is and the user is currently
+                    // changing its value, the db will probably not return any results for the other ddvlists anyway
+                    // ("New Powe" is not an ally name, it needs to be complete before it matches anything in the db).
+                    // Only if it is of type <= or >= does it make sense to fetch new ddvlists for the other ddb as well.
+
                     // a list of filled constraints. For each one, filter the ddv list by all _other_ filled constratins
                     let filled_constraints: Vec<Constraint> = selection
                         .constraints
                         .iter()
+                        .rev()
                         .filter(|c| !c.value.is_empty())
                         .map(Constraint::partial_clone)
                         .collect();
