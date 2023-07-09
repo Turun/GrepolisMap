@@ -6,6 +6,7 @@
 mod message;
 mod model;
 mod presenter;
+mod storage;
 mod towns;
 mod view;
 

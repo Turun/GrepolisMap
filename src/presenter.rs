@@ -55,6 +55,8 @@ impl Presenter {
             match message {
                 MessageToModel::SetServer(server, ctx) => {
                     // TODO: automatically save each db we load (with timestamp) and let the user choose previous versions.
+                    //  we can use https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir
+                    //  as a place to store the sqlite databases at.
                     let db_result = Database::create_for_world(&server.id, &self.channel_tx, &ctx);
                     match db_result {
                         Ok(db) => {
