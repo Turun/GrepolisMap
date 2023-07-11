@@ -2,8 +2,9 @@ use anyhow::Context;
 use eframe::epaint::ahash::HashMap;
 
 use crate::message::{MessageToModel, MessageToView};
-use crate::model::download::Database;
+use crate::model::database::Database;
 use crate::model::Model;
+use crate::storage;
 use crate::towns::Constraint;
 use std::sync::mpsc;
 use std::time::Duration;
