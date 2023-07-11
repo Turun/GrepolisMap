@@ -9,6 +9,34 @@ use crate::towns::Constraint;
 use std::sync::mpsc;
 use std::time::Duration;
 
+/// Given a Result<MessageToView>, send it to the View if it is ok. If the sending
+/// fails, output to stderr with the message given in `error_channel`. If the given
+/// message result is error, simply output it to stderr.
+fn send_to_view(
+    tx: &mpsc::Sender<MessageToView>,
+    msg_opt: anyhow::Result<MessageToView>,
+    error_channel: String,
+) {
+    match msg_opt {
+        Ok(msg) => {
+            let res = tx.send(msg).context(error_channel);
+            if let Err(err) = res {
+                eprintln!("{err:?}");
+            }
+        }
+        Err(err) => {
+            let res = tx
+                .send(MessageToView::BackendCrashed(err))
+                .context(error_channel);
+            if let Err(err) = res {
+                eprintln!(
+                    "We crashed so hard we couldn't even tell the frontend we did! Error: {err:?}"
+                );
+            }
+        }
+    }
+}
+
 pub struct Presenter {
     model: Model,
     channel_tx: mpsc::Sender<MessageToView>,
@@ -21,30 +49,6 @@ impl Presenter {
             model: Model::Uninitialized,
             channel_tx: tx,
             channel_rx: rx,
-        }
-    }
-
-    /// Given a Result<MessageToView>, send it to the View if it is ok. If the sending
-    /// fails, output to stderr with the message given in `error_channel`. If the given
-    /// message result is error, simply output it to stderr.
-    fn send_to_view(&self, msg_opt: anyhow::Result<MessageToView>, error_channel: String) {
-        match msg_opt {
-            Ok(msg) => {
-                let res = self.channel_tx.send(msg).context(error_channel);
-                if let Err(err) = res {
-                    eprintln!("{err}");
-                }
-            }
-            Err(err) => {
-                eprintln!("{err}");
-                let res = self
-                    .channel_tx
-                    .send(MessageToView::BackendCrashed(err))
-                    .context(error_channel);
-                if let Err(err) = res {
-                    eprintln!("We crashed so hard we couldn't even tell the frontend we did! Error: {err}");
-                }
-            }
         }
     }
 
@@ -68,14 +72,16 @@ impl Presenter {
                                 cache_towns: HashMap::default(),
                                 cache_counter: crate::model::CacheCounter { hit: 0, mis: 0 },
                             };
-                            self.send_to_view(
+                            send_to_view(
+                                &self.channel_tx,
                                 Ok(MessageToView::GotServer),
                                 String::from("Failed to send message 'got server'"),
                             );
                         }
                         Err(err) => {
                             self.model = Model::Uninitialized;
-                            self.send_to_view(
+                            send_to_view(
+                                &self.channel_tx,
                                 Ok(MessageToView::BackendCrashed(err)),
                                 String::from("Failed to send crash message to view"),
                             );
@@ -85,12 +91,20 @@ impl Presenter {
                 MessageToModel::FetchAll => {
                     let towns = self.model.get_all_towns();
                     let msg = towns.map(MessageToView::AllTowns);
-                    self.send_to_view(msg, String::from("Failed to send all town list to view"));
+                    send_to_view(
+                        &self.channel_tx,
+                        msg,
+                        String::from("Failed to send all town list to view"),
+                    );
                 }
                 MessageToModel::FetchGhosts => {
                     let towns = self.model.get_ghost_towns();
                     let msg = towns.map(MessageToView::GhostTowns);
-                    self.send_to_view(msg, String::from("Failed to send ghost town list to view"));
+                    send_to_view(
+                        &self.channel_tx,
+                        msg,
+                        String::from("Failed to send ghost town list to view"),
+                    );
                 }
                 MessageToModel::FetchTowns(selection, constraints_edited) => {
                     // a list of filled constraints that are not being edited. For each one, filter the ddv list by all _other_ filled, unedited constratins
@@ -133,7 +147,8 @@ impl Presenter {
                                 t,
                             )
                         });
-                        self.send_to_view(
+                        send_to_view(
+                            &self.channel_tx,
                             msg,
                             String::from("Failed to send town list for currently edited drop down"),
                         );
@@ -145,7 +160,11 @@ impl Presenter {
                         .get_towns_for_constraints(&constraints_filled_all);
                     let msg = towns
                         .map(|t| MessageToView::TownListForSelection(selection.partial_clone(), t));
-                    self.send_to_view(msg, String::from("Failed to send town list to view"));
+                    send_to_view(
+                        &self.channel_tx,
+                        msg,
+                        String::from("Failed to send town list to view"),
+                    );
 
                     // drop down values for the empty constraints
                     if !constraints_empty.is_empty() {
@@ -162,7 +181,8 @@ impl Presenter {
                                     t,
                                 )
                             });
-                            self.send_to_view(
+                            send_to_view(
+                                &self.channel_tx,
                                 msg,
                                 String::from("Failed to send town list to view"),
                             );
@@ -178,7 +198,11 @@ impl Presenter {
                         let msg = c_towns.map(|t| {
                             MessageToView::ValueListForConstraint(c, selection.partial_clone(), t)
                         });
-                        self.send_to_view(msg, String::from("Failed to send town list to view"));
+                        send_to_view(
+                            &self.channel_tx,
+                            msg,
+                            String::from("Failed to send town list to view"),
+                        );
                     } else {
                         // for each constraint, make a list of all other filled constraints and get the ddv list filtered by those
                         for (i, c) in constraints_filled_not_edited.iter().enumerate() {
@@ -208,7 +232,8 @@ impl Presenter {
                                     t,
                                 )
                             });
-                            self.send_to_view(
+                            send_to_view(
+                                &self.channel_tx,
                                 msg,
                                 String::from("Failed to send town list to view"),
                             );
