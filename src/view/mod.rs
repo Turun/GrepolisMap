@@ -92,6 +92,69 @@ impl View {
         }
     }
 
+    fn ui_menu(&mut self, ctx: &egui::Context) {
+        // TODO menu bar with the ability to:
+        //  [open saved DB] load a db from file
+        //  [delete saved DB] remove saved dbs (single and bulk)
+        //  [import selection] load a selection from file
+        //  (maybe) [save selections] save all current selection to a file (must allow the user to set the filename)
+        //  [preferences] [darkmode] toggle darkmode light/dark/follow_os (also save this setting) https://docs.rs/eframe/latest/eframe/struct.NativeOptions.html#structfield.follow_system_theme
+        //                [auto delete saved data] after 1d/1w/1m/never
+
+        // TODO the list of saved file should be loaded by the backend and triggered
+        // by a message as soon as the program starts. We want a list of files as soon
+        // as possible and a list of hashes before the db is loaded. Alternatively to
+        // the "we need hashes before..." approach we could also lazily delete files as
+        // soon as we find matching hashes.
+        // Messages will be like
+        // >> StartLoadingSavedPaths,
+        // << HaveDBSaved(list of paths)
+        // << ComputedHashes
+        // << DeletedDuplicateFiles(list of paths)
+        egui::TopBottomPanel::top("menu bar").show(ctx, |ui| {
+            egui::menu::bar(ui, |ui| {
+                ui.menu_button("Open Saved Data", |ui| {
+                    let mut clicked_path = None;
+                    for path in &self.ui_data.saved_db {
+                        if ui.button(format!("{path:?}")).clicked() {
+                            clicked_path = Some(path.clone());
+                            ui.close_menu();
+                        }
+                    }
+                    if let Some(path) = clicked_path {
+                        self.reload_server();
+                        self.channel_presenter_tx
+                            .send(MessageToModel::LoadDataFromFile(path, ctx.clone()))
+                            .expect("Failed to send message to Model");
+                        self.ui_state = State::Uninitialized(Progress::None);
+                    }
+                });
+                ui.menu_button("Delete Saved Data", |ui| {
+                    ui.menu_button("Delete All", |ui| {
+                        if ui.button("Yes, delete all saved data").clicked() {
+                            storage::remove_all();
+                            self.ui_data.saved_db = Vec::new();
+                        }
+                    });
+                    let mut removed_dbs = Vec::new();
+                    for path in &self.ui_data.saved_db {
+                        if ui.button(format!("{path:?}")).clicked() {
+                            // TODO Error handling
+                            // TODO do it with messages instead?
+                            // TODO if we have a list of dbs in the backend, make sure this change is synchronized
+                            storage::remove_db(path).unwrap();
+                            removed_dbs.push(path.clone());
+                            ui.close_menu();
+                        }
+                    }
+                    for removed_db in removed_dbs {
+                        self.ui_data.saved_db.retain(|path| path != &removed_db);
+                    }
+                });
+            });
+        });
+    }
+
     fn ui_server_input(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         let mut should_load_server = false;
         ui.horizontal(|ui| {
@@ -133,6 +196,7 @@ impl View {
     }
 
     fn ui_uninitialized(&mut self, ctx: &egui::Context, progress: Progress) {
+        self.ui_menu(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
                 self.ui_server_input(ui, ctx);
@@ -169,6 +233,7 @@ impl View {
 
     #[allow(clippy::too_many_lines)] // UI Code, am I right, hahah
     fn ui_init(&mut self, ctx: &egui::Context) {
+        self.ui_menu(ctx);
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {
                 self.ui_server_input(ui, ctx);
