@@ -1,7 +1,10 @@
 use core::fmt;
 use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
-use crate::towns::{Constraint, Town, TownSelection};
+use crate::{
+    storage::SavedDB,
+    towns::{Constraint, Town, TownSelection},
+};
 
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene
@@ -16,8 +19,8 @@ pub enum MessageToView {
     TownListForSelection(TownSelection, Arc<Vec<Town>>),
     ValueListForConstraint(Constraint, TownSelection, Arc<Vec<String>>),
     BackendCrashed(anyhow::Error),
-    FoundSavedDatabases(Vec<PathBuf>),
-    RemovedDuplicateFiles(Vec<PathBuf>),
+    FoundSavedDatabases(Vec<SavedDB>),
+    RemovedDuplicateFiles(Vec<SavedDB>),
 }
 
 impl fmt::Display for MessageToView {

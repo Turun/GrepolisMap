@@ -1,11 +1,13 @@
 use std::{
     ops::{Add, Div, Mul, Sub},
-    path::PathBuf,
     sync::Arc,
 };
 
-use crate::towns::{Town, TownSelection};
 use crate::view::preferences::Preferences;
+use crate::{
+    storage::SavedDB,
+    towns::{Town, TownSelection},
+};
 
 #[derive(Clone)]
 pub struct DefaultTownGroup {
@@ -26,7 +28,7 @@ pub struct Data {
     pub all_towns: Arc<Vec<Town>>,
     pub ghost_towns: Arc<Vec<Town>>,
 
-    pub saved_db: Vec<PathBuf>,
+    pub saved_db: Vec<SavedDB>,
     pub preferences: Preferences,
 }
 

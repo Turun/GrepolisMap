@@ -62,7 +62,6 @@ impl Presenter {
             println!("Got Message from View to Model: {message}");
             match message {
                 MessageToModel::DiscoverSavedDatabases => {
-                    // TODO Start a background thread to find all locally saved dbs
                     let thread_tx = self.channel_tx.clone();
                     let handle = thread::spawn(move || {
                         let dbs = storage::get_list_of_saved_dbs();

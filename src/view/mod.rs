@@ -20,8 +20,6 @@ use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
 
-use self::preferences::Preferences;
-
 pub struct View {
     ui_state: State,
     ui_data: Data,
@@ -101,30 +99,23 @@ impl View {
         //  [preferences] [darkmode] toggle darkmode light/dark/follow_os (also save this setting) https://docs.rs/eframe/latest/eframe/struct.NativeOptions.html#structfield.follow_system_theme
         //                [auto delete saved data] after 1d/1w/1m/never
 
-        // TODO the list of saved file should be loaded by the backend and triggered
-        // by a message as soon as the program starts. We want a list of files as soon
-        // as possible and a list of hashes before the db is loaded. Alternatively to
-        // the "we need hashes before..." approach we could also lazily delete files as
-        // soon as we find matching hashes.
-        // Messages will be like
-        // >> StartLoadingSavedPaths,
-        // << HaveDBSaved(list of paths)
-        // << ComputedHashes
-        // << DeletedDuplicateFiles(list of paths)
+        // TODO the list of saved dbs could be ordered by server in a submenu. Would clean up the menu for people who look at lots of different worlds
+
         egui::TopBottomPanel::top("menu bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Open Saved Data", |ui| {
                     let mut clicked_path = None;
-                    for path in &self.ui_data.saved_db {
-                        if ui.button(format!("{path:?}")).clicked() {
-                            clicked_path = Some(path.clone());
+                    for saved_db in &self.ui_data.saved_db {
+                        // TODO use ui.add_sized() to add an appropriately large button that does not contain any linebreaks
+                        if ui.button(format!("{saved_db}")).clicked() {
+                            clicked_path = Some(saved_db.clone());
                             ui.close_menu();
                         }
                     }
-                    if let Some(path) = clicked_path {
+                    if let Some(saved_db) = clicked_path {
                         self.reload_server();
                         self.channel_presenter_tx
-                            .send(MessageToModel::LoadDataFromFile(path, ctx.clone()))
+                            .send(MessageToModel::LoadDataFromFile(saved_db.path, ctx.clone()))
                             .expect("Failed to send message to Model");
                         self.ui_state = State::Uninitialized(Progress::None);
                     }
@@ -137,13 +128,13 @@ impl View {
                         }
                     });
                     let mut removed_dbs = Vec::new();
-                    for path in &self.ui_data.saved_db {
-                        if ui.button(format!("{path:?}")).clicked() {
+                    for saved_db in &self.ui_data.saved_db {
+                        if ui.button(format!("{saved_db}")).clicked() {
                             // TODO Error handling
                             // TODO do it with messages instead?
                             // TODO if we have a list of dbs in the backend, make sure this change is synchronized
-                            storage::remove_db(path).unwrap();
-                            removed_dbs.push(path.clone());
+                            storage::remove_db(&saved_db.path).unwrap();
+                            removed_dbs.push(saved_db.clone());
                             ui.close_menu();
                         }
                     }
