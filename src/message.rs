@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
 use crate::towns::{Constraint, Town, TownSelection};
 
@@ -16,6 +16,8 @@ pub enum MessageToView {
     TownListForSelection(TownSelection, Arc<Vec<Town>>),
     ValueListForConstraint(Constraint, TownSelection, Arc<Vec<String>>),
     BackendCrashed(anyhow::Error),
+    FoundSavedDatabases(Vec<PathBuf>),
+    RemovedDuplicateFiles(Vec<PathBuf>),
 }
 
 impl fmt::Display for MessageToView {
@@ -49,6 +51,16 @@ impl fmt::Display for MessageToView {
             MessageToView::BackendCrashed(err) => {
                 write!(f, "MessageToView::BackendCrashed({err:?})")
             }
+            MessageToView::FoundSavedDatabases(db_paths) => {
+                write!(f, "MessageToView::FoundSavedDatabases({})", db_paths.len())
+            }
+            MessageToView::RemovedDuplicateFiles(removed_paths) => {
+                write!(
+                    f,
+                    "MessageToView::RemovedDuplicateFiles({})",
+                    removed_paths.len()
+                )
+            }
         }
     }
 }
@@ -59,6 +71,8 @@ pub enum MessageToModel {
     FetchAll,
     FetchGhosts,
     FetchTowns(TownSelection, HashSet<Constraint>),
+    LoadDataFromFile(PathBuf, egui::Context),
+    DiscoverSavedDatabases,
 }
 
 impl fmt::Display for MessageToModel {
@@ -79,6 +93,12 @@ impl fmt::Display for MessageToModel {
             }
             MessageToModel::FetchGhosts => {
                 write!(f, "MessageToModel::FetchGhosts")
+            }
+            MessageToModel::LoadDataFromFile(path, _ctx) => {
+                write!(f, "MessageToModel::LoadDataFromFile({path:?})")
+            }
+            MessageToModel::DiscoverSavedDatabases => {
+                write!(f, "MessageToModel::DiscoverSavedDatabases")
             }
         }
     }
