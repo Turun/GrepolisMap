@@ -4,6 +4,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::time::Duration;
 
+pub(crate) mod database;
 pub mod download;
 mod offset_data;
 
@@ -16,7 +17,7 @@ pub struct CacheCounter {
 pub enum Model {
     Uninitialized,
     Loaded {
-        db: download::Database,
+        db: database::Database,
         ctx: egui::Context,
         cache_strings: HashMap<(ConstraintType, Vec<Constraint>), Arc<Vec<String>>>,
         cache_towns: HashMap<Vec<Constraint>, Arc<Vec<Town>>>,
@@ -35,6 +36,8 @@ impl Model {
                 cache_towns: _,
                 cache_counter,
             } => {
+                // TODO the cache can grow pretty big and easily take up a few gigs of RAM if a user keeps the program running for a while.
+                //   we need to delete some cache entries every now and then. Something between LeastRecentlyUsed cache, time base cache and LeastOftenUsed cache.
                 println!(
                     "hit: {}, mis: {}, total: {}, hit fraction: {} ",
                     cache_counter.hit,

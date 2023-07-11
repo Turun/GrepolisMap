@@ -31,6 +31,10 @@ fn make_client() -> reqwest::blocking::Client {
 }
 
 impl Database {
+    pub fn load_from_file(path: &Path) -> anyhow::Result<Self> {
+        let conn = rusqlite::Connection::open(path)
+            .with_context(|| format!("Failed to open database with filename {path:?}"))?;
+        Ok(Self { connection: conn })
     }
 
     pub fn create_for_world(
