@@ -47,6 +47,10 @@ impl View {
             .push(String::from("Custom Font"));
         cc.egui_ctx.set_fonts(fonts);
 
+        self.channel_presenter_tx
+            .send(MessageToModel::DiscoverSavedDatabases)
+            .expect("Failed to send message to backend: Discover Saved Databases");
+
         self
     }
 
@@ -116,6 +120,10 @@ impl View {
                     ctx.clone(),
                 ))
                 .expect("Failed to send the SetServer Message to the backend");
+            // refresh our list of available saved databases
+            self.channel_presenter_tx
+                .send(MessageToModel::DiscoverSavedDatabases)
+                .expect("Failed to send Discover Saved Databases to server");
         }
     }
 
@@ -635,6 +643,14 @@ impl eframe::App for View {
                     // is already loaded can persist. It's just that the user can't fetch any new data
                     // from the backend, so a warning about that should be fine.
                     self.ui_state = State::Uninitialized(Progress::BackendCrashed);
+                }
+                MessageToView::FoundSavedDatabases(list_of_paths) => {
+                    self.ui_data.saved_db = list_of_paths;
+                }
+                MessageToView::RemovedDuplicateFiles(list_of_paths) => {
+                    for path in list_of_paths {
+                        self.ui_data.saved_db.retain(|p| p != &path);
+                    }
                 }
             }
         }

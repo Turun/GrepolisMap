@@ -7,6 +7,7 @@ use crate::model::Model;
 use crate::storage;
 use crate::towns::Constraint;
 use std::sync::mpsc;
+use std::thread;
 use std::time::Duration;
 
 /// Given a Result<MessageToView>, send it to the View if it is ok. If the sending
@@ -55,9 +56,51 @@ impl Presenter {
     #[allow(clippy::too_many_lines)] // processing all variants of incoming messages simply needs a lot of lines
     /// Start the service that handles incoming messages, calls the appropriate backend code and sends the resutls to the view
     pub fn start(&mut self) {
+        let mut spawned_threads = Vec::new();
+
         for message in &self.channel_rx {
             println!("Got Message from View to Model: {message}");
             match message {
+                MessageToModel::DiscoverSavedDatabases => {
+                    // TODO Start a background thread to find all locally saved dbs
+                    let thread_tx = self.channel_tx.clone();
+                    let handle = thread::spawn(move || {
+                        let dbs = storage::get_list_of_saved_dbs();
+                        send_to_view(
+                            &thread_tx,
+                            Ok(MessageToView::FoundSavedDatabases(dbs)),
+                            String::from("Failed to send list of saved dbs to View"),
+                        );
+                    });
+                    spawned_threads.push(handle);
+                }
+                MessageToModel::LoadDataFromFile(path, ctx) => {
+                    let db_result = Database::load_from_file(&path);
+                    match db_result {
+                        Ok(db) => {
+                            self.model = Model::Loaded {
+                                db,
+                                ctx,
+                                cache_strings: HashMap::default(),
+                                cache_towns: HashMap::default(),
+                                cache_counter: crate::model::CacheCounter { hit: 0, mis: 0 },
+                            };
+                            send_to_view(
+                                &self.channel_tx,
+                                Ok(MessageToView::GotServer),
+                                String::from("Failed to send message 'got server'"),
+                            );
+                        }
+                        Err(err) => {
+                            self.model = Model::Uninitialized;
+                            send_to_view(
+                                &self.channel_tx,
+                                Ok(MessageToView::BackendCrashed(err)),
+                                String::from("Failed to send crash message to view"),
+                            );
+                        }
+                    }
+                }
                 MessageToModel::SetServer(server, ctx) => {
                     let db_path = storage::get_new_db_filename(&server.id);
                     let db_result = Database::create_for_world(
@@ -258,6 +301,10 @@ impl Presenter {
             // before receiving the message. In that case it fulfilled the request_repaint here,
             // but goes to sleep before it can fulfill the message intent.
             self.model.request_repaint_after(Duration::from_millis(50));
+        }
+
+        for handle in spawned_threads {
+            handle.join().expect("Failed to join extra backend thread");
         }
     }
 }
