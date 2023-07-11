@@ -1,7 +1,11 @@
 use anyhow::Context;
 use directories_next::ProjectDirs;
+use sha2::Digest;
+use sha2::Sha256;
 use std::ffi::OsStr;
-use std::fs;
+use std::fs::{self, File};
+use std::io::BufReader;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use time::macros::format_description;
 use time::OffsetDateTime;
@@ -62,6 +66,33 @@ pub fn get_list_of_saved_dbs() -> Vec<PathBuf> {
 pub fn remove_db(filename: &Path) -> anyhow::Result<()> {
     fs::remove_file(filename).with_context(|| format!("Failed to delete {filename:?}"))
 }
+
+pub fn remove_all() {
+    for path in get_list_of_saved_dbs() {
+        // TODO let the use know if something can't be deleted
+        let _result = remove_db(path.as_path());
+    }
+}
+
+// read the file of the given path and return its SHA256 hash
+pub fn hash(path: &Path) -> anyhow::Result<[u8; 32]> {
+    // open file
+    let file = File::open(path).with_context(|| format!("Failed to open {path:?}"))?;
+    let mut buffered_file = BufReader::new(file);
+
+    // read content
+    let mut content: Vec<u8> = Vec::new();
+    let _bytes_read = buffered_file
+        .read_to_end(&mut content)
+        .with_context(|| format!("Failed to read from {path:?}"))?;
+
+    // hash content
+    let hash = Sha256::digest(content);
+
+    // rust shenanigans: return the data that is saved in a really weird format by the hashing lib
+    let mut output = [0u8; 32];
+    output.copy_from_slice(hash.as_slice());
+    Ok(output)
 }
 
 // utility functions
