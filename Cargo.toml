@@ -18,6 +18,7 @@ strum_macros = "0.24"
 anyhow = "1.0.71"
 directories-next = "2.0.0"
 time = { version="0.3.23", features=["formatting", "macros"] }
+sha2 = "0.10.7"
 
 [profile.release]
 codegen-units = 1
