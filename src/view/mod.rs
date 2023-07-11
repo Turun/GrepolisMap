@@ -60,6 +60,29 @@ impl View {
         );
     }
 
+    /// reloading a server mean we should partially copy our `ui_data` and reset the data associated with selections
+    fn reload_server(&mut self) {
+        self.ui_state = State::Uninitialized(Progress::None);
+        self.ui_data = Data {
+            server_id: self.ui_data.server_id.clone(),
+            canvas: Option::default(),
+            settings_all: self.ui_data.settings_all.clone(),
+            settings_ghosts: self.ui_data.settings_ghosts.clone(),
+            selections: self.ui_data.selections.clone(),
+            all_towns: Arc::new(Vec::new()),
+            ghost_towns: Arc::new(Vec::new()),
+            saved_db: self.ui_data.saved_db.clone(),
+            preferences: self.ui_data.preferences,
+        };
+        // ensure the towns in the selection are fetched anew after loading the data from the server.
+        // If we don't do this the selection may become stale and show towns from server ab12 on a
+        // map that is otherwise pulled from server cd34
+        for selection in &mut self.ui_data.selections {
+            selection.state = SelectionState::NewlyCreated;
+            selection.towns = Arc::new(Vec::new());
+        }
+    }
+
     fn ui_server_input(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         let mut should_load_server = false;
         ui.horizontal(|ui| {
@@ -82,23 +105,9 @@ impl View {
         }
 
         if should_load_server {
-            self.ui_state = State::Uninitialized(Progress::None);
-            self.ui_data = Data {
-                server_id: self.ui_data.server_id.clone(),
-                canvas: Option::default(),
-                settings_all: self.ui_data.settings_all.clone(),
-                settings_ghosts: self.ui_data.settings_ghosts.clone(),
-                selections: self.ui_data.selections.clone(),
-                all_towns: Arc::new(Vec::new()),
-                ghost_towns: Arc::new(Vec::new()),
-            };
-            // ensure the towns in the selection are fetched anew after loading the data from the server.
-            // If we don't do this the selection may become stale and show towns from server ab12 on a
-            // map that is otherwise pulled from server cd34
-            for selection in &mut self.ui_data.selections {
-                selection.state = SelectionState::NewlyCreated;
-                selection.towns = Arc::new(Vec::new());
-            }
+            // change self.ui_data
+            self.reload_server();
+            // tell the backend to fetch data from the server
             self.channel_presenter_tx
                 .send(MessageToModel::SetServer(
                     Server {
@@ -186,6 +195,8 @@ impl View {
                         if selection.state == SelectionState::Loading {
                             ui.spinner();
                         }
+
+                        // TODO allow save and load of selections. Otherwise complicated selections are prohibitively tedious to create
                     });
 
                     let num_constraints = selection.constraints.len();
