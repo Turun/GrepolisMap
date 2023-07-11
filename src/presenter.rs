@@ -59,10 +59,16 @@ impl Presenter {
             println!("Got Message from View to Model: {message}");
             match message {
                 MessageToModel::SetServer(server, ctx) => {
-                    // TODO: automatically save each db we load (with timestamp) and let the user choose previous versions.
-                    //  we can use https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir
-                    //  as a place to store the sqlite databases at.
-                    let db_result = Database::create_for_world(&server.id, &self.channel_tx, &ctx);
+                    let db_path = storage::get_new_db_filename(&server.id);
+                    let db_result = Database::create_for_world(
+                        &server.id,
+                        db_path.as_deref(),
+                        &self.channel_tx,
+                        &ctx,
+                    );
+                    // TODO: if the db we just created is identical to a previously saved file we should get rid of one of them.
+                    //       optionally this can be done as a background process. We could also leave the just created db alone, no matter what
+                    //       and only touch those that had been created in previous runs of the program
                     match db_result {
                         Ok(db) => {
                             self.model = Model::Loaded {
@@ -85,6 +91,11 @@ impl Presenter {
                                 Ok(MessageToView::BackendCrashed(err)),
                                 String::from("Failed to send crash message to view"),
                             );
+
+                            // if we failed halfway during the creation of our db, we need to remove the unfinished db from the filesystem
+                            if let Some(path) = db_path {
+                                let _result = storage::remove_db(&path);
+                            }
                         }
                     }
                 }

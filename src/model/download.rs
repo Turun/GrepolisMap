@@ -35,13 +35,18 @@ impl Database {
 
     pub fn create_for_world(
         server_id: &str,
+        filename: Option<&Path>,
         sender: &mpsc::Sender<MessageToView>,
         ctx: &egui::Context,
     ) -> anyhow::Result<Self> {
         let reqwest_client = make_client();
 
-        let mut conn =
-            rusqlite::Connection::open_in_memory().context("Failed to open in memory database")?;
+        let mut conn = if let Some(path) = filename {
+            rusqlite::Connection::open(path)
+                .with_context(|| format!("Failed to open database with filename {path:?}"))?
+        } else {
+            rusqlite::Connection::open_in_memory().context("Failed to open in memory database")?
+        };
         let thread_client = reqwest_client.clone();
         let thread_server_id = String::from(server_id);
         let handle_data_players = std::thread::spawn(move || {
