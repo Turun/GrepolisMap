@@ -1,7 +1,9 @@
 mod data;
 mod dropdownbox;
+mod preferences;
 mod selectable_label;
 pub(crate) mod state;
+
 use std::collections::HashSet;
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
@@ -10,12 +12,15 @@ use strum::IntoEnumIterator;
 use egui::{FontData, ProgressBar, RichText, Shape, Ui};
 
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
+use crate::storage;
 use crate::towns::{
     Change, Comparator, Constraint, ConstraintType, SelectionState, Town, TownSelection,
 };
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
+
+use self::preferences::Preferences;
 
 pub struct View {
     ui_state: State,
