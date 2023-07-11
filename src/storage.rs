@@ -22,12 +22,8 @@ pub fn get_new_db_filename(server: &str) -> Option<PathBuf> {
     let format = format_description!("[year]-[month]-[day]-[hour]-[minute]-[second]UTC");
     let now = OffsetDateTime::now_utc();
     let time_str = now.format(&format).ok()?;
-    let filename = format!("DB-{server}-{time_str}.sqlite");
+    let filename = format!("{server}-{time_str}.sqlite");
     Some(dir.join(filename))
-}
-/// attempts to delete the given file
-pub fn remove_db(filename: &Path) -> anyhow::Result<()> {
-    fs::remove_file(filename).with_context(|| format!("Failed to delete {filename:?}"))
 }
 
 /// get a list of all saved databases
@@ -52,12 +48,20 @@ pub fn get_list_of_saved_dbs() -> Vec<PathBuf> {
     let files = res_files.unwrap();
 
     // return a list of all files that have the "sqlite" extension
-    files
+    let mut db_files: Vec<PathBuf> = files
         .flatten()
         .map(|e| e.path())
         .filter(|path| path.is_file())
         .filter(|path| path.extension() == Some(OsStr::new("sqlite")))
-        .collect()
+        .collect();
+    db_files.sort();
+    db_files
+}
+
+/// attempts to delete the given file
+pub fn remove_db(filename: &Path) -> anyhow::Result<()> {
+    fs::remove_file(filename).with_context(|| format!("Failed to delete {filename:?}"))
+}
 }
 
 // utility functions
