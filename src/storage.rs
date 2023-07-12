@@ -9,8 +9,18 @@ use std::fs::{self, File};
 use std::io::BufReader;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use time::format_description::FormatItem;
 use time::macros::format_description;
+use time::macros::offset;
 use time::OffsetDateTime;
+use time::UtcOffset;
+
+const DEFAULT_FILENAME: &str = "de99-1970-01-01-00-00-00T00-00-00.sqlite";
+const FORMAT_FILENAME: &[FormatItem<'_>] = format_description!(
+    "[year]-[month]-[day]-[hour]-[minute]-[second]T[offset_hour]-[offset_minute]-[offset_second]"
+);
+const FORMAT_DISPLAY: &[FormatItem<'_>] =
+    format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 
 /// Takes care of persistent storage to disk. Yes, this makes it impossible
 /// to run in the browser, which only provides a String-String database. But
@@ -28,14 +38,12 @@ pub struct SavedDB {
 
 impl From<PathBuf> for SavedDB {
     fn from(path: PathBuf) -> Self {
-        let default_name = "de99-1970-01-01-00-00-00UTC.sqlite";
-        let default_filename = OsString::from(default_name);
+        let default_filename = OsString::from(DEFAULT_FILENAME);
         let filename = path
             .file_name()
             .unwrap_or(&default_filename)
             .to_str()
-            .unwrap_or(default_name);
-        let format = format_description!("[year]-[month]-[day]-[hour]-[minute]-[second]UTC");
+            .unwrap_or(DEFAULT_FILENAME);
         let splits: Vec<&str> = filename
             .strip_suffix(".sqlite")
             .unwrap_or(filename)
@@ -43,7 +51,17 @@ impl From<PathBuf> for SavedDB {
             .collect();
         let server_str = splits[0];
         let date_str = splits[1];
-        let date = OffsetDateTime::parse(date_str, &format).unwrap_or(OffsetDateTime::UNIX_EPOCH); // TODO make that localized. Still save as UTC, but convert to local time after parsing
+        let date =
+            OffsetDateTime::parse(date_str, &FORMAT_FILENAME).unwrap_or(OffsetDateTime::UNIX_EPOCH);
+
+        // not sure if that is properly localized. Technically we don't need to convert to current
+        // local offset, we need to convert to local offset at the time of the date. But maybe to
+        // current_local_offset is actually better? That way all times are accurate in relation to
+        // now, instead of being accurate to the clock of the past (which may be in a different
+        // timezone after DST change)
+        // Doing it "properly" would require https://docs.rs/time/latest/time/struct.UtcOffset.html#method.local_offset_at
+        let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
+        let date = date.to_offset(local_offset);
 
         Self {
             path: path.clone(),
@@ -75,7 +93,15 @@ impl PartialEq for SavedDB {
 
 impl Display for SavedDB {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/{}", self.server_str, self.date_str)
+        let time_str = self
+            .date
+            .format(&FORMAT_DISPLAY)
+            .unwrap_or(self.date_str.clone());
+        if self.date.offset() == offset!(UTC) {
+            write!(f, "{}/{} UTC", self.server_str, time_str)
+        } else {
+            write!(f, "{}/{}", self.server_str, time_str)
+        }
     }
 }
 
@@ -88,9 +114,10 @@ pub fn get_new_db_filename(server: &str) -> Option<PathBuf> {
     }
 
     let dir = storage_dir()?;
-    let format = format_description!("[year]-[month]-[day]-[hour]-[minute]-[second]UTC");
-    let now = OffsetDateTime::now_utc();
-    let time_str = now.format(&format).ok()?;
+    // let format = format_description!("[year]-[month]-[day]-[hour]-[minute]-[second]UTC");
+    let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
+    let now = OffsetDateTime::now_utc().to_offset(local_offset);
+    let time_str = now.format(&FORMAT_FILENAME).ok()?;
     let filename = format!("{server}-{time_str}.sqlite");
     Some(dir.join(filename))
 }

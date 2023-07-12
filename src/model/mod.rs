@@ -38,6 +38,8 @@ impl Model {
             } => {
                 // TODO the cache can grow pretty big and easily take up a few gigs of RAM if a user keeps the program running for a while.
                 //   we need to delete some cache entries every now and then. Something between LeastRecentlyUsed cache, time base cache and LeastOftenUsed cache.
+                //   An easy way would be to save a hit counter with every element in the cache. When the cache grows too large we can go through and remove the
+                //   lower half of elements, sorted by hit count (least often used elements get eviced)
                 println!(
                     "hit: {}, mis: {}, total: {}, hit fraction: {} ",
                     cache_counter.hit,
