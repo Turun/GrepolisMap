@@ -9,7 +9,7 @@ pub mod download;
 mod offset_data;
 
 const DECAY: f32 = 0.9;
-const MIN_AGE: f32 = 0.08; // anything that was not touched `DECAY.powi(25)` times in a row should be removed from cache
+const MIN_AGE: f32 = 0.05; // anything that was not touched `DECAY.powi(30)` times in a row should be removed from cache
 pub const CACHE_SIZE_NONE: usize = 0;
 pub const CACHE_SIZE_SMALL: usize = 25;
 pub const CACHE_SIZE_NORMAL: usize = 100;
@@ -26,6 +26,34 @@ pub enum Model {
     },
 }
 
+fn age_and_filter_hashmap<K, V>(map: &mut HashMap<K, (f32, V)>, keep_count: usize) {
+    // reduce the age (exponential decay)
+    let mut ages = map
+        .values_mut()
+        .map(|(age, _value)| {
+            *age *= DECAY;
+            *age
+        })
+        .collect::<Vec<f32>>();
+    let cutoff = if ages.len() > keep_count {
+        ages.sort_unstable_by(f32::total_cmp);
+        ages[keep_count]
+    } else {
+        1.0
+    };
+    let cutoff = f32::min(cutoff, MIN_AGE);
+    map.retain(|_key, (age, _value)| *age > cutoff);
+
+    println!(
+        "Reduce from {} to {} entries, max age: {}, cutoff age {}, min age: {}",
+        ages.len(),
+        keep_count,
+        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
+        cutoff,
+        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
+    );
+}
+
 impl Model {
     pub fn age_cache(&mut self, keep_count: usize) {
         match self {
@@ -37,65 +65,10 @@ impl Model {
             } => {
                 // Alternatives to the current aging method could incorporate something between LeastRecentlyUsed cache, time base cache and LeastOftenUsed cache.
 
-                // progress the age counter and remove the lowest `keep_count` values
-                let mut ages = cache_strings
-                    .values_mut()
-                    .map(|(age, _value)| {
-                        *age *= DECAY;
-                        *age
-                    })
-                    .collect::<Vec<f32>>();
-                if ages.len() > keep_count {
-                    ages.sort_unstable_by(f32::total_cmp);
-                    let cutoff = ages[keep_count];
-                    cache_strings.retain(|_key, (age, _value)| *age >= cutoff && *age > MIN_AGE);
-
-                    println!(
-                        "Reduce String Cache from {} to {} entries, min age: {}, cutoff age {}, max age: {}" ,
-                        ages.len(),
-                        keep_count,
-                        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
-                        cutoff,
-                        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
-                    );
-                } else {
-                    println!(
-                        "String Cache kept at {} entries, max age: {}, min age: {}",
-                        ages.len(),
-                        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
-                        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
-                    );
-                }
-
-                // do the same for the `cache_towns` map
-                let mut ages = cache_towns
-                    .values_mut()
-                    .map(|(age, _value)| {
-                        *age *= DECAY;
-                        *age
-                    })
-                    .collect::<Vec<f32>>();
-                if ages.len() > keep_count {
-                    ages.sort_unstable_by(f32::total_cmp);
-                    let cutoff = ages[keep_count];
-                    cache_towns.retain(|_key, (age, _value)| *age >= cutoff && *age > MIN_AGE);
-
-                    println!(
-                        "Reduce Town Cache from {} to {} entries, min age: {}, cutoff age {}, max age: {}" ,
-                        ages.len(),
-                        keep_count,
-                        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
-                        cutoff,
-                        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
-                    );
-                } else {
-                    println!(
-                        "Town Cache kept at {} entries, max age: {}, min age: {}",
-                        ages.len(),
-                        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
-                        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
-                    );
-                }
+                print!("Strings: ");
+                age_and_filter_hashmap(cache_strings, keep_count);
+                print!("Towns  : ");
+                age_and_filter_hashmap(cache_towns, keep_count);
             }
         }
     }
