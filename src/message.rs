@@ -1,5 +1,9 @@
 use core::fmt;
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashSet},
+    path::PathBuf,
+    sync::Arc,
+};
 
 use crate::{
     storage::SavedDB,
@@ -19,7 +23,7 @@ pub enum MessageToView {
     TownListForSelection(TownSelection, Arc<Vec<Town>>),
     ValueListForConstraint(Constraint, TownSelection, Arc<Vec<String>>),
     BackendCrashed(anyhow::Error),
-    FoundSavedDatabases(Vec<SavedDB>),
+    FoundSavedDatabases(BTreeMap<String, Vec<SavedDB>>),
     RemovedDuplicateFiles(Vec<SavedDB>),
 }
 

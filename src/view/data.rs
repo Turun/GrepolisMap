@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     ops::{Add, Div, Mul, Sub},
     sync::Arc,
 };
@@ -28,7 +29,7 @@ pub struct Data {
     pub all_towns: Arc<Vec<Town>>,
     pub ghost_towns: Arc<Vec<Town>>,
 
-    pub saved_db: Vec<SavedDB>,
+    pub saved_db: BTreeMap<String, Vec<SavedDB>>,
     pub preferences: Preferences,
 }
 
@@ -48,7 +49,7 @@ impl Default for Data {
                 enabled: true,
                 color: egui::Color32::from_rgb(48, 48, 48),
             },
-            saved_db: Vec::new(),
+            saved_db: BTreeMap::new(),
             preferences: Preferences::default(),
         }
     }

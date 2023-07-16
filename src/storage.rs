@@ -2,6 +2,7 @@ use anyhow::Context;
 use directories_next::ProjectDirs;
 use sha2::Digest;
 use sha2::Sha256;
+use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt::Display;
@@ -98,9 +99,11 @@ impl Display for SavedDB {
             .format(&FORMAT_DISPLAY)
             .unwrap_or(self.date_str.clone());
         if self.date.offset() == offset!(UTC) {
-            write!(f, "{}/{} UTC", self.server_str, time_str)
+            // write!(f, "{}/{} UTC", self.server_str, time_str)
+            write!(f, "{time_str} UTC")
         } else {
-            write!(f, "{}/{}", self.server_str, time_str)
+            // write!(f, "{}/{}", self.server_str, time_str)
+            write!(f, "{time_str}")
         }
     }
 }
@@ -123,8 +126,8 @@ pub fn get_new_db_filename(server: &str) -> Option<PathBuf> {
 }
 
 /// get a list of all saved databases
-pub fn get_list_of_saved_dbs() -> Vec<SavedDB> {
-    let re = Vec::new();
+pub fn get_list_of_saved_dbs() -> BTreeMap<String, Vec<SavedDB>> {
+    let mut re = BTreeMap::new();
 
     // only progress if the storage dir exists
     // there is no use calling ensure_storage_location_exists here,
@@ -143,16 +146,26 @@ pub fn get_list_of_saved_dbs() -> Vec<SavedDB> {
     }
     let files = res_files.unwrap();
 
-    // return a list of all files that have the "sqlite" extension
-    let mut db_files: Vec<SavedDB> = files
+    // get a list of all files that have the "sqlite" extension
+    let db_files: Vec<SavedDB> = files
         .flatten()
         .map(|e| e.path())
         .filter(|path| path.is_file())
         .filter(|path| path.extension() == Some(OsStr::new("sqlite")))
         .map(SavedDB::from)
         .collect();
-    db_files.sort();
-    db_files
+    // push them into a BTreeMap
+    for saved_db in db_files {
+        re.entry(saved_db.server_str.clone())
+            .or_insert(Vec::new())
+            .push(saved_db);
+    }
+
+    // Sort each entry in the BTreeMap
+    for saved_dbs in re.values_mut() {
+        saved_dbs.sort();
+    }
+    re
 }
 
 /// attempts to delete the given file
@@ -161,9 +174,11 @@ pub fn remove_db(filename: &Path) -> anyhow::Result<()> {
 }
 
 pub fn remove_all() {
-    for saved_db in get_list_of_saved_dbs() {
+    for (_server, list_of_dbs) in get_list_of_saved_dbs() {
         // TODO let the use know if something can't be deleted
-        let _result = remove_db(saved_db.path.as_path());
+        for saved_db in list_of_dbs {
+            let _result = remove_db(saved_db.path.as_path());
+        }
     }
 }
 

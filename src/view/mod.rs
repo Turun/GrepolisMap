@@ -4,7 +4,7 @@ mod preferences;
 mod selectable_label;
 pub(crate) mod state;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -105,12 +105,16 @@ impl View {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Open Saved Data", |ui| {
                     let mut clicked_path = None;
-                    for saved_db in &self.ui_data.saved_db {
-                        // TODO use ui.add_sized() to add an appropriately large button that does not contain any linebreaks
-                        if ui.button(format!("{saved_db}")).clicked() {
-                            clicked_path = Some(saved_db.clone());
-                            ui.close_menu();
-                        }
+                    for (server, saved_dbs) in &self.ui_data.saved_db {
+                        ui.menu_button(server, |ui| {
+                            for saved_db in saved_dbs {
+                                // TODO use ui.add_sized() to add an appropriately large button that does not contain any linebreaks
+                                if ui.button(format!("{saved_db}")).clicked() {
+                                    clicked_path = Some(saved_db.clone());
+                                    ui.close_menu();
+                                }
+                            }
+                        });
                     }
                     if let Some(saved_db) = clicked_path {
                         self.reload_server();
@@ -124,22 +128,27 @@ impl View {
                     ui.menu_button("Delete All", |ui| {
                         if ui.button("Yes, delete all saved data").clicked() {
                             storage::remove_all();
-                            self.ui_data.saved_db = Vec::new();
+                            self.ui_data.saved_db = BTreeMap::new();
+                            ui.close_menu();
                         }
                     });
                     let mut removed_dbs = Vec::new();
-                    for saved_db in &self.ui_data.saved_db {
-                        if ui.button(format!("{saved_db}")).clicked() {
-                            // TODO Error handling
-                            // TODO do it with messages instead?
-                            // TODO if we have a list of dbs in the backend, make sure this change is synchronized
-                            storage::remove_db(&saved_db.path).unwrap();
-                            removed_dbs.push(saved_db.clone());
-                            ui.close_menu();
-                        }
+                    for (server, saved_dbs) in &self.ui_data.saved_db {
+                        ui.menu_button(server, |ui| {
+                            for saved_db in saved_dbs {
+                                if ui.button(format!("{saved_db}")).clicked() {
+                                    // TODO Error handling
+                                    // TODO do it with messages instead?
+                                    // TODO if we have a list of dbs in the backend, make sure this change is synchronized
+                                    storage::remove_db(&saved_db.path).unwrap();
+                                    removed_dbs.push(saved_db.clone());
+                                    ui.close_menu();
+                                }
+                            }
+                        });
                     }
-                    for removed_db in removed_dbs {
-                        self.ui_data.saved_db.retain(|path| path != &removed_db);
+                    for saved_dbs in &mut self.ui_data.saved_db.values_mut() {
+                        saved_dbs.retain(|saved_db| !removed_dbs.contains(saved_db));
                     }
                 });
             });
@@ -708,9 +717,9 @@ impl eframe::App for View {
                 MessageToView::FoundSavedDatabases(list_of_paths) => {
                     self.ui_data.saved_db = list_of_paths;
                 }
-                MessageToView::RemovedDuplicateFiles(list_of_paths) => {
-                    for path in list_of_paths {
-                        self.ui_data.saved_db.retain(|p| p != &path);
+                MessageToView::RemovedDuplicateFiles(removed_dbs) => {
+                    for saved_dbs in self.ui_data.saved_db.values_mut() {
+                        saved_dbs.retain(|saved_db| !removed_dbs.contains(saved_db));
                     }
                 }
             }
