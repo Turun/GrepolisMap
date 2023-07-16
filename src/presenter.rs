@@ -300,6 +300,7 @@ impl Presenter {
             // before receiving the message. In that case it fulfilled the request_repaint here,
             // but goes to sleep before it can fulfill the message intent.
             self.model.request_repaint_after(Duration::from_millis(50));
+            self.model.age_cache(100);
         }
 
         for handle in spawned_threads {
