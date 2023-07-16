@@ -3,7 +3,7 @@ use eframe::epaint::ahash::HashMap;
 
 use crate::message::{MessageToModel, MessageToView};
 use crate::model::database::Database;
-use crate::model::Model;
+use crate::model::{self, Model};
 use crate::storage;
 use crate::towns::Constraint;
 use std::sync::mpsc;
@@ -40,6 +40,7 @@ fn send_to_view(
 
 pub struct Presenter {
     model: Model,
+    max_cache_size: usize,
     channel_tx: mpsc::Sender<MessageToView>,
     channel_rx: mpsc::Receiver<MessageToModel>,
 }
@@ -48,6 +49,7 @@ impl Presenter {
     pub fn new(rx: mpsc::Receiver<MessageToModel>, tx: mpsc::Sender<MessageToView>) -> Self {
         Self {
             model: Model::Uninitialized,
+            max_cache_size: model::CACHE_SIZE_NORMAL,
             channel_tx: tx,
             channel_rx: rx,
         }
@@ -61,6 +63,9 @@ impl Presenter {
         for message in &self.channel_rx {
             println!("Got Message from View to Model: {message}");
             match message {
+                MessageToModel::MaxCacheSize(x) => {
+                    self.max_cache_size = x;
+                }
                 MessageToModel::DiscoverSavedDatabases => {
                     let thread_tx = self.channel_tx.clone();
                     let handle = thread::spawn(move || {
@@ -82,7 +87,6 @@ impl Presenter {
                                 ctx,
                                 cache_strings: HashMap::default(),
                                 cache_towns: HashMap::default(),
-                                cache_counter: crate::model::CacheCounter { hit: 0, mis: 0 },
                             };
                             send_to_view(
                                 &self.channel_tx,
@@ -118,7 +122,6 @@ impl Presenter {
                                 ctx,
                                 cache_strings: HashMap::default(),
                                 cache_towns: HashMap::default(),
-                                cache_counter: crate::model::CacheCounter { hit: 0, mis: 0 },
                             };
                             send_to_view(
                                 &self.channel_tx,
@@ -300,7 +303,7 @@ impl Presenter {
             // before receiving the message. In that case it fulfilled the request_repaint here,
             // but goes to sleep before it can fulfill the message intent.
             self.model.request_repaint_after(Duration::from_millis(50));
-            self.model.age_cache(100);
+            self.model.age_cache(self.max_cache_size);
         }
 
         for handle in spawned_threads {

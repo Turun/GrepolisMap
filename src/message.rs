@@ -80,6 +80,7 @@ pub enum MessageToModel {
     FetchTowns(TownSelection, HashSet<Constraint>),
     LoadDataFromFile(PathBuf, egui::Context),
     DiscoverSavedDatabases,
+    MaxCacheSize(usize),
 }
 
 impl fmt::Display for MessageToModel {
@@ -106,6 +107,9 @@ impl fmt::Display for MessageToModel {
             }
             MessageToModel::DiscoverSavedDatabases => {
                 write!(f, "MessageToModel::DiscoverSavedDatabases")
+            }
+            MessageToModel::MaxCacheSize(x) => {
+                write!(f, "MessageToModel::MaxCacheSize({x})")
             }
         }
     }

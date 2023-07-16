@@ -9,21 +9,20 @@ pub mod download;
 mod offset_data;
 
 const DECAY: f32 = 0.9;
-
-// keep track how well our cache is utilized
-pub struct CacheCounter {
-    pub hit: u32,
-    pub mis: u32,
-}
+const MIN_AGE: f32 = 0.08; // anything that was not touched `DECAY.powi(25)` times in a row should be removed from cache
+pub const CACHE_SIZE_NONE: usize = 0;
+pub const CACHE_SIZE_SMALL: usize = 25;
+pub const CACHE_SIZE_NORMAL: usize = 100;
+pub const CACHE_SIZE_LARGE: usize = 1000;
 
 pub enum Model {
     Uninitialized,
     Loaded {
         db: database::Database,
         ctx: egui::Context,
+        #[allow(clippy::type_complexity)]
         cache_strings: HashMap<(ConstraintType, Vec<Constraint>), (f32, Arc<Vec<String>>)>,
         cache_towns: HashMap<Vec<Constraint>, (f32, Arc<Vec<Town>>)>,
-        cache_counter: CacheCounter,
     },
 }
 
@@ -32,38 +31,11 @@ impl Model {
         match self {
             Model::Uninitialized => { /*do nothing*/ }
             Model::Loaded {
-                db: _,
-                ctx: _,
                 cache_strings,
                 cache_towns,
-                cache_counter,
+                ..
             } => {
-                // TODO the cache can grow pretty big and easily take up a few gigs of RAM if a user keeps the program running for a while.
-                //   we need to delete some cache entries every now and then. Something between LeastRecentlyUsed cache, time base cache and LeastOftenUsed cache.
-                //   An easy way would be to save a hit counter with every element in the cache. When the cache grows too large we can go through and remove the
-                //   lower half of elements, sorted by hit count (least often used elements get eviced)
-                let num_towns: usize = cache_towns
-                    .values()
-                    .map(|(_age, town_list)| town_list.len())
-                    .sum();
-                let num_strings: usize = cache_strings
-                    .values()
-                    .map(|(_age, str_list)| str_list.len())
-                    .sum();
-                let len_strings: usize = cache_strings
-                    .values()
-                    .flat_map(|(_age, str_list)| str_list.iter().map(std::string::String::len))
-                    .sum();
-                println!(
-                    "hit: {}, mis: {}, total: {}, hit fraction: {}, towns: {}, strings: {}, chars: {}",
-                    cache_counter.hit,
-                    cache_counter.mis,
-                    cache_counter.hit + cache_counter.mis,
-                    f64::from(cache_counter.hit) / f64::from(cache_counter.hit + cache_counter.mis),
-                    num_towns,
-                    num_strings,
-                    len_strings,
-                );
+                // Alternatives to the current aging method could incorporate something between LeastRecentlyUsed cache, time base cache and LeastOftenUsed cache.
 
                 // progress the age counter and remove the lowest `keep_count` values
                 let mut ages = cache_strings
@@ -76,8 +48,25 @@ impl Model {
                 if ages.len() > keep_count {
                     ages.sort_unstable_by(f32::total_cmp);
                     let cutoff = ages[keep_count];
-                    cache_strings.retain(|_key, (age, _value)| *age >= cutoff);
+                    cache_strings.retain(|_key, (age, _value)| *age >= cutoff && *age > MIN_AGE);
+
+                    println!(
+                        "Reduce String Cache from {} to {} entries, min age: {}, cutoff age {}, max age: {}" ,
+                        ages.len(),
+                        keep_count,
+                        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
+                        cutoff,
+                        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
+                    );
+                } else {
+                    println!(
+                        "String Cache kept at {} entries, max age: {}, min age: {}",
+                        ages.len(),
+                        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
+                        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
+                    );
                 }
+
                 // do the same for the `cache_towns` map
                 let mut ages = cache_towns
                     .values_mut()
@@ -89,7 +78,23 @@ impl Model {
                 if ages.len() > keep_count {
                     ages.sort_unstable_by(f32::total_cmp);
                     let cutoff = ages[keep_count];
-                    cache_towns.retain(|_key, (age, _value)| *age >= cutoff);
+                    cache_towns.retain(|_key, (age, _value)| *age >= cutoff && *age > MIN_AGE);
+
+                    println!(
+                        "Reduce Town Cache from {} to {} entries, min age: {}, cutoff age {}, max age: {}" ,
+                        ages.len(),
+                        keep_count,
+                        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
+                        cutoff,
+                        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
+                    );
+                } else {
+                    println!(
+                        "Town Cache kept at {} entries, max age: {}, min age: {}",
+                        ages.len(),
+                        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
+                        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
+                    );
                 }
             }
         }
@@ -98,13 +103,7 @@ impl Model {
     pub fn request_repaint_after(&self, duration: Duration) {
         match self {
             Model::Uninitialized => { /*do nothing*/ }
-            Model::Loaded {
-                db: _,
-                ctx,
-                cache_strings: _,
-                cache_towns: _,
-                cache_counter: _,
-            } => {
+            Model::Loaded { ctx, .. } => {
                 ctx.request_repaint_after(duration);
             }
         }
@@ -117,20 +116,12 @@ impl Model {
         match self {
             Model::Uninitialized => Ok(Arc::new(Vec::new())),
             Model::Loaded {
-                db,
-                ctx: _ctx,
-                cache_strings: _,
-                cache_towns,
-                cache_counter,
+                db, cache_towns, ..
             } => {
                 let key = constraints.to_vec();
                 let value = match cache_towns.entry(key) {
-                    Entry::Occupied(entry) => {
-                        cache_counter.hit += 1;
-                        entry.get().1.clone()
-                    }
+                    Entry::Occupied(entry) => entry.get().1.clone(),
                     Entry::Vacant(entry) => {
-                        cache_counter.mis += 1;
                         let value = Arc::new(db.get_towns_for_constraints(constraints)?);
                         entry.insert((1.0, value)).1.clone()
                     }
@@ -148,20 +139,12 @@ impl Model {
         match self {
             Model::Uninitialized => Ok(Arc::new(Vec::new())),
             Model::Loaded {
-                db,
-                ctx: _ctx,
-                cache_strings,
-                cache_towns: _,
-                cache_counter,
+                db, cache_strings, ..
             } => {
                 let key = (constraint_type, constraints.to_vec());
                 let value = match cache_strings.entry(key) {
-                    Entry::Occupied(entry) => {
-                        cache_counter.hit += 1;
-                        entry.get().1.clone()
-                    }
+                    Entry::Occupied(entry) => entry.get().1.clone(),
                     Entry::Vacant(entry) => {
-                        cache_counter.mis += 1;
                         let value = Arc::new(db.get_names_for_constraint_type_in_constraints(
                             constraint_type,
                             constraints,
@@ -177,26 +160,14 @@ impl Model {
     pub fn get_ghost_towns(&self) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
             Model::Uninitialized => Ok(Arc::new(Vec::new())),
-            Model::Loaded {
-                db,
-                ctx: _ctx,
-                cache_strings: _,
-                cache_towns: _,
-                cache_counter: _,
-            } => Ok(Arc::new(db.get_ghost_towns()?)),
+            Model::Loaded { db, .. } => Ok(Arc::new(db.get_ghost_towns()?)),
         }
     }
 
     pub fn get_all_towns(&self) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
             Model::Uninitialized => Ok(Arc::new(Vec::new())),
-            Model::Loaded {
-                db,
-                ctx: _ctx,
-                cache_strings: _,
-                cache_towns: _,
-                cache_counter: _,
-            } => Ok(Arc::new(db.get_all_towns()?)),
+            Model::Loaded { db, .. } => Ok(Arc::new(db.get_all_towns()?)),
         }
     }
 
@@ -207,20 +178,12 @@ impl Model {
         match self {
             Model::Uninitialized => Ok(Arc::new(Vec::new())),
             Model::Loaded {
-                db,
-                ctx: _ctx,
-                cache_strings,
-                cache_towns: _,
-                cache_counter,
+                db, cache_strings, ..
             } => {
                 let key = (constraint_type, Vec::new());
                 let value = match cache_strings.entry(key) {
-                    Entry::Occupied(entry) => {
-                        cache_counter.hit += 1;
-                        entry.get().1.clone()
-                    }
+                    Entry::Occupied(entry) => entry.get().1.clone(),
                     Entry::Vacant(entry) => {
-                        cache_counter.mis += 1;
                         let value = Arc::new(db.get_names_for_constraint_type(constraint_type)?);
                         entry.insert((1.0, value)).1.clone()
                     }

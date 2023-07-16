@@ -20,8 +20,6 @@ use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
 
-use self::data::ALL_TOWNS_DARK;
-
 pub struct View {
     ui_state: State,
     ui_data: Data,
@@ -60,8 +58,16 @@ impl View {
     }
 
     pub fn start(self) {
-        let native_options = eframe::NativeOptions::default();
         // TODO Save config between app runs.
+        //  server name, e.g. de99
+        //  selections (?)
+        //  max cache size (THIS IS DATA OF THE BACKEND ATM)
+        //  darkmode/lightmode setting
+        //  color of all towns and if they should be shown at all
+        //  color of ghost towns and if they should be shown at all
+        //  the canvas position
+
+        let native_options = eframe::NativeOptions::default();
         let _result = eframe::run_native(
             "Turun Map",
             native_options,
@@ -169,6 +175,28 @@ impl View {
                             self.ui_data.settings_all.color = data::ALL_TOWNS_LIGHT;
                         }
                         ui.close_menu();
+                    }
+                    if ui.button("No Cache").clicked() {
+                        self.channel_presenter_tx
+                            .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_NONE))
+                            .expect("Failed to send MaxCacheSize message to backend");
+                    }
+                    if ui.button("Small Cache").clicked() {
+                        self.channel_presenter_tx
+                            .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_SMALL))
+                            .expect("Failed to send MaxCacheSize message to backend");
+                    }
+                    if ui.button("Normal Cache").clicked() {
+                        self.channel_presenter_tx
+                            .send(MessageToModel::MaxCacheSize(
+                                crate::model::CACHE_SIZE_NORMAL,
+                            ))
+                            .expect("Failed to send MaxCacheSize message to backend");
+                    }
+                    if ui.button("Large Cache").clicked() {
+                        self.channel_presenter_tx
+                            .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_LARGE))
+                            .expect("Failed to send MaxCacheSize message to backend");
                     }
                 });
             });
