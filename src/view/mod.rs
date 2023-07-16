@@ -20,6 +20,8 @@ use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
 
+use self::data::ALL_TOWNS_DARK;
+
 pub struct View {
     ui_state: State,
     ui_data: Data,
@@ -99,8 +101,6 @@ impl View {
         //  [preferences] [darkmode] toggle darkmode light/dark/follow_os (also save this setting) https://docs.rs/eframe/latest/eframe/struct.NativeOptions.html#structfield.follow_system_theme
         //                [auto delete saved data] after 1d/1w/1m/never
 
-        // TODO the list of saved dbs could be ordered by server in a submenu. Would clean up the menu for people who look at lots of different worlds
-
         egui::TopBottomPanel::top("menu bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Open Saved Data", |ui| {
@@ -149,6 +149,26 @@ impl View {
                     }
                     for saved_dbs in &mut self.ui_data.saved_db.values_mut() {
                         saved_dbs.retain(|saved_db| !removed_dbs.contains(saved_db));
+                    }
+                });
+                ui.menu_button("Preferences", |ui| {
+                    if ui.button("Darkmode").clicked() {
+                        // switch to light mode
+                        ctx.set_visuals(egui::Visuals::dark());
+                        // but only change the town color if the user didn't set a non-default color
+                        if self.ui_data.settings_all.color == data::ALL_TOWNS_LIGHT {
+                            self.ui_data.settings_all.color = data::ALL_TOWNS_DARK;
+                        }
+                        ui.close_menu();
+                    }
+                    if ui.button("Lightmode").clicked() {
+                        // switch to light mode
+                        ctx.set_visuals(egui::Visuals::light());
+                        // but only change the town color if the user didn't set a non-default color
+                        if self.ui_data.settings_all.color == data::ALL_TOWNS_DARK {
+                            self.ui_data.settings_all.color = data::ALL_TOWNS_LIGHT;
+                        }
+                        ui.close_menu();
                     }
                 });
             });

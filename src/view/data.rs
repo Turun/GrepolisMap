@@ -10,6 +10,9 @@ use crate::{
     towns::{Town, TownSelection},
 };
 
+pub const ALL_TOWNS_DARK: egui::Color32 = egui::Color32::from_gray(60);
+pub const ALL_TOWNS_LIGHT: egui::Color32 = egui::Color32::from_gray(180);
+
 #[derive(Clone)]
 pub struct DefaultTownGroup {
     pub enabled: bool,
@@ -47,7 +50,7 @@ impl Default for Data {
             },
             settings_all: DefaultTownGroup {
                 enabled: true,
-                color: egui::Color32::from_rgb(48, 48, 48),
+                color: ALL_TOWNS_DARK,
             },
             saved_db: BTreeMap::new(),
             preferences: Preferences::default(),
