@@ -19,6 +19,7 @@ use crate::towns::{
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
+use crate::VERSION;
 
 pub struct View {
     ui_state: State,
@@ -69,7 +70,7 @@ impl View {
 
         let native_options = eframe::NativeOptions::default();
         let _result = eframe::run_native(
-            "Turun Map",
+            &format!("Turun Map {VERSION}"),
             native_options,
             Box::new(|cc| Box::new(self.setup(cc))),
         );
@@ -176,6 +177,7 @@ impl View {
                         }
                         ui.close_menu();
                     }
+                    ui.separator();
                     if ui.button("No Cache").clicked() {
                         self.channel_presenter_tx
                             .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_NONE))
