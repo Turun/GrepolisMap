@@ -19,19 +19,22 @@ impl Display for DarkModePref {
 
 #[derive(Clone, Copy)]
 enum AutoDeletePref {
+    NoTime,
     OneDay,
     OneWeek,
     OneMonth,
-    Never,
+    Eternity,
 }
 
 impl Display for AutoDeletePref {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO we should try to not store any DB on the disk if the user selects "No Time"
         match self {
+            AutoDeletePref::NoTime => write!(f, "No Time"),
             AutoDeletePref::OneDay => write!(f, "One Day"),
             AutoDeletePref::OneWeek => write!(f, "One Week"),
             AutoDeletePref::OneMonth => write!(f, "One Month"),
-            AutoDeletePref::Never => write!(f, "Never"),
+            AutoDeletePref::Eternity => write!(f, "Eternity"),
         }
     }
 }
@@ -46,7 +49,7 @@ impl Default for Preferences {
     fn default() -> Self {
         Self {
             darkmode: DarkModePref::FollowSystem,
-            auto_delete: AutoDeletePref::Never,
+            auto_delete: AutoDeletePref::Eternity,
         }
     }
 }
