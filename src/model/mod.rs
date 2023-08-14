@@ -41,13 +41,14 @@ fn age_and_filter_hashmap<K, V>(map: &mut HashMap<K, (f32, V)>, keep_count: usiz
     } else {
         1.0
     };
-    let cutoff = f32::min(cutoff, MIN_AGE);
+    let cutoff = f32::max(cutoff, MIN_AGE);
     map.retain(|_key, (age, _value)| *age > cutoff);
 
     println!(
-        "Reduce from {} to {} entries, max age: {}, cutoff age {}, min age: {}",
+        "Filter entries: Previous {}, Goal {}, Now {}; Age: max {}, cutoff {}, min {}",
         ages.len(),
         keep_count,
+        map.len(),
         ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
         cutoff,
         ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
