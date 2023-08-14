@@ -26,5 +26,5 @@ Stuff that I want to implement at some point:
 
 - Add "`Property` `exists in` `Other Selection`" Constraint. A prerequesite for this is that Selections get names. This would allow true flexibility in creating filters. Not yet sure how to implement that though. Nested SQL queries probably. But this could explode our backend complexity. Maybe I need to make trait that converts `[Constraint]` into `str` that represents the corresponding sql. And `Constraint` must be able to get the corresponding `Selection` from the name in the drop down menu.
 
-
+- Temporal comparison. A special mode to show the differences between two database states in addition to other constraints like we already have.
 
