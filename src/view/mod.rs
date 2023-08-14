@@ -183,11 +183,6 @@ impl View {
                             .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_NONE))
                             .expect("Failed to send MaxCacheSize message to backend");
                     }
-                    if ui.button("Small Cache").clicked() {
-                        self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_SMALL))
-                            .expect("Failed to send MaxCacheSize message to backend");
-                    }
                     if ui.button("Normal Cache").clicked() {
                         self.channel_presenter_tx
                             .send(MessageToModel::MaxCacheSize(
