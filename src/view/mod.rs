@@ -21,6 +21,8 @@ use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
 use crate::VERSION;
 
+use self::preferences::DarkModePref;
+
 pub struct View {
     ui_state: State,
     ui_data: Data,
@@ -162,15 +164,25 @@ impl View {
                     if ui.button("Darkmode").clicked() {
                         // switch to light mode
                         ctx.set_visuals(egui::Visuals::dark());
+                        self.ui_data.preferences.darkmode = DarkModePref::Dark;
                         // but only change the town color if the user didn't set a non-default color
                         if self.ui_data.settings_all.color == data::ALL_TOWNS_LIGHT {
                             self.ui_data.settings_all.color = data::ALL_TOWNS_DARK;
                         }
                         ui.close_menu();
                     }
+                    if ui
+                        .button("Follow System Theme (Restart required)")
+                        .clicked()
+                    {
+                        // TODO figure out if we can make that change at runtime
+                        self.ui_data.preferences.darkmode = DarkModePref::FollowSystem;
+                        ui.close_menu();
+                    }
                     if ui.button("Lightmode").clicked() {
                         // switch to light mode
                         ctx.set_visuals(egui::Visuals::light());
+                        self.ui_data.preferences.darkmode = DarkModePref::Light;
                         // but only change the town color if the user didn't set a non-default color
                         if self.ui_data.settings_all.color == data::ALL_TOWNS_DARK {
                             self.ui_data.settings_all.color = data::ALL_TOWNS_LIGHT;

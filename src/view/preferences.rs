@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 #[derive(Clone, Copy)]
-enum DarkModePref {
+pub enum DarkModePref {
     FollowSystem,
     Dark,
     Light,
@@ -18,7 +18,7 @@ impl Display for DarkModePref {
 }
 
 #[derive(Clone, Copy)]
-enum AutoDeletePref {
+pub enum AutoDeletePref {
     NoTime,
     OneDay,
     OneWeek,
@@ -41,8 +41,8 @@ impl Display for AutoDeletePref {
 
 #[derive(Clone, Copy)]
 pub struct Preferences {
-    darkmode: DarkModePref,
-    auto_delete: AutoDeletePref,
+    pub darkmode: DarkModePref,
+    pub auto_delete: AutoDeletePref,
 }
 
 impl Default for Preferences {
