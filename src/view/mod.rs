@@ -175,7 +175,6 @@ impl View {
                                     // TODO if we have a list of dbs in the backend, make sure this change is synchronized
                                     storage::remove_db(&saved_db.path).unwrap();
                                     removed_dbs.push(saved_db.clone());
-                                    ui.close_menu();
                                 }
                             }
                         });
@@ -820,6 +819,5 @@ impl eframe::App for View {
                 eprintln!("Failed to convert ui data to serialized format! {err}");
             }
         };
-        println!("Saving Preferences!");
     }
 }
