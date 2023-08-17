@@ -24,13 +24,11 @@ fn main() {
     let (view_tx, model_rx) = mpsc::channel::<MessageToModel>();
     let (model_tx, view_rx) = mpsc::channel::<MessageToView>();
 
-    let view = View::new(view_rx, view_tx);
-
     let handle = thread::spawn(move || {
         let mut p = Presenter::new(model_rx, model_tx);
         p.start();
     });
 
-    view.start();
-    handle.join().expect("Failed to join view handle");
+    View::new_and_start(view_rx, view_tx);
+    handle.join().expect("Failed to join view/presenter handle");
 }

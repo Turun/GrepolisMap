@@ -31,16 +31,19 @@ pub struct View {
 }
 
 impl View {
-    pub fn new(rx: mpsc::Receiver<MessageToView>, tx: mpsc::Sender<MessageToModel>) -> Self {
-        Self {
+    fn setup(
+        cc: &eframe::CreationContext,
+        rx: mpsc::Receiver<MessageToView>,
+        tx: mpsc::Sender<MessageToModel>,
+    ) -> Self {
+        let mut re = Self {
             ui_state: State::Uninitialized(Progress::None),
             ui_data: Data::default(),
             channel_presenter_rx: rx,
             channel_presenter_tx: tx,
-        }
-    }
+        };
 
-    fn setup(self, cc: &eframe::CreationContext) -> Self {
+        // include a Unicode font and make it the default
         let mut fonts = egui::FontDefinitions::default();
         fonts.font_data.insert(
             String::from("Custom Font"),
@@ -53,14 +56,14 @@ impl View {
             .push(String::from("Custom Font"));
         cc.egui_ctx.set_fonts(fonts);
 
-        self.channel_presenter_tx
+        re.channel_presenter_tx
             .send(MessageToModel::DiscoverSavedDatabases)
             .expect("Failed to send message to backend: Discover Saved Databases");
 
-        self
+        re
     }
 
-    pub fn start(self) {
+    pub fn new_and_start(rx: mpsc::Receiver<MessageToView>, tx: mpsc::Sender<MessageToModel>) {
         // TODO Save config between app runs.
         //  server name, e.g. de99
         //  selections (?)
@@ -74,7 +77,7 @@ impl View {
         let _result = eframe::run_native(
             &format!("Turun Map {VERSION}"),
             native_options,
-            Box::new(|cc| Box::new(self.setup(cc))),
+            Box::new(|cc| Box::new(View::setup(cc, rx, tx))),
         );
     }
 
