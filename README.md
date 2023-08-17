@@ -28,3 +28,4 @@ Stuff that I want to implement at some point:
 
 - Temporal comparison. A special mode to show the differences between two database states in addition to other constraints like we already have.
 
+- Export of the map in a better format for sharing. Can do this using App::post_rendering and Frame::Screenshot. Maybe.
