@@ -23,7 +23,7 @@ use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
 use crate::VERSION;
 
-use self::preferences::DarkModePref;
+use self::preferences::{CacheSize, DarkModePref};
 
 pub struct View {
     ui_state: State,
@@ -201,20 +201,23 @@ impl View {
                     }
                     ui.separator();
                     if ui.button("No Cache").clicked() {
+                        self.ui_data.preferences.cache_size = CacheSize::None;
                         self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(preferences::CacheSize::None))
+                            .send(MessageToModel::MaxCacheSize(CacheSize::None))
                             .expect("Failed to send MaxCacheSize message to backend");
                         ui.close_menu();
                     }
                     if ui.button("Normal Cache").clicked() {
+                        self.ui_data.preferences.cache_size = CacheSize::Normal;
                         self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(preferences::CacheSize::Normal))
+                            .send(MessageToModel::MaxCacheSize(CacheSize::Normal))
                             .expect("Failed to send MaxCacheSize message to backend");
                         ui.close_menu();
                     }
                     if ui.button("Large Cache").clicked() {
+                        self.ui_data.preferences.cache_size = CacheSize::Large;
                         self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(preferences::CacheSize::Large))
+                            .send(MessageToModel::MaxCacheSize(CacheSize::Large))
                             .expect("Failed to send MaxCacheSize message to backend");
                         ui.close_menu();
                     }
