@@ -42,9 +42,37 @@ impl Display for AutoDeletePref {
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum CacheSize {
+    None,
+    Normal,
+    Large,
+}
+impl Display for CacheSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO we should try to not store any DB on the disk if the user selects "No Time"
+        match self {
+            CacheSize::None => write!(f, "None"),
+            CacheSize::Normal => write!(f, "Normal"),
+            CacheSize::Large => write!(f, "Large"),
+        }
+    }
+}
+
+impl CacheSize {
+    pub fn value(&self) -> usize {
+        match self {
+            CacheSize::None => 0,
+            CacheSize::Normal => 100,
+            CacheSize::Large => 10_000,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Preferences {
     pub darkmode: DarkModePref,
     pub auto_delete: AutoDeletePref,
+    pub cache_size: CacheSize,
 }
 
 impl Default for Preferences {
@@ -52,6 +80,7 @@ impl Default for Preferences {
         Self {
             darkmode: DarkModePref::FollowSystem,
             auto_delete: AutoDeletePref::Eternity,
+            cache_size: CacheSize::Normal,
         }
     }
 }

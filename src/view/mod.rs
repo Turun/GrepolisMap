@@ -1,6 +1,6 @@
 mod data;
 mod dropdownbox;
-mod preferences;
+pub(crate) mod preferences;
 mod selectable_label;
 pub(crate) mod state;
 
@@ -192,21 +192,19 @@ impl View {
                     ui.separator();
                     if ui.button("No Cache").clicked() {
                         self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_NONE))
+                            .send(MessageToModel::MaxCacheSize(preferences::CacheSize::None))
                             .expect("Failed to send MaxCacheSize message to backend");
                         ui.close_menu();
                     }
                     if ui.button("Normal Cache").clicked() {
                         self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(
-                                crate::model::CACHE_SIZE_NORMAL,
-                            ))
+                            .send(MessageToModel::MaxCacheSize(preferences::CacheSize::Normal))
                             .expect("Failed to send MaxCacheSize message to backend");
                         ui.close_menu();
                     }
                     if ui.button("Large Cache").clicked() {
                         self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_LARGE))
+                            .send(MessageToModel::MaxCacheSize(preferences::CacheSize::Large))
                             .expect("Failed to send MaxCacheSize message to backend");
                         ui.close_menu();
                     }

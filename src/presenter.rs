@@ -3,9 +3,10 @@ use eframe::epaint::ahash::HashMap;
 
 use crate::message::{MessageToModel, MessageToView};
 use crate::model::database::Database;
-use crate::model::{self, Model};
+use crate::model::Model;
 use crate::storage;
 use crate::towns::Constraint;
+use crate::view::preferences::CacheSize;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -40,7 +41,7 @@ fn send_to_view(
 
 pub struct Presenter {
     model: Model,
-    max_cache_size: usize,
+    max_cache_size: CacheSize,
     channel_tx: mpsc::Sender<MessageToView>,
     channel_rx: mpsc::Receiver<MessageToModel>,
 }
@@ -49,7 +50,7 @@ impl Presenter {
     pub fn new(rx: mpsc::Receiver<MessageToModel>, tx: mpsc::Sender<MessageToView>) -> Self {
         Self {
             model: Model::Uninitialized,
-            max_cache_size: model::CACHE_SIZE_NORMAL,
+            max_cache_size: CacheSize::Normal,
             channel_tx: tx,
             channel_rx: rx,
         }
@@ -303,7 +304,7 @@ impl Presenter {
             // before receiving the message. In that case it fulfilled the request_repaint here,
             // but goes to sleep before it can fulfill the message intent.
             self.model.request_repaint_after(Duration::from_millis(50));
-            self.model.age_cache(self.max_cache_size);
+            self.model.age_cache(self.max_cache_size.value());
         }
 
         for handle in spawned_threads {

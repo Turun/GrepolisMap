@@ -10,9 +10,6 @@ mod offset_data;
 
 const DECAY: f32 = 0.9;
 const MIN_AGE: f32 = 0.05; // anything that was not touched `DECAY.powi(30)` times in a row should be removed from cache
-pub const CACHE_SIZE_NONE: usize = 0;
-pub const CACHE_SIZE_NORMAL: usize = 100;
-pub const CACHE_SIZE_LARGE: usize = 1000;
 
 pub enum Model {
     Uninitialized,

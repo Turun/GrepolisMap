@@ -8,6 +8,7 @@ use std::{
 use crate::{
     storage::SavedDB,
     towns::{Constraint, Town, TownSelection},
+    view::preferences::CacheSize,
 };
 
 /// This is a file for the messages passed between the view and the presenter.
@@ -80,7 +81,7 @@ pub enum MessageToModel {
     FetchTowns(TownSelection, HashSet<Constraint>),
     LoadDataFromFile(PathBuf, egui::Context),
     DiscoverSavedDatabases,
-    MaxCacheSize(usize),
+    MaxCacheSize(CacheSize),
 }
 
 impl fmt::Display for MessageToModel {
