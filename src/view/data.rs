@@ -23,7 +23,7 @@ pub struct DefaultTownGroup {
 }
 
 /// contains all the data required to draw the ui.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Data {
     pub server_id: String,
@@ -69,7 +69,7 @@ impl Default for Data {
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CanvasData {
     /// distance from top left of canvas to top left of grepolis coordinates
     pub world_offset_px: egui::Vec2,

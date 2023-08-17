@@ -81,16 +81,11 @@ impl View {
     /// reloading a server mean we should partially copy our `ui_data` and reset the data associated with selections
     fn reload_server(&mut self) {
         self.ui_state = State::Uninitialized(Progress::None);
+        // TODO: do not keep the self.ui_data.canvas position the same when we switch servers. But only then!
         self.ui_data = Data {
-            server_id: self.ui_data.server_id.clone(),
-            canvas: Option::default(),
-            settings_all: self.ui_data.settings_all.clone(),
-            settings_ghosts: self.ui_data.settings_ghosts.clone(),
-            selections: self.ui_data.selections.clone(),
             all_towns: Arc::new(Vec::new()),
             ghost_towns: Arc::new(Vec::new()),
-            saved_db: self.ui_data.saved_db.clone(),
-            preferences: self.ui_data.preferences,
+            ..self.ui_data.clone()
         };
         // ensure the towns in the selection are fetched anew after loading the data from the server.
         // If we don't do this the selection may become stale and show towns from server ab12 on a
