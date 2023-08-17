@@ -86,7 +86,9 @@ impl View {
         //     .send(MessageToModel::AutoDeleteTime(data.preferences.auto_delete_time))
         //     .expect("Failed to send message to backend: Discover Saved Databases");
 
-        // TODO apply darkmode/lightmode
+        re.ui_data
+            .apply_darkmode(&cc.egui_ctx, re.ui_data.preferences.darkmode);
+
         re
     }
 
@@ -184,31 +186,18 @@ impl View {
                 });
                 ui.menu_button("Preferences", |ui| {
                     if ui.button("Darkmode").clicked() {
-                        // switch to light mode
-                        ctx.set_visuals(egui::Visuals::dark());
-                        self.ui_data.preferences.darkmode = DarkModePref::Dark;
-                        // but only change the town color if the user didn't set a non-default color
-                        if self.ui_data.settings_all.color == data::ALL_TOWNS_LIGHT {
-                            self.ui_data.settings_all.color = data::ALL_TOWNS_DARK;
-                        }
+                        self.ui_data.apply_darkmode(ctx, DarkModePref::Dark);
                         ui.close_menu();
                     }
                     if ui
                         .button("Follow System Theme (Restart required)")
                         .clicked()
                     {
-                        // TODO figure out if we can make that change at runtime
-                        self.ui_data.preferences.darkmode = DarkModePref::FollowSystem;
+                        self.ui_data.apply_darkmode(ctx, DarkModePref::FollowSystem);
                         ui.close_menu();
                     }
                     if ui.button("Lightmode").clicked() {
-                        // switch to light mode
-                        ctx.set_visuals(egui::Visuals::light());
-                        self.ui_data.preferences.darkmode = DarkModePref::Light;
-                        // but only change the town color if the user didn't set a non-default color
-                        if self.ui_data.settings_all.color == data::ALL_TOWNS_DARK {
-                            self.ui_data.settings_all.color = data::ALL_TOWNS_LIGHT;
-                        }
+                        self.ui_data.apply_darkmode(ctx, DarkModePref::Light);
                         ui.close_menu();
                     }
                     ui.separator();

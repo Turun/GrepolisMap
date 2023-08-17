@@ -12,6 +12,8 @@ use crate::{
     towns::{Town, TownSelection},
 };
 
+use super::preferences::DarkModePref;
+
 pub const ALL_TOWNS_DARK: egui::Color32 = egui::Color32::from_gray(60);
 pub const ALL_TOWNS_LIGHT: egui::Color32 = egui::Color32::from_gray(180);
 
@@ -64,6 +66,36 @@ impl Default for Data {
             },
             saved_db: BTreeMap::new(),
             preferences: Preferences::default(),
+        }
+    }
+}
+
+impl Data {
+    pub fn apply_darkmode(&mut self, ctx: &egui::Context, mode: DarkModePref) {
+        // update preferences
+        self.preferences.darkmode = mode;
+
+        // and apply it,
+        // but only change the town color if the user didn't set a non-default color
+        match mode {
+            DarkModePref::FollowSystem => {
+                /* do nothing. This is integrated into eframe and uses winit to get the
+                system theme, we can't clone that logic here without involving winit
+                ourselves. Considering we basically save _everything_ across app restarts
+                I don't think it's too big of an ask to have the user restart the app.  */
+            }
+            DarkModePref::Dark => {
+                ctx.set_visuals(egui::Visuals::dark());
+                if self.settings_all.color == ALL_TOWNS_LIGHT {
+                    self.settings_all.color = ALL_TOWNS_DARK;
+                }
+            }
+            DarkModePref::Light => {
+                ctx.set_visuals(egui::Visuals::light());
+                if self.settings_all.color == ALL_TOWNS_DARK {
+                    self.settings_all.color = ALL_TOWNS_LIGHT;
+                }
+            }
         }
     }
 }
