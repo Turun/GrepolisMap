@@ -4,6 +4,8 @@ pub(crate) mod preferences;
 mod selectable_label;
 pub(crate) mod state;
 
+use eframe::Storage;
+use serde_json;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
@@ -60,25 +62,47 @@ impl View {
             .send(MessageToModel::DiscoverSavedDatabases)
             .expect("Failed to send message to backend: Discover Saved Databases");
 
+        // load saved app data from disk
+        if let Some(storage) = cc.storage {
+            re.ui_data = if let Some(json) = storage.get_string(eframe::APP_KEY) {
+                serde_json::from_str(&json).unwrap_or_else(|err| {
+                    eprintln!("Failed to read the saved configuration: {err}");
+                    Data::default()
+                })
+            } else {
+                println!("No previously saved preferences found");
+                Data::default()
+            };
+        }
+
+        re.channel_presenter_tx
+            .send(MessageToModel::MaxCacheSize(
+                re.ui_data.preferences.cache_size,
+            ))
+            .expect("Failed to send message to backend: MaxCacheSize");
+
+        // TODO
+        // self.channel_presenter_tx
+        //     .send(MessageToModel::AutoDeleteTime(data.preferences.auto_delete_time))
+        //     .expect("Failed to send message to backend: Discover Saved Databases");
+
+        // TODO apply darkmode/lightmode
         re
     }
 
     pub fn new_and_start(rx: mpsc::Receiver<MessageToView>, tx: mpsc::Sender<MessageToModel>) {
-        // TODO Save config between app runs.
-        //  server name, e.g. de99
-        //  selections (?)
-        //  max cache size (THIS IS DATA OF THE BACKEND ATM)
-        //  darkmode/lightmode setting
-        //  color of all towns and if they should be shown at all
-        //  color of ghost towns and if they should be shown at all
-        //  the canvas position
-
-        let native_options = eframe::NativeOptions::default();
-        let _result = eframe::run_native(
+        let native_options = eframe::NativeOptions {
+            // defaults to window title, but we include the version in the window title. Since
+            // it should stay the same across version changes we give it a fixed value here.
+            app_id: Some("Turun Map".to_owned()),
+            ..eframe::NativeOptions::default()
+        };
+        eframe::run_native(
             &format!("Turun Map {VERSION}"),
             native_options,
             Box::new(|cc| Box::new(View::setup(cc, rx, tx))),
-        );
+        )
+        .expect("Eframe failed!");
     }
 
     /// reloading a server mean we should partially copy our `ui_data` and reset the data associated with selections
@@ -794,5 +818,19 @@ impl eframe::App for View {
 
         // make sure we process messages from the backend every once in a while
         ctx.request_repaint_after(Duration::from_millis(500));
+    }
+
+    fn save(&mut self, storage: &mut dyn Storage) {
+        let serde_result = serde_json::to_string(&self.ui_data);
+        match serde_result {
+            Ok(res) => {
+                storage.set_string(eframe::APP_KEY, res);
+                storage.flush();
+            }
+            Err(err) => {
+                eprintln!("Failed to convert ui data to serialized format! {err}");
+            }
+        };
+        println!("Saving Preferences!");
     }
 }
