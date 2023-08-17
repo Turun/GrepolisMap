@@ -18,8 +18,6 @@ Stuff that I want to implement at some point:
 
 - Selections that combine Constraints with OR instead of with AND. I can't think of a good way to mix AND and OR in one selection, but a selection purely with OR would be helpful for situations like showing all cities that are part of one of several alliances. In a way this is already possible by simply creating several selections with the same color, but it is tedious to do so.
 
-- Persist settings (at the moment Server, Dark mode/light mode, cache size) across app restarts. Not hard to do, I just need to get to it. Will need Serde library for this.
-
 - Telemetry. I want to know which versions are in use and what kind of Selections the typical user uses. No personal information will be collected, I don't think I even need to log the IP addresses. But I don't even have a server set up at the moment, so idk when I get to this point.
 
 - Export and import one Selection/all Selections as text. We'll simply use the Serde library for this. Don't know where exactly I want to put this. Maybe a menu option? "Import Selection>From Clipboard/From File (opens file picker)" and a corresponding "Export Selection>All/Selection1/Selection2/..."
