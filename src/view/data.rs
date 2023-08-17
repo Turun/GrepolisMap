@@ -4,6 +4,8 @@ use std::{
     sync::Arc,
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::view::preferences::Preferences;
 use crate::{
     storage::SavedDB,
@@ -13,15 +15,20 @@ use crate::{
 pub const ALL_TOWNS_DARK: egui::Color32 = egui::Color32::from_gray(60);
 pub const ALL_TOWNS_LIGHT: egui::Color32 = egui::Color32::from_gray(180);
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DefaultTownGroup {
     pub enabled: bool,
     pub color: egui::Color32,
 }
 
 /// contains all the data required to draw the ui.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Data {
     pub server_id: String,
+
+    #[serde(skip)]
     pub canvas: Option<CanvasData>,
 
     pub settings_all: DefaultTownGroup,
@@ -29,9 +36,12 @@ pub struct Data {
 
     pub selections: Vec<TownSelection>,
 
+    #[serde(skip)]
     pub all_towns: Arc<Vec<Town>>,
+    #[serde(skip)]
     pub ghost_towns: Arc<Vec<Town>>,
 
+    #[serde(skip)]
     pub saved_db: BTreeMap<String, Vec<SavedDB>>,
     pub preferences: Preferences,
 }

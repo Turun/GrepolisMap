@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
-#[derive(Clone, Copy)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum DarkModePref {
     FollowSystem,
     Dark,
@@ -17,7 +19,7 @@ impl Display for DarkModePref {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum AutoDeletePref {
     NoTime,
     OneDay,
@@ -39,7 +41,7 @@ impl Display for AutoDeletePref {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Preferences {
     pub darkmode: DarkModePref,
     pub auto_delete: AutoDeletePref,

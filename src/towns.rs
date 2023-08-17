@@ -1,4 +1,5 @@
 use rusqlite::Row;
+use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -40,11 +41,17 @@ pub enum Change {
     Remove(usize),
     MoveDown(usize),
 }
-#[derive(Debug, Clone)]
+
+// TODO: Serialize/Deserialize with custom implementation. We only
+// need to save something like "PlayerName == 'erstes'" Instead of
+// "{constraint_type: "PlayerName", comparator: "LessThan", vale: "erstes"}"
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Constraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
     pub value: String,
+
+    #[serde(skip)] // defaults to None
     pub drop_down_values: Option<Arc<Vec<String>>>,
 }
 
@@ -97,7 +104,7 @@ impl Hash for Constraint {
     }
 }
 
-#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ConstraintType {
     PlayerName,
     PlayerPoints,
@@ -204,7 +211,7 @@ impl ConstraintType {
     }
 }
 
-#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Comparator {
     LessThan,
     Equal,
@@ -223,19 +230,27 @@ impl fmt::Display for Comparator {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub enum SelectionState {
     Loading,
     Finished,
+
+    #[default]
     NewlyCreated,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TownSelection {
     uuid: uuid::Uuid,
+
+    #[serde(skip)]
     pub state: SelectionState,
+
     pub constraints: Vec<Constraint>,
+
     pub color: egui::Color32,
+
+    #[serde(skip)]
     pub towns: Arc<Vec<Town>>,
 }
 
