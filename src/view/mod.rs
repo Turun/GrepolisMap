@@ -182,6 +182,7 @@ impl View {
                         self.channel_presenter_tx
                             .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_NONE))
                             .expect("Failed to send MaxCacheSize message to backend");
+                        ui.close_menu();
                     }
                     if ui.button("Normal Cache").clicked() {
                         self.channel_presenter_tx
@@ -189,11 +190,13 @@ impl View {
                                 crate::model::CACHE_SIZE_NORMAL,
                             ))
                             .expect("Failed to send MaxCacheSize message to backend");
+                        ui.close_menu();
                     }
                     if ui.button("Large Cache").clicked() {
                         self.channel_presenter_tx
                             .send(MessageToModel::MaxCacheSize(crate::model::CACHE_SIZE_LARGE))
                             .expect("Failed to send MaxCacheSize message to backend");
+                        ui.close_menu();
                     }
                 });
             });
