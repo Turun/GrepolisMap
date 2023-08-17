@@ -2,6 +2,20 @@
 
 Go to the [releases page](https://github.com/Turun/GrepolisMap/releases) and download the binary for your system. It's a standalone executable of only a few MB.
 
+# Features
+
+- Load data from Grepolis servers and show it as a zoomable map
+
+- Show ghosttowns
+
+- Highlight towns via arbitrary constraints, e.g. all towns that are in a specific alliance, or all towns that belong to user xyz
+
+- Highlight only towns that fulfill multiple constraints, e.g. all towns that do not belong to your alliance and do not belong to your sister alliance and where the player has less than 100k Points
+
+- Automatically saves the data from Grepolis and enables you to look back in time.
+
+- Dark mode and light mode
+
 # Usage
 
 ![Exmaple Image](./showcase.png)
