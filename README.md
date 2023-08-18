@@ -12,6 +12,8 @@ Go to the [releases page](https://github.com/Turun/GrepolisMap/releases) and dow
 
 - Highlight only towns that fulfill multiple constraints, e.g. all towns that do not belong to your alliance and do not belong to your sister alliance and where the player has less than 100k Points
 
+- Import and export these collections of Constraints (Selections) to share with your allies or to keep differently filtered maps on hand.
+
 - Automatically saves the data from Grepolis and enables you to look back in time.
 
 - Dark mode and light mode
@@ -34,9 +36,7 @@ Stuff that I want to implement at some point:
 
 - Telemetry. I want to know which versions are in use and what kind of Selections the typical user uses. No personal information will be collected, I don't think I even need to log the IP addresses. But I don't even have a server set up at the moment, so idk when I get to this point.
 
-- Export and import one Selection/all Selections as text. We'll simply use the Serde library for this. Don't know where exactly I want to put this. Maybe a menu option? "Import Selection>From Clipboard/From File (opens file picker)" and a corresponding "Export Selection>All/Selection1/Selection2/...". This will enable users to save different selections for different scenarios and switch between them easily.
-
-- Add "`Property` `exists in` `Other Selection`" Constraint. A prerequesite for this is that Selections get names. This would allow true flexibility in creating filters. Not yet sure how to implement that though. Nested SQL queries probably. But this could explode our backend complexity. Maybe I need to make trait that converts `[Constraint]` into `str` that represents the corresponding sql. And `Constraint` must be able to get the corresponding `Selection` from the name in the drop down menu.
+- Add "`Property` `exists in` `Other Selection`" Constraint. This would allow true flexibility in creating filters. Not yet sure how to implement that though. Nested SQL queries probably. But this could explode our backend complexity. Maybe I need to make trait that converts `[Constraint]` into `str` that represents the corresponding sql. And `Constraint` must be able to get the corresponding `Selection` from the name in the drop down menu.
 
 - Temporal comparison. A special mode to show the differences between two database states in addition to other constraints like we already have.
 

@@ -4,13 +4,17 @@ pub(crate) mod preferences;
 mod selectable_label;
 pub(crate) mod state;
 
+use anyhow::Context;
+use arboard::Clipboard;
 use eframe::Storage;
+use egui::{FontData, ProgressBar, RichText, Shape, Ui};
+use native_dialog::FileDialog;
 use std::collections::{BTreeMap, HashSet};
+use std::fs;
+use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
 use strum::IntoEnumIterator;
-
-use egui::{FontData, ProgressBar, RichText, Shape, Ui};
 
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
 use crate::storage;
@@ -113,6 +117,42 @@ impl View {
         }
     }
 
+    fn import_selections_from_text(&mut self, text: &str) -> anyhow::Result<()> {
+        // Attempt to parse text as a vector of selections, and it that doesn't work, parse it as a single selection.
+        let res_parse_as_vec = serde_yaml::from_str(text);
+        let res_parse_as_single = serde_yaml::from_str(text);
+
+        // TODO for all new selections, check if they are already present. If so don't add them a second time.
+        match (res_parse_as_vec, res_parse_as_single) {
+            (Ok(mut vec), _) => {
+                self.ui_data.selections.append(&mut vec);
+            }
+            (Err(_err), Ok(selection)) => self.ui_data.selections.push(selection),
+            (Err(err_vec), Err(err_single)) => {
+                eprintln!("Could not parse text ({text}) as TownSelection (Error: {err_single:?}) or Vec<TownSelection> (Error: {err_vec:?}).");
+                return Err(
+                    anyhow::Error::new(err_vec)
+                    .context(err_single)
+                    .context("Could not parse text ({text}) as TownSelection (Error: {single_err:?}) or Vec<TownSelection> (Error: {vec_err:?}).")
+                );
+            }
+        }
+        Ok(())
+    }
+
+    fn import_selections_from_files(&mut self, files: &[PathBuf]) -> anyhow::Result<Vec<()>> {
+        let text = files
+            .iter()
+            .map(fs::read_to_string)
+            .collect::<anyhow::Result<Vec<String>, _>>()
+            .context("Failed to read text from files ({files})")?;
+        let result = text
+            .into_iter()
+            .map(|text| self.import_selections_from_text(&text))
+            .collect::<Result<Vec<()>, _>>();
+        result.context("Read files, but failed to parse the content")
+    }
+
     /// reloading a server mean we should partially copy our `ui_data` and reset the data associated with selections
     fn reload_server(&mut self) {
         self.ui_state = State::Uninitialized(Progress::None);
@@ -131,17 +171,13 @@ impl View {
         }
     }
 
+    #[allow(clippy::too_many_lines)] // UI Code, am I right, hahah
     fn ui_menu(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        // TODO menu bar with the ability to:
-        //  [open saved DB] load a db from file
-        //  [delete saved DB] remove saved dbs (single and bulk)
-        //  [import selection] load a selection from file
-        //  (maybe) [save selections] save all current selection to a file (must allow the user to set the filename)
-        //  [preferences] [darkmode] toggle darkmode light/dark/follow_os (also save this setting) https://docs.rs/eframe/latest/eframe/struct.NativeOptions.html#structfield.follow_system_theme
-        //                [auto delete saved data] after 1d/1w/1m/never
+        // TODO [preferences] [auto delete saved data] after 1d/1w/1m/never
 
         egui::TopBottomPanel::top("menu bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
+                //////////////////////////////////////////////////////////////////////////////////
                 ui.menu_button("Open Saved Data", |ui| {
                     let mut clicked_path = None;
                     for (server, saved_dbs) in &self.ui_data.saved_db {
@@ -163,6 +199,8 @@ impl View {
                         self.ui_state = State::Uninitialized(Progress::None);
                     }
                 });
+
+                //////////////////////////////////////////////////////////////////////////////////
                 ui.menu_button("Delete Saved Data", |ui| {
                     ui.menu_button("Delete All", |ui| {
                         if ui.button("Yes, delete all saved data").clicked() {
@@ -189,6 +227,8 @@ impl View {
                         saved_dbs.retain(|saved_db| !removed_dbs.contains(saved_db));
                     }
                 });
+
+                //////////////////////////////////////////////////////////////////////////////////
                 ui.menu_button("Preferences", |ui| {
                     if ui.button("Darkmode").clicked() {
                         self.ui_data.apply_darkmode(ctx, DarkModePref::Dark);
@@ -238,6 +278,93 @@ impl View {
                             .apply_darkmode(ctx, self.ui_data.preferences.darkmode);
                         Self::reset_saved_preferences(frame);
                         ui.close_menu();
+                    }
+                });
+
+                //////////////////////////////////////////////////////////////////////////////////
+                ui.menu_button("Import Selections", |ui| {
+                    if ui.button("From Clipboard").clicked() {
+                        match Clipboard::new() {
+                            Ok(mut clipboard) => match clipboard.get_text() {
+                                Ok(text) => {
+                                    // TODO report any errors to the user
+                                    let _result = self.import_selections_from_text(&text);
+                                }
+                                Err(err) => {
+                                    eprintln!("Got a Clipboard, but failed to write text to it: {err}");
+                                }
+                            },
+                            Err(err) => {
+                                eprintln!("Did not get the clipboard: {err}");
+                            }
+                        }
+                    }
+                    if ui.button("From File(s)").clicked() {
+                        let files_res = FileDialog::new()
+                            // .title("Choose one or more files to import selections")
+                            .add_filter("Turun Map Selections", &["tms"])
+                            .show_open_multiple_file();
+                        match files_res {
+                            Ok(files) => {
+                                // TODO report any errors to the user
+                                let _result = self.import_selections_from_files(&files);
+                            }
+                            Err(err) => {
+                                eprintln!("Failed to open a file picker: {err}");
+                            }
+                        }
+                    }
+                });
+
+                //////////////////////////////////////////////////////////////////////////////////
+                // TODO evaluate if we can offer export of single selections. Either by name in the menu, or via an additional button in the side list
+                ui.menu_button("Export Selections", |ui| {
+                    if ui.button("To Clipboard").clicked() {
+                        match Clipboard::new() {
+                            Ok(mut clipboard) => {
+                                let selections_yaml = serde_yaml::to_string(&self.ui_data.selections);
+                                match selections_yaml {
+                                    Ok(valid_yaml) => {
+                                        if let Err(err) = clipboard.set_text(valid_yaml) {
+                                            eprintln!("Failed to write YAML to clipboard: {err}");
+                                        }
+                                    }
+                                    Err(err) => {
+                                        eprintln!("Failed to convert the list of selections into Yaml: {err}");
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                eprintln!("Did not get the clipboard: {err}");
+                            }
+                        }
+                    }
+                    if ui.button("To File").clicked() {
+                        let file_res = FileDialog::new()
+                            .add_filter("Turun Map Selections", &["tms"])
+                            .show_save_single_file();
+                        match file_res {
+                            Ok(file_opt) => {
+                                if let Some(file_path) = file_opt {
+                                    let selections_yaml = serde_yaml::to_string(&self.ui_data.selections);
+                                    match selections_yaml {
+                                        Ok(valid_yaml) => {
+                                            if let Err(err) = fs::write(&file_path, valid_yaml) {
+                                                eprintln!("Failed to write YAML to file ({file_path:?}) Error: {err:?}");
+                                            }
+                                        }
+                                        Err(err) => {
+                                            eprintln!("Failed to convert the list of selections into Yaml: {err:?}");
+                                        }
+                                    }
+                                }else {
+                                    /* ignore, the user knowingly clicked cancel*/
+                                }
+                            }
+                            Err(err) => {
+                                eprintln!("Failed to open a file chooser: {err:?}");
+                            }
+                        }
                     }
                 });
             });
@@ -372,8 +499,6 @@ impl View {
                         if selection.state == SelectionState::Loading {
                             ui.spinner();
                         }
-
-                        // TODO allow save and load of selections. Otherwise complicated selections are prohibitively tedious to create
                     });
 
                     let num_constraints = selection.constraints.len();

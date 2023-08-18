@@ -245,13 +245,16 @@ pub struct TownSelection {
     #[serde(skip, default = "uuid::Uuid::new_v4")]
     uuid: uuid::Uuid,
 
+    #[serde(default = "String::new")]
     pub name: String,
 
     #[serde(skip)]
     pub state: SelectionState,
 
+    #[serde(default)]
     pub constraints: Vec<Constraint>,
 
+    #[serde(default)]
     pub color: egui::Color32,
 
     #[serde(skip)]
