@@ -5,7 +5,6 @@ mod selectable_label;
 pub(crate) mod state;
 
 use eframe::Storage;
-use serde_json;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
@@ -64,10 +63,13 @@ impl View {
 
         // load saved app data from disk
         if let Some(storage) = cc.storage {
-            re.ui_data = if let Some(json) = storage.get_string(eframe::APP_KEY) {
-                serde_json::from_str(&json).unwrap_or_else(|err| {
-                    eprintln!("Failed to read the saved configuration: {err}");
-                    Data::default()
+            re.ui_data = if let Some(text) = storage.get_string(eframe::APP_KEY) {
+                serde_yaml::from_str(&text).unwrap_or_else(|err| {
+                    eprintln!("Failed to read saved config as YAML: {err}");
+                    serde_json::from_str(&text).unwrap_or_else(|err| {
+                        eprintln!("Failed to read saved config as JSON: {err}");
+                        Data::default()
+                    })
                 })
             } else {
                 println!("No previously saved preferences found");
@@ -817,7 +819,7 @@ impl eframe::App for View {
     }
 
     fn save(&mut self, storage: &mut dyn Storage) {
-        let serde_result = serde_json::to_string(&self.ui_data);
+        let serde_result = serde_yaml::to_string(&self.ui_data);
         match serde_result {
             Ok(res) => {
                 storage.set_string(eframe::APP_KEY, res);
