@@ -351,11 +351,10 @@ impl View {
                 let mut selection_change_action: Option<Change> = None;
                 for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
                     let _first_row_response = ui.horizontal(|ui| {
-                        ui.color_edit_button_srgba(&mut selection.color);
-                        if ui.button("Add Towns").clicked() {
+                        if ui.button("+").clicked() {
                             selection_change_action = Some(Change::Add);
                         }
-                        if ui.button("Remove").clicked() {
+                        if ui.button("-").clicked() {
                             selection_change_action = Some(Change::Remove(index));
                         }
                         if ui.button("↑").clicked() {
@@ -364,9 +363,15 @@ impl View {
                         if ui.button("↓").clicked() {
                             selection_change_action = Some(Change::MoveDown(index));
                         }
-
+                        ui.add_sized(
+                            [
+                                ui.style().spacing.interact_size.x * 6.0,
+                                ui.style().spacing.interact_size.y,
+                            ],
+                            egui::TextEdit::singleline(&mut selection.name),
+                        );
+                        ui.color_edit_button_srgba(&mut selection.color);
                         ui.label(format!("{} Towns", selection.towns.len()));
-
                         if selection.state == SelectionState::Loading {
                             ui.spinner();
                         }
