@@ -1,3 +1,4 @@
+use egui::TextBuffer;
 use rusqlite::Row;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
@@ -241,7 +242,10 @@ pub enum SelectionState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TownSelection {
+    #[serde(skip, default = "uuid::Uuid::new_v4")]
     uuid: uuid::Uuid,
+
+    pub name: String,
 
     #[serde(skip)]
     pub state: SelectionState,
@@ -261,7 +265,8 @@ impl TownSelection {
     pub fn partial_clone(&self) -> Self {
         Self {
             towns: Arc::new(Vec::new()),
-            uuid: self.uuid,   // implements copy
+            uuid: self.uuid, // implements copy
+            name: self.name.clone(),
             state: self.state, // implements copy
             constraints: self.constraints.clone(),
             color: self.color, // implements copy
@@ -271,8 +276,10 @@ impl TownSelection {
 
 impl Default for TownSelection {
     fn default() -> Self {
+        let uuid = uuid::Uuid::new_v4();
         Self {
-            uuid: uuid::Uuid::new_v4(),
+            uuid,
+            name: uuid.to_string().char_range(0..6).to_owned(),
             state: SelectionState::NewlyCreated,
             towns: Arc::new(Vec::new()),
             constraints: vec![Constraint::default()],
