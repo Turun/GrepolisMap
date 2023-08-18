@@ -66,10 +66,7 @@ impl View {
             re.ui_data = if let Some(text) = storage.get_string(eframe::APP_KEY) {
                 serde_yaml::from_str(&text).unwrap_or_else(|err| {
                     eprintln!("Failed to read saved config as YAML: {err}");
-                    serde_json::from_str(&text).unwrap_or_else(|err| {
-                        eprintln!("Failed to read saved config as JSON: {err}");
-                        Data::default()
-                    })
+                    Data::default()
                 })
             } else {
                 println!("No previously saved preferences found");
