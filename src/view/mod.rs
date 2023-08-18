@@ -22,7 +22,7 @@ use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
 use crate::VERSION;
 
-use self::preferences::{CacheSize, DarkModePref};
+use self::preferences::{CacheSize, DarkModePref, Preferences};
 
 pub struct View {
     ui_state: State,
@@ -109,6 +109,13 @@ impl View {
         .expect("Eframe failed!");
     }
 
+    fn reset_saved_preferences(frame: &mut eframe::Frame) {
+        if let Some(storage) = frame.storage_mut() {
+            storage.set_string(eframe::APP_KEY, String::new());
+            storage.flush();
+        }
+    }
+
     /// reloading a server mean we should partially copy our `ui_data` and reset the data associated with selections
     fn reload_server(&mut self) {
         self.ui_state = State::Uninitialized(Progress::None);
@@ -127,7 +134,7 @@ impl View {
         }
     }
 
-    fn ui_menu(&mut self, ctx: &egui::Context) {
+    fn ui_menu(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // TODO menu bar with the ability to:
         //  [open saved DB] load a db from file
         //  [delete saved DB] remove saved dbs (single and bulk)
@@ -201,7 +208,9 @@ impl View {
                         self.ui_data.apply_darkmode(ctx, DarkModePref::Light);
                         ui.close_menu();
                     }
+
                     ui.separator();
+
                     if ui.button("No Cache").clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::None;
                         self.channel_presenter_tx
@@ -221,6 +230,16 @@ impl View {
                         self.channel_presenter_tx
                             .send(MessageToModel::MaxCacheSize(CacheSize::Large))
                             .expect("Failed to send MaxCacheSize message to backend");
+                        ui.close_menu();
+                    }
+
+                    ui.separator();
+
+                    if ui.button("Reset Preferences").clicked() {
+                        self.ui_data.preferences = Preferences::default();
+                        self.ui_data
+                            .apply_darkmode(ctx, self.ui_data.preferences.darkmode);
+                        Self::reset_saved_preferences(frame);
                         ui.close_menu();
                     }
                 });
@@ -268,8 +287,13 @@ impl View {
         }
     }
 
-    fn ui_uninitialized(&mut self, ctx: &egui::Context, progress: Progress) {
-        self.ui_menu(ctx);
+    fn ui_uninitialized(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        progress: Progress,
+    ) {
+        self.ui_menu(ctx, frame);
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
                 self.ui_server_input(ui, ctx);
@@ -305,8 +329,8 @@ impl View {
     }
 
     #[allow(clippy::too_many_lines)] // UI Code, am I right, hahah
-    fn ui_init(&mut self, ctx: &egui::Context) {
-        self.ui_menu(ctx);
+    fn ui_init(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        self.ui_menu(ctx, frame);
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {
                 self.ui_server_input(ui, ctx);
@@ -813,8 +837,8 @@ impl eframe::App for View {
 
         let state = self.ui_state.clone();
         match state {
-            State::Uninitialized(progress) => self.ui_uninitialized(ctx, progress),
-            State::Show => self.ui_init(ctx),
+            State::Uninitialized(progress) => self.ui_uninitialized(ctx, frame, progress),
+            State::Show => self.ui_init(ctx, frame),
         }
     }
 
