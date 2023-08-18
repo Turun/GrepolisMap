@@ -22,6 +22,7 @@ pub enum Model {
     },
 }
 
+// TODO increase age after cache hit. Otherwise an often used entry ages just as quickly as an unused one
 fn age_and_filter_hashmap<K, V>(map: &mut HashMap<K, (f32, V)>, keep_count: usize) {
     // reduce the age (exponential decay)
     let mut ages = map
@@ -35,7 +36,7 @@ fn age_and_filter_hashmap<K, V>(map: &mut HashMap<K, (f32, V)>, keep_count: usiz
         ages.sort_unstable_by(f32::total_cmp);
         ages[keep_count]
     } else {
-        1.0
+        0.0
     };
     let cutoff = f32::max(cutoff, MIN_AGE);
     map.retain(|_key, (age, _value)| *age > cutoff);

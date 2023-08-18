@@ -59,7 +59,7 @@ impl Display for CacheSize {
 }
 
 impl CacheSize {
-    pub fn value(&self) -> usize {
+    pub fn value(self) -> usize {
         match self {
             CacheSize::None => 0,
             CacheSize::Normal => 100,
