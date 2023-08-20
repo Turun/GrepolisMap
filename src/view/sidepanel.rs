@@ -23,37 +23,41 @@ impl View {
                 });
                 ui.separator();
 
-                let mut selection_change_action: Option<Change> = None;
-                for (selection_index, selection) in self.ui_data.selections.iter_mut().enumerate() {
-                    selection_change_action =
-                        selection.make_ui(ui, &self.channel_presenter_tx, selection_index);
-                    ui.separator();
-                }
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    let mut selection_change_action: Option<Change> = None;
+                    for (selection_index, selection) in
+                        self.ui_data.selections.iter_mut().enumerate()
+                    {
+                        selection_change_action =
+                            selection.make_ui(ui, &self.channel_presenter_tx, selection_index);
+                        ui.separator();
+                    }
 
-                if let Some(change_action) = selection_change_action {
-                    match change_action {
-                        Change::MoveUp(index) => {
-                            if index >= 1 {
-                                self.ui_data.selections.swap(index, index - 1);
+                    if let Some(change_action) = selection_change_action {
+                        match change_action {
+                            Change::MoveUp(index) => {
+                                if index >= 1 {
+                                    self.ui_data.selections.swap(index, index - 1);
+                                }
                             }
-                        }
-                        Change::Remove(index) => {
-                            let _elem = self.ui_data.selections.remove(index);
-                            if self.ui_data.selections.is_empty() {
-                                // ensure there is always at least one selection
+                            Change::Remove(index) => {
+                                let _elem = self.ui_data.selections.remove(index);
+                                if self.ui_data.selections.is_empty() {
+                                    // ensure there is always at least one selection
+                                    self.ui_data.selections.push(TownSelection::default());
+                                }
+                            }
+                            Change::MoveDown(index) => {
+                                if index + 1 < self.ui_data.selections.len() {
+                                    self.ui_data.selections.swap(index, index + 1);
+                                }
+                            }
+                            Change::Add => {
                                 self.ui_data.selections.push(TownSelection::default());
                             }
                         }
-                        Change::MoveDown(index) => {
-                            if index + 1 < self.ui_data.selections.len() {
-                                self.ui_data.selections.swap(index, index + 1);
-                            }
-                        }
-                        Change::Add => {
-                            self.ui_data.selections.push(TownSelection::default());
-                        }
                     }
-                }
+                });
             });
         });
     }
