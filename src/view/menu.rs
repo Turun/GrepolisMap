@@ -131,7 +131,13 @@ impl View {
                                 Ok(text) => {
                                     let result = TownSelection::try_from_str(&text);
                                     match result {
-                                        Ok(mut ts) => {self.ui_data.selections.append(&mut ts);},
+                                        Ok(town_selections) => {
+                                            for town_selection in town_selections {
+                                                if !self.ui_data.selections.contains(&town_selection) {
+                                                    self.ui_data.selections.push(town_selection);
+                                                }
+                                            }
+                                        },
                                         Err(_) => {/* TODO report any errors to the user*/},
                                     }
                                 }
@@ -154,7 +160,13 @@ impl View {
                                 let results = TownSelection::try_from_path(&files);
                                 for result in results{
                                     match result {
-                                        Ok(mut ts) => {self.ui_data.selections.append(&mut ts);},
+                                        Ok(town_selections) => {
+                                            for town_selection in town_selections {
+                                                if !self.ui_data.selections.contains(&town_selection) {
+                                                    self.ui_data.selections.push(town_selection);
+                                                }
+                                            }
+                                        },
                                         Err(_) => {/* TODO report any errors to the user*/},
                                     }
                                 }
