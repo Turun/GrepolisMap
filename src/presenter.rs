@@ -1,11 +1,11 @@
 use anyhow::Context;
 use eframe::epaint::ahash::HashMap;
 
+use crate::constraint::Constraint;
 use crate::message::{MessageToModel, MessageToView};
 use crate::model::database::Database;
 use crate::model::Model;
 use crate::storage;
-use crate::towns::Constraint;
 use crate::view::preferences::CacheSize;
 use std::sync::mpsc;
 use std::thread;

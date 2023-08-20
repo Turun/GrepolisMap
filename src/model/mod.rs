@@ -1,4 +1,6 @@
-use crate::towns::{Constraint, ConstraintType, Town};
+use crate::constraint::Constraint;
+use crate::constraint::ConstraintType;
+use crate::towns::Town;
 use eframe::epaint::ahash::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;

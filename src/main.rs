@@ -3,9 +3,11 @@
 // hide the cmd when opening the exe on windows, see: https://github.com/emilk/egui/issues/116
 #![windows_subsystem = "windows"]
 
+mod constraint;
 mod message;
 mod model;
 mod presenter;
+mod selection;
 mod storage;
 mod towns;
 mod view;

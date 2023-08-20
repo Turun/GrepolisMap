@@ -5,11 +5,9 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
-    storage::SavedDB,
-    towns::{Constraint, Town, TownSelection},
-    view::preferences::CacheSize,
-};
+use crate::constraint::Constraint;
+use crate::selection::TownSelection;
+use crate::{storage::SavedDB, towns::Town, view::preferences::CacheSize};
 
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene

@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 use rusqlite::{self, types::ToSqlOutput, ToSql};
 
-use crate::towns::{Constraint, ConstraintType, Town};
+use crate::model::Constraint;
+use crate::model::ConstraintType;
+use crate::towns::Town;
 
 pub struct Database {
     pub connection: rusqlite::Connection,

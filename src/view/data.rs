@@ -6,11 +6,9 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
+use crate::selection::TownSelection;
 use crate::view::preferences::Preferences;
-use crate::{
-    storage::SavedDB,
-    towns::{Town, TownSelection},
-};
+use crate::{storage::SavedDB, towns::Town};
 
 use super::preferences::DarkModePref;
 

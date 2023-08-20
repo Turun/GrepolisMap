@@ -16,11 +16,14 @@ use std::sync::{mpsc, Arc};
 use std::time::Duration;
 use strum::IntoEnumIterator;
 
+use crate::constraint::Comparator;
+use crate::constraint::Constraint;
+use crate::constraint::ConstraintType;
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
+use crate::selection::SelectionState;
+use crate::selection::TownSelection;
 use crate::storage;
-use crate::towns::{
-    Change, Comparator, Constraint, ConstraintType, SelectionState, Town, TownSelection,
-};
+use crate::towns::Town;
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
@@ -28,6 +31,12 @@ use crate::VERSION;
 
 use self::preferences::{CacheSize, DarkModePref, Preferences};
 
+pub enum Change {
+    Add,
+    MoveUp(usize),
+    Remove(usize),
+    MoveDown(usize),
+}
 pub struct View {
     ui_state: State,
     ui_data: Data,
