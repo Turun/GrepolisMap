@@ -34,7 +34,7 @@ pub struct TownSelection {
     #[serde(skip)]
     pub state: SelectionState,
 
-    #[serde(default)]
+    #[serde(default, with = "short_serialization")]
     pub constraints: Vec<Constraint>,
 
     #[serde(default)]
@@ -222,6 +222,136 @@ impl TownSelection {
         }
 
         re
+    }
+}
+
+/// custom serialization for constraints
+mod short_serialization {
+    use std::fmt;
+
+    use anyhow::Context;
+    use serde::{
+        de::{self, SeqAccess, Visitor},
+        ser,
+        ser::SerializeSeq,
+        Deserialize, Deserializer, Serializer,
+    };
+
+    use crate::constraint::Constraint;
+
+    pub fn serialize<S>(constraints: &[Constraint], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(constraints.len()))?;
+        for constraint in constraints {
+            let a = serde_yaml::to_string(&constraint.constraint_type)
+                .with_context(|| {
+                    format!("Failed at serializing the Type of {constraint:?} into a string")
+                })
+                .map_err(ser::Error::custom)?;
+            let b = serde_yaml::to_string(&constraint.comparator)
+                .with_context(|| {
+                    format!("Failed at serializing the comparator of {constraint:?} into a string")
+                })
+                .map_err(ser::Error::custom)?;
+            let c = serde_yaml::to_string(&constraint.value)
+                .with_context(|| {
+                    format!("Failed at serializing the value of {constraint:?} into a string")
+                })
+                .map_err(ser::Error::custom)?;
+            seq.serialize_element(&format!(
+                "{} {} {}",
+                a.trim(),
+                b.trim(),
+                c.trim() //.trim_matches('\'')
+            ))?;
+        }
+        seq.end()
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Constraint>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_seq(ConstraintArrayDeserializer)
+    }
+
+    // deserializing is much more complex than serializing,
+    // see https://stackoverflow.com/a/62705102
+    // and https://serde.rs/impl-deserialize.html
+    // and https://serde.rs/deserialize-struct.html
+    struct ConstraintArrayDeserializer;
+
+    impl<'de> Visitor<'de> for ConstraintArrayDeserializer {
+        type Value = Vec<Constraint>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("ArrayKeyedMap key value sequence.")
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: SeqAccess<'de>,
+        {
+            let mut re = Vec::new();
+            while let Some(value) = seq.next_element()? {
+                re.push(value);
+            }
+
+            Ok(re)
+        }
+    }
+
+    struct ConstraintVisitor;
+    impl<'de> Visitor<'de> for ConstraintVisitor {
+        type Value = Constraint;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("anything in the form <ConstraintType> <Comparator> \"value\"")
+        }
+
+        fn visit_str<E>(self, text: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            let mut split = text.splitn(3, ' ');
+            let a = split
+                .next()
+                .with_context(|| format!("Failed at splitting {text} into 1/three parts in order to parse it into a Constraint"))
+                .map_err(de::Error::custom)?;
+            let b = split
+                .next()
+                .with_context(|| format!("Failed at splitting {text} into 2/three parts in order to parse it into a Constraint"))
+                .map_err(de::Error::custom)?;
+            let c = split
+                .next()
+                .with_context(|| format!("Failed at splitting {text} into 3/three parts in order to parse it into a Constraint"))
+                .map_err(de::Error::custom)?;
+
+            // println!(">>{text}<>{a}<>{b}<>{c}<<");
+            let constraint_type = serde_yaml::from_str(a).with_context(|| format!("Failed at parsing {a} into a ConstraintType and therefore failed at turing \"{text}\" into a Constraint")).map_err(de::Error::custom)?;
+            let comparator = serde_yaml::from_str(b).with_context(|| format!("Failed at parsing {b} into a Comparator and therefore failed at turing \"{text}\" into a Constraint")).map_err(de::Error::custom)?;
+            let value: String = serde_yaml::from_str(c).with_context(|| format!("Failed at parsing {c} into a String and therefore failed at turing \"{text}\" into a Constraint")).map_err(de::Error::custom)?;
+
+            let re = Constraint {
+                constraint_type,
+                comparator,
+                value: value.trim_matches('\'').to_owned(),
+                drop_down_values: None,
+            };
+            // println!("{re:?}");
+            Ok(re)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Constraint {
+        fn deserialize<D>(deserializer: D) -> Result<Constraint, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_string(ConstraintVisitor)
+        }
     }
 }
 

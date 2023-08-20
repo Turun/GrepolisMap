@@ -8,16 +8,13 @@ use std::sync::Arc;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-// TODO: Serialize/Deserialize with custom implementation. We only
-// need to save something like "PlayerName == 'erstes'" Instead of
-// "{constraint_type: "PlayerName", comparator: "LessThan", vale: "erstes"}"
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Constraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
     pub value: String,
 
-    #[serde(skip)] // defaults to None
+    // #[serde(skip)] // defaults to None
     pub drop_down_values: Option<Arc<Vec<String>>>,
 }
 
