@@ -1,5 +1,5 @@
 mod data;
-mod dropdownbox;
+pub(crate) mod dropdownbox;
 mod menu;
 pub(crate) mod preferences;
 mod selectable_label;
@@ -17,12 +17,14 @@ use egui::{FontData, ProgressBar, RichText, Shape, Ui};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
 
+#[derive(Clone, Copy)]
 pub enum Change {
     Add,
     MoveUp(usize),
     Remove(usize),
     MoveDown(usize),
 }
+
 pub struct View {
     ui_state: State,
     ui_data: Data,

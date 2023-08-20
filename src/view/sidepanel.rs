@@ -1,13 +1,9 @@
-use crate::constraint::Comparator;
 use crate::constraint::Constraint;
-use crate::constraint::ConstraintType;
 use crate::message::MessageToModel;
 use crate::selection::SelectionState;
 use crate::selection::TownSelection;
-use crate::view::dropdownbox::DropDownBox;
 use std::collections::HashSet;
 use std::sync::Arc;
-use strum::IntoEnumIterator;
 
 use super::Change;
 use super::View;
@@ -18,7 +14,6 @@ impl View {
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {
                 self.ui_server_input(ui, ctx);
-
                 ui.label(format!("Total Towns: {}", self.ui_data.all_towns.len()));
                 ui.label(format!("Ghost Towns: {}", self.ui_data.ghost_towns.len()));
                 ui.separator();
@@ -36,19 +31,19 @@ impl View {
                 ui.separator();
 
                 let mut selection_change_action: Option<Change> = None;
-                for (index, selection) in self.ui_data.selections.iter_mut().enumerate() {
+                for (selection_index, selection) in self.ui_data.selections.iter_mut().enumerate() {
                     let _first_row_response = ui.horizontal(|ui| {
                         if ui.button("+").clicked() {
                             selection_change_action = Some(Change::Add);
                         }
                         if ui.button("-").clicked() {
-                            selection_change_action = Some(Change::Remove(index));
+                            selection_change_action = Some(Change::Remove(selection_index));
                         }
                         if ui.button("↑").clicked() {
-                            selection_change_action = Some(Change::MoveUp(index));
+                            selection_change_action = Some(Change::MoveUp(selection_index));
                         }
                         if ui.button("↓").clicked() {
-                            selection_change_action = Some(Change::MoveDown(index));
+                            selection_change_action = Some(Change::MoveDown(selection_index));
                         }
                         ui.add_sized(
                             [
@@ -65,88 +60,24 @@ impl View {
                     });
 
                     let num_constraints = selection.constraints.len();
-                    let mut refresh_complete_selection =
-                        selection.state == SelectionState::NewlyCreated;
                     let mut edited_constraints = HashSet::new();
                     let mut constraint_change_action = None;
-                    for (cindex, constraint) in selection.constraints.iter_mut().enumerate() {
-                        ui.horizontal(|ui| {
-                            let _inner_response = egui::ComboBox::from_id_source(format!(
-                                "ComboxBox {index}/{cindex} Type"
-                            ))
-                            .width(ui.style().spacing.interact_size.x * 3.5)
-                            .selected_text(format!("{}", constraint.constraint_type))
-                            .show_ui(ui, |ui| {
-                                for value in ConstraintType::iter() {
-                                    let text = value.to_string();
-                                    if ui
-                                        .selectable_value(
-                                            &mut constraint.constraint_type,
-                                            value,
-                                            text,
-                                        )
-                                        .clicked()
-                                    {
-                                        edited_constraints.insert(constraint.partial_clone());
-                                    }
-                                }
-                            });
+                    for (constraint_index, constraint) in
+                        selection.constraints.iter_mut().enumerate()
+                    {
+                        let (change, edited) = constraint.make_ui(
+                            ui,
+                            selection_index,
+                            constraint_index,
+                            constraint_index + 1 == num_constraints,
+                        );
 
-                            let _inner_response = egui::ComboBox::from_id_source(format!(
-                                "ComboxBox {index}/{cindex} Comparator"
-                            ))
-                            .width(ui.style().spacing.interact_size.x * 1.75)
-                            .selected_text(format!("{}", constraint.comparator))
-                            .show_ui(ui, |ui| {
-                                for value in Comparator::iter() {
-                                    let text = value.to_string();
-                                    if ui
-                                        .selectable_value(&mut constraint.comparator, value, text)
-                                        .clicked()
-                                    {
-                                        edited_constraints.insert(constraint.partial_clone());
-                                    }
-                                }
-                            });
+                        if edited {
+                            edited_constraints.insert(constraint.partial_clone());
+                        }
 
-                            let ddb = DropDownBox::from_iter(
-                                constraint.drop_down_values.as_ref(),
-                                format!("ComboBox {index}/{cindex} Value"),
-                                &mut constraint.value,
-                            );
-                            if ui
-                                .add_sized(
-                                    [
-                                        ui.style().spacing.interact_size.x * 4.5,
-                                        ui.style().spacing.interact_size.y,
-                                    ],
-                                    ddb,
-                                )
-                                .changed()
-                            {
-                                edited_constraints.insert(constraint.partial_clone());
-                            };
-                            if cindex + 1 == num_constraints {
-                                if ui.button("+").clicked() {
-                                    constraint_change_action = Some(Change::Add);
-                                    refresh_complete_selection = true;
-                                }
-                            } else {
-                                ui.label("and");
-                            }
-                            if ui.button("-").clicked() {
-                                constraint_change_action = Some(Change::Remove(cindex));
-                                refresh_complete_selection = true;
-                            }
-                            if ui.button("↑").clicked() {
-                                constraint_change_action = Some(Change::MoveUp(cindex));
-                            }
-                            if ui.button("↓").clicked() {
-                                constraint_change_action = Some(Change::MoveDown(cindex));
-                            }
-                        });
+                        constraint_change_action = change;
                     }
-
                     if let Some(change) = constraint_change_action {
                         match change {
                             Change::MoveUp(index) => {
@@ -170,6 +101,11 @@ impl View {
                         }
                     }
 
+                    let refresh_complete_selection = matches!(
+                        (selection.state, constraint_change_action),
+                        (SelectionState::NewlyCreated, _)  // reload everything if this selection is newly created (This is probably not needed, but I'll leave it in, just to be save)
+                            | (_, Some(Change::Add | Change::Remove(_))) // or if a constraint was added or removed
+                    );
                     if refresh_complete_selection {
                         selection.towns = Arc::new(Vec::new());
                         selection.refresh(&self.channel_presenter_tx);

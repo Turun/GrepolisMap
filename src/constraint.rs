@@ -1,8 +1,11 @@
+use crate::view::dropdownbox::DropDownBox;
+use crate::view::Change;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 // TODO: Serialize/Deserialize with custom implementation. We only
@@ -26,6 +29,94 @@ impl Constraint {
             value: self.value.clone(),
             drop_down_values: None,
         }
+    }
+
+    pub fn make_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        selection_index: usize,
+        constraint_index: usize,
+        last_item: bool,
+    ) -> (Option<Change>, bool) {
+        let mut re_edited = false;
+        let mut re_change = None;
+
+        ui.horizontal(|ui| {
+            // Filter for which attribute?
+            let _inner_response = egui::ComboBox::from_id_source(format!(
+                "ComboxBox {selection_index}/{constraint_index} Type"
+            ))
+            .width(ui.style().spacing.interact_size.x * 3.5)
+            .selected_text(format!("{}", self.constraint_type))
+            .show_ui(ui, |ui| {
+                for value in ConstraintType::iter() {
+                    let text = value.to_string();
+                    if ui
+                        .selectable_value(&mut self.constraint_type, value, text)
+                        .clicked()
+                    {
+                        re_edited = true;
+                    }
+                }
+            });
+
+            // with which comparison method (<=, ==, >=, <>)?
+            let _inner_response = egui::ComboBox::from_id_source(format!(
+                "ComboxBox {selection_index}/{constraint_index} Comparator"
+            ))
+            .width(ui.style().spacing.interact_size.x * 1.75)
+            .selected_text(format!("{}", self.comparator))
+            .show_ui(ui, |ui| {
+                for value in Comparator::iter() {
+                    let text = value.to_string();
+                    if ui
+                        .selectable_value(&mut self.comparator, value, text)
+                        .clicked()
+                    {
+                        re_edited = true;
+                    }
+                }
+            });
+
+            // List of possible values
+            let ddb = DropDownBox::from_iter(
+                self.drop_down_values.as_ref(),
+                format!("ComboBox {selection_index}/{constraint_index} Value"),
+                &mut self.value,
+            );
+            if ui
+                .add_sized(
+                    [
+                        ui.style().spacing.interact_size.x * 4.5,
+                        ui.style().spacing.interact_size.y,
+                    ],
+                    ddb,
+                )
+                .changed()
+            {
+                re_edited = true;
+            };
+
+            // Buttons
+            if last_item {
+                if ui.button("+").clicked() {
+                    re_change = Some(Change::Add);
+                }
+            } else {
+                ui.label("and");
+            }
+            if ui.button("-").clicked() {
+                re_change = Some(Change::Remove(constraint_index));
+            }
+            if ui.button("↑").clicked() {
+                re_change = Some(Change::MoveUp(constraint_index));
+            }
+            if ui.button("↓").clicked() {
+                re_change = Some(Change::MoveDown(constraint_index));
+            }
+        });
+
+        (re_change, re_edited)
     }
 }
 
