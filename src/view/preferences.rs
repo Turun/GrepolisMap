@@ -49,7 +49,6 @@ pub enum CacheSize {
 }
 impl Display for CacheSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO we should try to not store any DB on the disk if the user selects "No Time"
         match self {
             CacheSize::None => write!(f, "None"),
             CacheSize::Normal => write!(f, "Normal"),
