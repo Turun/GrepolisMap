@@ -1,15 +1,16 @@
 mod data;
 mod dropdownbox;
+mod menu;
 pub(crate) mod preferences;
 mod selectable_label;
 pub(crate) mod state;
 
 use anyhow::Context;
-use arboard::Clipboard;
+
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Shape, Ui};
-use native_dialog::FileDialog;
-use std::collections::{BTreeMap, HashSet};
+
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
@@ -22,14 +23,12 @@ use crate::constraint::ConstraintType;
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
 use crate::selection::SelectionState;
 use crate::selection::TownSelection;
-use crate::storage;
+
 use crate::town::Town;
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
 use crate::VERSION;
-
-use self::preferences::{CacheSize, DarkModePref, Preferences};
 
 pub enum Change {
     Add,
@@ -178,206 +177,6 @@ impl View {
             selection.state = SelectionState::NewlyCreated;
             selection.towns = Arc::new(Vec::new());
         }
-    }
-
-    #[allow(clippy::too_many_lines)] // UI Code, am I right, hahah
-    fn ui_menu(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        // TODO [preferences] [auto delete saved data] after 1d/1w/1m/never
-
-        egui::TopBottomPanel::top("menu bar").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                //////////////////////////////////////////////////////////////////////////////////
-                ui.menu_button("Open Saved Data", |ui| {
-                    let mut clicked_path = None;
-                    for (server, saved_dbs) in &self.ui_data.saved_db {
-                        ui.menu_button(server, |ui| {
-                            for saved_db in saved_dbs {
-                                // TODO use ui.add_sized() to add an appropriately large button that does not contain any linebreaks
-                                if ui.button(format!("{saved_db}")).clicked() {
-                                    clicked_path = Some(saved_db.clone());
-                                    ui.close_menu();
-                                }
-                            }
-                        });
-                    }
-                    if let Some(saved_db) = clicked_path {
-                        self.reload_server();
-                        self.channel_presenter_tx
-                            .send(MessageToModel::LoadDataFromFile(saved_db.path, ctx.clone()))
-                            .expect("Failed to send message to Model");
-                        self.ui_state = State::Uninitialized(Progress::None);
-                    }
-                });
-
-                //////////////////////////////////////////////////////////////////////////////////
-                ui.menu_button("Delete Saved Data", |ui| {
-                    ui.menu_button("Delete All", |ui| {
-                        if ui.button("Yes, delete all saved data").clicked() {
-                            storage::remove_all();
-                            self.ui_data.saved_db = BTreeMap::new();
-                            ui.close_menu();
-                        }
-                    });
-                    let mut removed_dbs = Vec::new();
-                    for (server, saved_dbs) in &self.ui_data.saved_db {
-                        ui.menu_button(server, |ui| {
-                            for saved_db in saved_dbs {
-                                if ui.button(format!("{saved_db}")).clicked() {
-                                    // TODO Error handling
-                                    // TODO do it with messages instead?
-                                    // TODO if we have a list of dbs in the backend, make sure this change is synchronized
-                                    storage::remove_db(&saved_db.path).unwrap();
-                                    removed_dbs.push(saved_db.clone());
-                                }
-                            }
-                        });
-                    }
-                    for saved_dbs in &mut self.ui_data.saved_db.values_mut() {
-                        saved_dbs.retain(|saved_db| !removed_dbs.contains(saved_db));
-                    }
-                });
-
-                //////////////////////////////////////////////////////////////////////////////////
-                ui.menu_button("Preferences", |ui| {
-                    if ui.button("Darkmode").clicked() {
-                        self.ui_data.apply_darkmode(ctx, DarkModePref::Dark);
-                        ui.close_menu();
-                    }
-                    if ui
-                        .button("Follow System Theme (Restart required)")
-                        .clicked()
-                    {
-                        self.ui_data.apply_darkmode(ctx, DarkModePref::FollowSystem);
-                        ui.close_menu();
-                    }
-                    if ui.button("Lightmode").clicked() {
-                        self.ui_data.apply_darkmode(ctx, DarkModePref::Light);
-                        ui.close_menu();
-                    }
-
-                    ui.separator();
-
-                    if ui.button("No Cache").clicked() {
-                        self.ui_data.preferences.cache_size = CacheSize::None;
-                        self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(CacheSize::None))
-                            .expect("Failed to send MaxCacheSize message to backend");
-                        ui.close_menu();
-                    }
-                    if ui.button("Normal Cache").clicked() {
-                        self.ui_data.preferences.cache_size = CacheSize::Normal;
-                        self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(CacheSize::Normal))
-                            .expect("Failed to send MaxCacheSize message to backend");
-                        ui.close_menu();
-                    }
-                    if ui.button("Large Cache").clicked() {
-                        self.ui_data.preferences.cache_size = CacheSize::Large;
-                        self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(CacheSize::Large))
-                            .expect("Failed to send MaxCacheSize message to backend");
-                        ui.close_menu();
-                    }
-
-                    ui.separator();
-
-                    if ui.button("Reset Preferences").clicked() {
-                        self.ui_data.preferences = Preferences::default();
-                        self.ui_data
-                            .apply_darkmode(ctx, self.ui_data.preferences.darkmode);
-                        Self::reset_saved_preferences(frame);
-                        ui.close_menu();
-                    }
-                });
-
-                //////////////////////////////////////////////////////////////////////////////////
-                ui.menu_button("Import Selections", |ui| {
-                    if ui.button("From Clipboard").clicked() {
-                        match Clipboard::new() {
-                            Ok(mut clipboard) => match clipboard.get_text() {
-                                Ok(text) => {
-                                    // TODO report any errors to the user
-                                    let _result = self.import_selections_from_text(&text);
-                                }
-                                Err(err) => {
-                                    eprintln!("Got a Clipboard, but failed to write text to it: {err}");
-                                }
-                            },
-                            Err(err) => {
-                                eprintln!("Did not get the clipboard: {err}");
-                            }
-                        }
-                    }
-                    if ui.button("From File(s)").clicked() {
-                        let files_res = FileDialog::new()
-                            // .title("Choose one or more files to import selections")
-                            .add_filter("Turun Map Selections", &["tms"])
-                            .show_open_multiple_file();
-                        match files_res {
-                            Ok(files) => {
-                                // TODO report any errors to the user
-                                let _result = self.import_selections_from_files(&files);
-                            }
-                            Err(err) => {
-                                eprintln!("Failed to open a file picker: {err}");
-                            }
-                        }
-                    }
-                });
-
-                //////////////////////////////////////////////////////////////////////////////////
-                // TODO evaluate if we can offer export of single selections. Either by name in the menu, or via an additional button in the side list
-                ui.menu_button("Export Selections", |ui| {
-                    if ui.button("To Clipboard").clicked() {
-                        match Clipboard::new() {
-                            Ok(mut clipboard) => {
-                                let selections_yaml = serde_yaml::to_string(&self.ui_data.selections);
-                                match selections_yaml {
-                                    Ok(valid_yaml) => {
-                                        if let Err(err) = clipboard.set_text(valid_yaml) {
-                                            eprintln!("Failed to write YAML to clipboard: {err}");
-                                        }
-                                    }
-                                    Err(err) => {
-                                        eprintln!("Failed to convert the list of selections into Yaml: {err}");
-                                    }
-                                }
-                            }
-                            Err(err) => {
-                                eprintln!("Did not get the clipboard: {err}");
-                            }
-                        }
-                    }
-                    if ui.button("To File").clicked() {
-                        let file_res = FileDialog::new()
-                            .add_filter("Turun Map Selections", &["tms"])
-                            .show_save_single_file();
-                        match file_res {
-                            Ok(file_opt) => {
-                                if let Some(file_path) = file_opt {
-                                    let selections_yaml = serde_yaml::to_string(&self.ui_data.selections);
-                                    match selections_yaml {
-                                        Ok(valid_yaml) => {
-                                            if let Err(err) = fs::write(&file_path, valid_yaml) {
-                                                eprintln!("Failed to write YAML to file ({file_path:?}) Error: {err:?}");
-                                            }
-                                        }
-                                        Err(err) => {
-                                            eprintln!("Failed to convert the list of selections into Yaml: {err:?}");
-                                        }
-                                    }
-                                }else {
-                                    /* ignore, the user knowingly clicked cancel*/
-                                }
-                            }
-                            Err(err) => {
-                                eprintln!("Failed to open a file chooser: {err:?}");
-                            }
-                        }
-                    }
-                });
-            });
-        });
     }
 
     fn ui_server_input(&mut self, ui: &mut Ui, ctx: &egui::Context) {
