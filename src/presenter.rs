@@ -263,17 +263,6 @@ impl Presenter {
                     } else {
                         // for each constraint, make a list of all other filled constraints and get the ddv list filtered by those
                         for (i, c) in constraints_filled_not_edited.iter().enumerate() {
-                            // TODO: only a slight improvement, but we could select the drop down values
-                            //  not by constrain with all other filled constraints, but instead by all other
-                            //  filled constraints that do not, on their own, reduce the result list to zero.
-                            //  What I mean by that is that, when the user has set an alliance name or player
-                            //  name field to == and entered a partial name, that constraint will reduce the
-                            //  ddvlist of all filled constraints to an empty list. But that is not the drop
-                            //  down the user wants to see. They want to see the possible values of ddb xxx
-                            //  to show the possible values, given the other useful constraints.
-                            //  To implement this we will have to set other_constraints to a list of
-                            //  filled_constraints minus the set of filled constraints that give no
-                            //  result from the database.
                             let mut other_constraints = constraints_filled_all.clone();
                             let _this_constraint = other_constraints.swap_remove(i);
 

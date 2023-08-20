@@ -60,7 +60,6 @@ impl TownSelection {
         let res_parse_as_vec = serde_yaml::from_str(text);
         let res_parse_as_single = serde_yaml::from_str(text);
 
-        // TODO for all new selections, check if they are already present. If so don't add them a second time.
         match (res_parse_as_vec, res_parse_as_single) {
             (Ok(vec), _) => Ok(vec),
             (Err(_err), Ok(selection)) => Ok(vec![selection]),
