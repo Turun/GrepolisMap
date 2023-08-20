@@ -164,7 +164,9 @@ impl TownSelection {
                 edited_constraints.insert(constraint.partial_clone());
             }
 
-            constraint_change_action = change;
+            if change.is_some() {
+                constraint_change_action = change;
+            }
         }
         if let Some(change) = constraint_change_action {
             match change {

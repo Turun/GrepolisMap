@@ -28,8 +28,11 @@ impl View {
                     for (selection_index, selection) in
                         self.ui_data.selections.iter_mut().enumerate()
                     {
-                        selection_change_action =
-                            selection.make_ui(ui, &self.channel_presenter_tx, selection_index);
+                        if let Some(change) =
+                            selection.make_ui(ui, &self.channel_presenter_tx, selection_index)
+                        {
+                            selection_change_action = Some(change);
+                        }
                         ui.separator();
                     }
 
