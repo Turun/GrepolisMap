@@ -1,5 +1,5 @@
 use anyhow::Context;
-use egui::TextBuffer;
+use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::default::Default;
@@ -25,9 +25,6 @@ pub enum SelectionState {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TownSelection {
-    #[serde(skip, default = "uuid::Uuid::new_v4")]
-    uuid: uuid::Uuid,
-
     #[serde(default = "String::new")]
     pub name: String,
 
@@ -51,7 +48,6 @@ impl TownSelection {
     pub fn partial_clone(&self) -> Self {
         Self {
             towns: Arc::new(Vec::new()),
-            uuid: self.uuid, // implements copy
             name: self.name.clone(),
             state: self.state, // implements copy
             constraints: self.constraints.clone(),
@@ -357,10 +353,8 @@ mod short_serialization {
 
 impl Default for TownSelection {
     fn default() -> Self {
-        let uuid = uuid::Uuid::new_v4();
         Self {
-            uuid,
-            name: uuid.to_string().char_range(0..6).to_owned(),
+            name: Alphanumeric.sample_string(&mut rand::thread_rng(), 6), // https://stackoverflow.com/a/72977937
             state: SelectionState::NewlyCreated,
             towns: Arc::new(Vec::new()),
             constraints: vec![Constraint::default()],
@@ -371,7 +365,16 @@ impl Default for TownSelection {
 
 impl PartialEq<TownSelection> for &mut TownSelection {
     fn eq(&self, other: &TownSelection) -> bool {
-        self.uuid == other.uuid
+        self.name == other.name
+            && self.constraints == other.constraints
+            && self.color == other.color
+    }
+}
+impl PartialEq<TownSelection> for TownSelection {
+    fn eq(&self, other: &TownSelection) -> bool {
+        self.name == other.name
+            && self.constraints == other.constraints
+            && self.color == other.color
     }
 }
 

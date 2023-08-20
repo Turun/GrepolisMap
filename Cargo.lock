@@ -3171,6 +3171,7 @@ dependencies = [
  "egui_extras",
  "form_urlencoded",
  "native-dialog",
+ "rand",
  "reqwest",
  "rusqlite",
  "serde",
@@ -3179,7 +3180,6 @@ dependencies = [
  "strum",
  "strum_macros",
  "time",
- "uuid",
 ]
 
 [[package]]
@@ -3234,17 +3234,6 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
-]
-
-[[package]]
-name = "uuid"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79daa5ed5740825c40b389c5e50312b9c86df53fccd33f281df655642b43869d"
-dependencies = [
- "getrandom",
- "rand",
- "serde",
 ]
 
 [[package]]
