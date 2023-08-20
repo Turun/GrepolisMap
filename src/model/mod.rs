@@ -11,7 +11,7 @@ pub mod download;
 mod offset_data;
 
 const DECAY: f32 = 0.9;
-const MIN_AGE: f32 = 0.05; // anything that was not touched `DECAY.powi(30)` times in a row should be removed from cache
+const MIN_AGE: f32 = 0.1; // anything that was not touched `DECAY.powi(20)` times in a row should be removed from cache
 
 pub enum Model {
     Uninitialized,
@@ -24,7 +24,6 @@ pub enum Model {
     },
 }
 
-// TODO increase age after cache hit. Otherwise an often used entry ages just as quickly as an unused one
 fn age_and_filter_hashmap<K, V>(map: &mut HashMap<K, (f32, V)>, keep_count: usize) {
     // reduce the age (exponential decay)
     let mut ages = map
@@ -64,7 +63,6 @@ impl Model {
                 ..
             } => {
                 // Alternatives to the current aging method could incorporate something between LeastRecentlyUsed cache, time base cache and LeastOftenUsed cache.
-
                 print!("Strings: ");
                 age_and_filter_hashmap(cache_strings, keep_count);
                 print!("Towns  : ");
@@ -93,7 +91,11 @@ impl Model {
             } => {
                 let key = constraints.to_vec();
                 let value = match cache_towns.entry(key) {
-                    Entry::Occupied(entry) => entry.get().1.clone(),
+                    Entry::Occupied(entry) => {
+                        let tuple = entry.into_mut();
+                        tuple.0 += 1.0;
+                        tuple.1.clone()
+                    }
                     Entry::Vacant(entry) => {
                         let value = Arc::new(db.get_towns_for_constraints(constraints)?);
                         entry.insert((1.0, value)).1.clone()
@@ -116,7 +118,11 @@ impl Model {
             } => {
                 let key = (constraint_type, constraints.to_vec());
                 let value = match cache_strings.entry(key) {
-                    Entry::Occupied(entry) => entry.get().1.clone(),
+                    Entry::Occupied(entry) => {
+                        let tuple = entry.into_mut();
+                        tuple.0 += 1.0;
+                        tuple.1.clone()
+                    }
                     Entry::Vacant(entry) => {
                         let value = Arc::new(db.get_names_for_constraint_type_in_constraints(
                             constraint_type,
@@ -155,7 +161,11 @@ impl Model {
             } => {
                 let key = (constraint_type, Vec::new());
                 let value = match cache_strings.entry(key) {
-                    Entry::Occupied(entry) => entry.get().1.clone(),
+                    Entry::Occupied(entry) => {
+                        let tuple = entry.into_mut();
+                        tuple.0 += 1.0;
+                        tuple.1.clone()
+                    }
                     Entry::Vacant(entry) => {
                         let value = Arc::new(db.get_names_for_constraint_type(constraint_type)?);
                         entry.insert((1.0, value)).1.clone()
