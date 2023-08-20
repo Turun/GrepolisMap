@@ -3,7 +3,7 @@ use rusqlite::{self, types::ToSqlOutput, ToSql};
 
 use crate::model::Constraint;
 use crate::model::ConstraintType;
-use crate::towns::Town;
+use crate::town::Town;
 
 pub struct Database {
     pub connection: rusqlite::Connection,

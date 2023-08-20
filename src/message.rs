@@ -7,7 +7,9 @@ use std::{
 
 use crate::constraint::Constraint;
 use crate::selection::TownSelection;
-use crate::{storage::SavedDB, towns::Town, view::preferences::CacheSize};
+use crate::storage::SavedDB;
+use crate::town::Town;
+use crate::view::preferences::CacheSize;
 
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene

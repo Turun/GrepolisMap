@@ -6,7 +6,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::constraint::Constraint;
-use crate::towns::Town;
+use crate::town::Town;
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]

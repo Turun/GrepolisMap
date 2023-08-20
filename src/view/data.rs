@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::selection::TownSelection;
 use crate::view::preferences::Preferences;
-use crate::{storage::SavedDB, towns::Town};
+use crate::{storage::SavedDB, town::Town};
 
 use super::preferences::DarkModePref;
 

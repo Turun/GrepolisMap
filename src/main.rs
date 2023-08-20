@@ -9,7 +9,7 @@ mod model;
 mod presenter;
 mod selection;
 mod storage;
-mod towns;
+mod town;
 mod view;
 
 use std::{sync::mpsc, thread};

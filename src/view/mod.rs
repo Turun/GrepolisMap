@@ -23,7 +23,7 @@ use crate::message::{MessageToModel, MessageToView, Progress, Server};
 use crate::selection::SelectionState;
 use crate::selection::TownSelection;
 use crate::storage;
-use crate::towns::Town;
+use crate::town::Town;
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::state::State;
