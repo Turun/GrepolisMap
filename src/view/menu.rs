@@ -1,7 +1,6 @@
 use super::{
     preferences::{CacheSize, DarkModePref, Preferences},
-    state::State,
-    View,
+    State, View,
 };
 use crate::{
     message::{MessageToModel, Progress},

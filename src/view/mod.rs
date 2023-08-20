@@ -5,15 +5,13 @@ mod menu;
 pub(crate) mod preferences;
 mod selectable_label;
 mod sidepanel;
-pub(crate) mod state;
 
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
 use crate::selection::SelectionState;
 use crate::view::data::Data;
-use crate::view::state::State;
 use crate::VERSION;
 use eframe::Storage;
-use egui::{FontData, ProgressBar, RichText, Shape, Ui};
+use egui::{FontData, ProgressBar, RichText, Ui};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
 
@@ -23,6 +21,12 @@ pub enum Change {
     MoveUp(usize),
     Remove(usize),
     MoveDown(usize),
+}
+
+#[derive(Debug, Clone)]
+pub enum State {
+    Uninitialized(Progress),
+    Show,
 }
 
 pub struct View {
