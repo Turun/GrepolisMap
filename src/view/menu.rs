@@ -1,21 +1,20 @@
-use std::collections::BTreeMap;
-
-use arboard::Clipboard;
-use native_dialog::FileDialog;
-
-use crate::{
-    message::{MessageToModel, Progress},
-    storage,
-};
-
 use super::{
     preferences::{CacheSize, DarkModePref, Preferences},
     state::State,
     View,
 };
+use crate::{
+    message::{MessageToModel, Progress},
+    selection::TownSelection,
+    storage,
+};
+use arboard::Clipboard;
+use native_dialog::FileDialog;
+use std::collections::BTreeMap;
 
 impl View {
     #[allow(clippy::too_many_lines)] // UI Code, am I right, hahah
+    #[allow(clippy::single_match)] // temporary, until we fix the error reporting and make it more user friendly
     pub(crate) fn ui_menu(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // TODO [preferences] [auto delete saved data] after 1d/1w/1m/never
 
@@ -131,11 +130,14 @@ impl View {
                         match Clipboard::new() {
                             Ok(mut clipboard) => match clipboard.get_text() {
                                 Ok(text) => {
-                                    // TODO report any errors to the user
-                                    let _result = self.import_selections_from_text(&text);
+                                    let result = TownSelection::try_from_str(&text);
+                                    match result {
+                                        Ok(mut ts) => {self.ui_data.selections.append(&mut ts);},
+                                        Err(_) => {/* TODO report any errors to the user*/},
+                                    }
                                 }
                                 Err(err) => {
-                                    eprintln!("Got a Clipboard, but failed to write text to it: {err}");
+                                    eprintln!("Got a Clipboard, but failed to get text from it: {err}");
                                 }
                             },
                             Err(err) => {
@@ -150,8 +152,13 @@ impl View {
                             .show_open_multiple_file();
                         match files_res {
                             Ok(files) => {
-                                // TODO report any errors to the user
-                                let _result = self.import_selections_from_files(&files);
+                                let results = TownSelection::try_from_path(&files);
+                                for result in results{
+                                    match result {
+                                        Ok(mut ts) => {self.ui_data.selections.append(&mut ts);},
+                                        Err(_) => {/* TODO report any errors to the user*/},
+                                    }
+                                }
                             }
                             Err(err) => {
                                 eprintln!("Failed to open a file picker: {err}");

@@ -1,8 +1,9 @@
+use anyhow::Context;
 use egui::TextBuffer;
-
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::fmt;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::constraint::Constraint;
@@ -53,6 +54,43 @@ impl TownSelection {
             constraints: self.constraints.clone(),
             color: self.color, // implements copy
         }
+    }
+
+    pub fn try_from_str(text: &str) -> anyhow::Result<Vec<Self>> {
+        // Attempt to parse text as a vector of selections, and it that doesn't work, parse it as a single selection.
+        let res_parse_as_vec = serde_yaml::from_str(text);
+        let res_parse_as_single = serde_yaml::from_str(text);
+
+        // TODO for all new selections, check if they are already present. If so don't add them a second time.
+        match (res_parse_as_vec, res_parse_as_single) {
+            (Ok(vec), _) => Ok(vec),
+            (Err(_err), Ok(selection)) => Ok(vec![selection]),
+            (Err(err_vec), Err(err_single)) => {
+                eprintln!("Could not parse text ({text}) as TownSelection (Error: {err_single:?}) or Vec<TownSelection> (Error: {err_vec:?}).");
+                Err(
+                    anyhow::Error::new(err_vec)
+                    .context(err_single)
+                    .context("Could not parse text ({text}) as TownSelection (Error: {single_err:?}) or Vec<TownSelection> (Error: {vec_err:?}).")
+                )
+            }
+        }
+    }
+
+    pub fn try_from_path(files: &[PathBuf]) -> Vec<anyhow::Result<Vec<Self>>> {
+        let mut re = Vec::with_capacity(files.len());
+        for file in files {
+            let content = std::fs::read_to_string(file);
+            re.push(match content {
+                Ok(content) => {
+                    Self::try_from_str(&content).with_context(|| {format!("Failed to convert content of file {file:?} to an instance of TownSelection. Content of file is: {content}")})
+                }
+                Err(err) => {
+                        Err(err)
+                            .with_context(|| format!("Failed to read content of file {file:?}"))
+                }
+            });
+        }
+        re
     }
 }
 

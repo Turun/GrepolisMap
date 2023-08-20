@@ -5,14 +5,9 @@ pub(crate) mod preferences;
 mod selectable_label;
 pub(crate) mod state;
 
-use anyhow::Context;
-
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Shape, Ui};
-
 use std::collections::HashSet;
-use std::fs;
-use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -23,7 +18,6 @@ use crate::constraint::ConstraintType;
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
 use crate::selection::SelectionState;
 use crate::selection::TownSelection;
-
 use crate::town::Town;
 use crate::view::data::{CanvasData, Data, ViewPortFilter};
 use crate::view::dropdownbox::DropDownBox;
@@ -123,42 +117,6 @@ impl View {
             storage.set_string(eframe::APP_KEY, String::new());
             storage.flush();
         }
-    }
-
-    fn import_selections_from_text(&mut self, text: &str) -> anyhow::Result<()> {
-        // Attempt to parse text as a vector of selections, and it that doesn't work, parse it as a single selection.
-        let res_parse_as_vec = serde_yaml::from_str(text);
-        let res_parse_as_single = serde_yaml::from_str(text);
-
-        // TODO for all new selections, check if they are already present. If so don't add them a second time.
-        match (res_parse_as_vec, res_parse_as_single) {
-            (Ok(mut vec), _) => {
-                self.ui_data.selections.append(&mut vec);
-            }
-            (Err(_err), Ok(selection)) => self.ui_data.selections.push(selection),
-            (Err(err_vec), Err(err_single)) => {
-                eprintln!("Could not parse text ({text}) as TownSelection (Error: {err_single:?}) or Vec<TownSelection> (Error: {err_vec:?}).");
-                return Err(
-                    anyhow::Error::new(err_vec)
-                    .context(err_single)
-                    .context("Could not parse text ({text}) as TownSelection (Error: {single_err:?}) or Vec<TownSelection> (Error: {vec_err:?}).")
-                );
-            }
-        }
-        Ok(())
-    }
-
-    fn import_selections_from_files(&mut self, files: &[PathBuf]) -> anyhow::Result<Vec<()>> {
-        let text = files
-            .iter()
-            .map(fs::read_to_string)
-            .collect::<anyhow::Result<Vec<String>, _>>()
-            .context("Failed to read text from files ({files})")?;
-        let result = text
-            .into_iter()
-            .map(|text| self.import_selections_from_text(&text))
-            .collect::<Result<Vec<()>, _>>();
-        result.context("Read files, but failed to parse the content")
     }
 
     /// reloading a server mean we should partially copy our `ui_data` and reset the data associated with selections
