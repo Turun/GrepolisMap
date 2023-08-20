@@ -1,12 +1,14 @@
 use anyhow::Context;
 use egui::TextBuffer;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::default::Default;
 use std::fmt;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 
 use crate::constraint::Constraint;
+use crate::message::MessageToModel;
 use crate::town::Town;
 
 #[allow(clippy::module_name_repetitions)]
@@ -91,6 +93,23 @@ impl TownSelection {
             });
         }
         re
+    }
+
+    pub fn refresh(&mut self, channel_tx: &mpsc::Sender<MessageToModel>) {
+        self.state = SelectionState::Loading;
+        for constraint in &mut self.constraints {
+            constraint.drop_down_values = None;
+        }
+
+        channel_tx
+            .send(MessageToModel::FetchTowns(
+                self.partial_clone(),
+                HashSet::new(),
+            ))
+            .expect(&format!(
+                "Failed to send Message to Model for Selection {}",
+                &self
+            ));
     }
 }
 

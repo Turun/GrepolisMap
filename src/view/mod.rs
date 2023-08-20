@@ -121,13 +121,7 @@ impl View {
             ghost_towns: Arc::new(Vec::new()),
             ..self.ui_data.clone()
         };
-        // ensure the towns in the selection are fetched anew after loading the data from the server.
-        // If we don't do this the selection may become stale and show towns from server ab12 on a
-        // map that is otherwise pulled from server cd34
-        for selection in &mut self.ui_data.selections {
-            selection.state = SelectionState::NewlyCreated;
-            selection.towns = Arc::new(Vec::new());
-        }
+        // the selections are invalidated after the backend sends "got server"
     }
 
     fn ui_server_input(&mut self, ui: &mut Ui, ctx: &egui::Context) {
@@ -441,6 +435,14 @@ impl eframe::App for View {
                     self.channel_presenter_tx
                         .send(MessageToModel::FetchGhosts)
                         .expect("Failed to send message to model: FetchGhosts");
+
+                    // ensure the towns in the selection are fetched anew after loading the data from the server.
+                    // If we don't do this the selection may become stale and show towns from server ab12 on a
+                    // map that is otherwise pulled from server cd34
+                    for selection in &mut self.ui_data.selections {
+                        selection.towns = Arc::new(Vec::new());
+                        selection.refresh(&self.channel_presenter_tx);
+                    }
                 }
                 MessageToView::TownListForSelection(selection, town_list) => {
                     self.ui_state = State::Show;

@@ -6,6 +6,7 @@ use crate::selection::SelectionState;
 use crate::selection::TownSelection;
 use crate::view::dropdownbox::DropDownBox;
 use std::collections::HashSet;
+use std::sync::Arc;
 use strum::IntoEnumIterator;
 
 use super::Change;
@@ -170,20 +171,8 @@ impl View {
                     }
 
                     if refresh_complete_selection {
-                        selection.state = SelectionState::Loading;
-                        for constraint in &mut selection.constraints {
-                            constraint.drop_down_values = None;
-                        }
-
-                        self.channel_presenter_tx
-                            .send(MessageToModel::FetchTowns(
-                                selection.partial_clone(),
-                                HashSet::new(),
-                            ))
-                            .expect(&format!(
-                                "Failed to send Message to Model for Selection {}",
-                                &selection
-                            ));
+                        selection.towns = Arc::new(Vec::new());
+                        selection.refresh(&self.channel_presenter_tx);
                     } else if !edited_constraints.is_empty() {
                         selection.state = SelectionState::Loading;
                         for constraint in &mut selection
@@ -191,6 +180,7 @@ impl View {
                             .iter_mut()
                             .filter(|c| !edited_constraints.contains(c))
                         {
+                            // the ddvs of all constraints that were not edited are invalidated.
                             constraint.drop_down_values = None;
                         }
 
