@@ -191,6 +191,11 @@ impl Presenter {
                         .filter(|c| !constraints_edited.contains(c))
                         .collect();
 
+                    // TODO we need a good way to set the drop down values for <in selection> <not
+                    // in selection> constraints. I think we should just return the full list of
+                    // selections? Excluding the name of the currently edited one
+                    // !!! and any that would lead to a circular dependency !!!
+
                     // The drop down values for the constraints currently being edited
                     for c in constraints_edited {
                         let towns = self.model.get_names_for_constraint_type_with_constraints(

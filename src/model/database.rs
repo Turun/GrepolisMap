@@ -30,13 +30,29 @@ impl ToSqlFragment for AllTowns {
 
 impl ToSqlFragment for Constraint {
     fn to_sql_fragment(&self, parameter_index: usize) -> String {
-        format!(
-            "{}.{} {} ?{}",
-            self.constraint_type.table(),
-            self.constraint_type.property(),
-            self.comparator,
-            parameter_index + 1
-        )
+        match self.comparator {
+            Comparator::LessThan
+            | Comparator::Equal
+            | Comparator::GreaterThan
+            | Comparator::NotEqual => {
+                format!(
+                    "{}.{} {} ?{}",
+                    self.constraint_type.table(),
+                    self.constraint_type.property(),
+                    self.comparator,
+                    parameter_index + 1
+                )
+            }
+            Comparator::InSelection | Comparator::NotInSelection => {
+                format!(
+                    "{}.{} {} (?{})",
+                    self.constraint_type.table(),
+                    self.constraint_type.property(),
+                    self.comparator,
+                    parameter_index + 1
+                )
+            }
+        }
     }
 }
 
@@ -121,6 +137,9 @@ impl Database {
         &self,
         constraint_type: ConstraintType,
     ) -> anyhow::Result<Vec<String>> {
+        // TODO this is not needed for <constraint type> <IN/NOT IN>.
+        // for those constraints we need to give the user a list of selection names!
+
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
 

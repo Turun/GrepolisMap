@@ -269,6 +269,9 @@ pub enum Comparator {
     Equal,
     GreaterThan,
     NotEqual,
+    // TODO with this addition we need to make sure we do not send queries to the db for selections that eventually reference themselves
+    InSelection,
+    NotInSelection,
 }
 
 impl fmt::Display for Comparator {
@@ -278,6 +281,8 @@ impl fmt::Display for Comparator {
             Comparator::Equal => write!(f, "="),
             Comparator::GreaterThan => write!(f, ">="),
             Comparator::NotEqual => write!(f, "<>"),
+            Comparator::InSelection => write!(f, "IN"),
+            Comparator::NotInSelection => write!(f, "NOT IN"),
         }
     }
 }
