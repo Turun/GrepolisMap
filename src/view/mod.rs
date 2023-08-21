@@ -310,7 +310,7 @@ impl eframe::App for View {
                 MessageToView::FoundSavedDatabases(list_of_paths) => {
                     self.ui_data.saved_db = list_of_paths;
                 }
-                MessageToView::RemovedDuplicateFiles(removed_dbs) => {
+                MessageToView::RemovedDatabases(removed_dbs) => {
                     for saved_dbs in self.ui_data.saved_db.values_mut() {
                         saved_dbs.retain(|saved_db| !removed_dbs.contains(saved_db));
                     }

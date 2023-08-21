@@ -25,7 +25,7 @@ pub enum MessageToView {
     ValueListForConstraint(EmptyConstraint, EmptyTownSelection, Arc<Vec<String>>),
     BackendCrashed(anyhow::Error),
     FoundSavedDatabases(BTreeMap<String, Vec<SavedDB>>),
-    RemovedDuplicateFiles(Vec<SavedDB>),
+    RemovedDatabases(Vec<SavedDB>),
 }
 
 impl fmt::Display for MessageToView {
@@ -62,10 +62,10 @@ impl fmt::Display for MessageToView {
             MessageToView::FoundSavedDatabases(db_paths) => {
                 write!(f, "MessageToView::FoundSavedDatabases({})", db_paths.len())
             }
-            MessageToView::RemovedDuplicateFiles(removed_paths) => {
+            MessageToView::RemovedDatabases(removed_paths) => {
                 write!(
                     f,
-                    "MessageToView::RemovedDuplicateFiles({})",
+                    "MessageToView::RemovedDatabases({})",
                     removed_paths.len()
                 )
             }

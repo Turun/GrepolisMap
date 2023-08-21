@@ -1,14 +1,10 @@
 use anyhow::Context;
 use directories_next::ProjectDirs;
-use sha2::Digest;
-use sha2::Sha256;
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt::Display;
-use std::fs::{self, File};
-use std::io::BufReader;
-use std::io::Read;
+use std::fs;
 use std::path::{Path, PathBuf};
 use time::format_description::FormatItem;
 use time::macros::format_description;
@@ -182,35 +178,10 @@ pub fn remove_all() {
     }
 }
 
-// read the file of the given path and return its SHA256 hash
-pub fn hash(path: &Path) -> anyhow::Result<[u8; 32]> {
-    // open file
-    let file = File::open(path).with_context(|| format!("Failed to open {path:?}"))?;
-    let mut buffered_file = BufReader::new(file);
-
-    // read content
-    let mut content: Vec<u8> = Vec::new();
-    let _bytes_read = buffered_file
-        .read_to_end(&mut content)
-        .with_context(|| format!("Failed to read from {path:?}"))?;
-
-    // hash content
-    let hash = Sha256::digest(content);
-
-    // rust shenanigans: return the data that is saved in a really weird format by the hashing lib
-    let mut output = [0u8; 32];
-    output.copy_from_slice(hash.as_slice());
-    Ok(output)
-}
-
 // utility functions
 
 fn my_project_dir() -> Option<ProjectDirs> {
     ProjectDirs::from("", "", "TurunMap")
-}
-
-fn storage_exists() -> bool {
-    my_project_dir().is_some()
 }
 
 fn storage_dir() -> Option<PathBuf> {
