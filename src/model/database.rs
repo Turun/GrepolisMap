@@ -1,10 +1,7 @@
-use std::str::FromStr;
-
 use anyhow::{Context, Result};
-use rusqlite::Statement;
-use rusqlite::{self, types::ToSqlOutput, ToSql};
-use rusqlite::{params_from_iter, Statement};
+use rusqlite::{Connection, Statement};
 
+use crate::constraint::Comparator;
 use crate::model::Constraint;
 use crate::model::ConstraintType;
 use crate::town::Town;
@@ -47,13 +44,12 @@ static TOWN_SELECTION: &str =
     "towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name";
 
 impl Database {
-    fn prepare_statement<SQL>(
-        &self,
+    fn prepare_statement<'a, SQL>(
+        connection: &'a Connection,
         selection_clause: &str,
         filter_clauses: &[SQL],
         order_clause: Option<&str>,
-        // error_place: &str,
-    ) -> anyhow::Result<Statement>
+    ) -> anyhow::Result<Statement<'a>>
     where
         SQL: ToSqlFragment,
     {
@@ -63,23 +59,22 @@ impl Database {
             .map(|(i, x)| x.to_sql_fragment(i))
             .collect();
         let mut sql_start = vec![format!(
-            "SELECT {selection_clause} from 
-                towns 
-                LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y)
-                LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number)
-                LEFT JOIN players ON (towns.player_id = players.player_id)
-                LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id)
+            "SELECT {selection_clause} from \n\
+                towns \n\
+                LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y) \n\
+                LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number) \n\
+                LEFT JOIN players ON (towns.player_id = players.player_id) \n\
+                LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id) \n\
                 WHERE islands.type = offsets.type",
         )];
         sql_start.append(&mut sql_fragments);
-        let mut sql_text = sql_start.join(" AND ");
+        let mut sql_text = sql_start.join(" \nAND ");
         if let Some(text) = order_clause {
-            sql_text += " ";
+            sql_text += " \n";
             sql_text += text;
         }
 
-        let statement = self
-            .connection
+        let statement = connection
             .prepare(&sql_text)
             .context("Failed to get towns from database (build statement)")?;
         Ok(statement)
@@ -97,7 +92,8 @@ impl Database {
     }
 
     pub fn get_all_towns(&self) -> anyhow::Result<Vec<Town>> {
-        let mut statement = self.prepare_statement::<AllTowns>(TOWN_SELECTION, &[], None)?;
+        let mut statement =
+            Self::prepare_statement::<AllTowns>(&self.connection, TOWN_SELECTION, &[], None)?;
         let rows = statement
             .query([])
             .context("Failed to get towns from the database (perform query)")?
@@ -109,7 +105,8 @@ impl Database {
     }
 
     pub fn get_ghost_towns(&self) -> anyhow::Result<Vec<Town>> {
-        let mut statement = self.prepare_statement(TOWN_SELECTION, &[GhostTown], None)?;
+        let mut statement =
+            Self::prepare_statement(&self.connection, TOWN_SELECTION, &[GhostTown], None)?;
         let rows = statement
             .query([])
             .context("Failed to get ghost towns from the database (perform query)")?
@@ -169,11 +166,12 @@ impl Database {
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
         let order_clause = if constraint_type.is_string() {
-            format!(" ORDER BY LOWER({ct_table}.{ct_property})")
+            format!("ORDER BY LOWER({ct_table}.{ct_property})")
         } else {
-            format!(" ORDER BY {ct_table}.{ct_property}")
+            format!("ORDER BY {ct_table}.{ct_property}")
         };
-        let mut statement = self.prepare_statement(
+        let mut statement = Self::prepare_statement(
+            &self.connection,
             &format!("DISTINCT {ct_table}.{ct_property}"),
             constraints,
             Some(&order_clause),
@@ -211,7 +209,8 @@ impl Database {
             return Ok(Vec::new());
         }
 
-        let mut statement = self.prepare_statement(TOWN_SELECTION, constraints, None)?;
+        let mut statement =
+            Self::prepare_statement(&self.connection, TOWN_SELECTION, constraints, None)?;
 
         Self::bind_statement(&mut statement, constraints)?;
 
