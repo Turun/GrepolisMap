@@ -1,7 +1,7 @@
 use anyhow::Context;
 use eframe::epaint::ahash::HashMap;
 
-use crate::constraint::Constraint;
+use crate::emptyconstraint::EmptyConstraint;
 use crate::message::{MessageToModel, MessageToView};
 use crate::model::database::Database;
 use crate::model::Model;
@@ -165,26 +165,26 @@ impl Presenter {
                 }
                 MessageToModel::FetchTowns(selection, constraints_edited) => {
                     // a list of filled constraints that are not being edited. For each one, filter the ddv list by all _other_ filled, unedited constratins
-                    let constraints_filled_not_edited: Vec<Constraint> = selection
+                    let constraints_filled_not_edited: Vec<EmptyConstraint> = selection
                         .constraints
                         .iter()
                         .rev()
                         .filter(|c| !c.value.is_empty())
                         .filter(|c| !constraints_edited.contains(c))
-                        .map(Constraint::partial_clone)
+                        .cloned()
                         .collect();
 
                     // a list of filled constraints. For each one, filter the ddv list by all _other_ filled constratins
-                    let constraints_filled_all: Vec<Constraint> = selection
+                    let constraints_filled_all: Vec<EmptyConstraint> = selection
                         .constraints
                         .iter()
                         .rev()
                         .filter(|c| !c.value.is_empty())
-                        .map(Constraint::partial_clone)
+                        .cloned()
                         .collect();
 
                     // a list of empty constraints. Filter the ddv list by all non empty constraints
-                    let constraints_empty: Vec<&Constraint> = selection
+                    let constraints_empty: Vec<&EmptyConstraint> = selection
                         .constraints
                         .iter()
                         .filter(|c| c.value.is_empty())
@@ -203,11 +203,7 @@ impl Presenter {
                             &constraints_filled_not_edited,
                         );
                         let msg = towns.map(|t| {
-                            MessageToView::ValueListForConstraint(
-                                c.partial_clone(),
-                                selection.partial_clone(),
-                                t,
-                            )
+                            MessageToView::ValueListForConstraint(c.clone(), selection.clone(), t)
                         });
                         send_to_view(
                             &self.channel_tx,
@@ -220,8 +216,8 @@ impl Presenter {
                     let towns = self
                         .model
                         .get_towns_for_constraints(&constraints_filled_all);
-                    let msg = towns
-                        .map(|t| MessageToView::TownListForSelection(selection.partial_clone(), t));
+                    let msg =
+                        towns.map(|t| MessageToView::TownListForSelection(selection.clone(), t));
                     send_to_view(
                         &self.channel_tx,
                         msg,
@@ -238,8 +234,8 @@ impl Presenter {
                                 );
                             let msg = c_towns.map(|t| {
                                 MessageToView::ValueListForConstraint(
-                                    c.partial_clone(),
-                                    selection.partial_clone(),
+                                    c.clone(),
+                                    selection.clone(),
                                     t,
                                 )
                             });
@@ -255,10 +251,10 @@ impl Presenter {
                     if constraints_filled_not_edited.is_empty() {
                         // nothing
                     } else if constraints_filled_not_edited.len() == 1 {
-                        let c = constraints_filled_not_edited[0].partial_clone();
+                        let c = constraints_filled_not_edited[0].clone();
                         let c_towns = self.model.get_names_for_constraint_type(c.constraint_type);
                         let msg = c_towns.map(|t| {
-                            MessageToView::ValueListForConstraint(c, selection.partial_clone(), t)
+                            MessageToView::ValueListForConstraint(c, selection.clone(), t)
                         });
                         send_to_view(
                             &self.channel_tx,
@@ -278,8 +274,8 @@ impl Presenter {
                                 );
                             let msg = c_towns.map(|t| {
                                 MessageToView::ValueListForConstraint(
-                                    c.partial_clone(),
-                                    selection.partial_clone(),
+                                    c.clone(),
+                                    selection.clone(),
                                     t,
                                 )
                             });

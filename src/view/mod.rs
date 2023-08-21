@@ -282,7 +282,8 @@ impl eframe::App for View {
                             constraint.drop_down_values = Some(towns);
                         } else {
                             eprintln!(
-                                "No existing constraint {constraint} found in selection {selection}"
+                                "No existing constraint {constraint} found in selection {}",
+                                selection.partial_clone()
                             );
                         }
                     } else {

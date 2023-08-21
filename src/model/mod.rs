@@ -1,5 +1,5 @@
-use crate::constraint::Constraint;
 use crate::constraint::ConstraintType;
+use crate::emptyconstraint::EmptyConstraint;
 use crate::town::Town;
 use eframe::epaint::ahash::HashMap;
 use std::collections::hash_map::Entry;
@@ -19,8 +19,8 @@ pub enum Model {
         db: database::Database,
         ctx: egui::Context,
         #[allow(clippy::type_complexity)]
-        cache_strings: HashMap<(ConstraintType, Vec<Constraint>), (f32, Arc<Vec<String>>)>,
-        cache_towns: HashMap<Vec<Constraint>, (f32, Arc<Vec<Town>>)>,
+        cache_strings: HashMap<(ConstraintType, Vec<EmptyConstraint>), (f32, Arc<Vec<String>>)>,
+        cache_towns: HashMap<Vec<EmptyConstraint>, (f32, Arc<Vec<Town>>)>,
     },
 }
 
@@ -82,7 +82,7 @@ impl Model {
 
     pub fn get_towns_for_constraints(
         &mut self,
-        constraints: &[Constraint],
+        constraints: &[EmptyConstraint],
     ) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
             Model::Uninitialized => Ok(Arc::new(Vec::new())),
@@ -109,7 +109,7 @@ impl Model {
     pub fn get_names_for_constraint_type_with_constraints(
         &mut self,
         constraint_type: ConstraintType,
-        constraints: &[Constraint],
+        constraints: &[EmptyConstraint],
     ) -> anyhow::Result<Arc<Vec<String>>> {
         match self {
             Model::Uninitialized => Ok(Arc::new(Vec::new())),

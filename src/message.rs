@@ -5,8 +5,8 @@ use std::{
     sync::Arc,
 };
 
-use crate::constraint::Constraint;
-use crate::selection::TownSelection;
+use crate::emptyconstraint::EmptyConstraint;
+use crate::emptyselection::EmptyTownSelection;
 use crate::storage::SavedDB;
 use crate::town::Town;
 use crate::view::preferences::CacheSize;
@@ -21,8 +21,8 @@ pub enum MessageToView {
     GotServer,
     AllTowns(Arc<Vec<Town>>),
     GhostTowns(Arc<Vec<Town>>),
-    TownListForSelection(TownSelection, Arc<Vec<Town>>),
-    ValueListForConstraint(Constraint, TownSelection, Arc<Vec<String>>),
+    TownListForSelection(EmptyTownSelection, Arc<Vec<Town>>),
+    ValueListForConstraint(EmptyConstraint, EmptyTownSelection, Arc<Vec<String>>),
     BackendCrashed(anyhow::Error),
     FoundSavedDatabases(BTreeMap<String, Vec<SavedDB>>),
     RemovedDuplicateFiles(Vec<SavedDB>),
@@ -78,7 +78,7 @@ pub enum MessageToModel {
     SetServer(Server, egui::Context),
     FetchAll,
     FetchGhosts,
-    FetchTowns(TownSelection, HashSet<Constraint>),
+    FetchTowns(EmptyTownSelection, HashSet<EmptyConstraint>),
     LoadDataFromFile(PathBuf, egui::Context),
     DiscoverSavedDatabases,
     MaxCacheSize(CacheSize),

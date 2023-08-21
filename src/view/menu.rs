@@ -3,8 +3,8 @@ use super::{
     State, View,
 };
 use crate::{
+    emptyselection::EmptyTownSelection,
     message::{MessageToModel, Progress},
-    selection::TownSelection,
     storage,
 };
 use arboard::Clipboard;
@@ -129,10 +129,10 @@ impl View {
                         match Clipboard::new() {
                             Ok(mut clipboard) => match clipboard.get_text() {
                                 Ok(text) => {
-                                    let result = TownSelection::try_from_str(&text);
+                                    let result = EmptyTownSelection::try_from_str(&text);
                                     match result {
                                         Ok(town_selections) => {
-                                            for town_selection in town_selections {
+                                            for town_selection in town_selections.iter().map(EmptyTownSelection::fill) {
                                                 if !self.ui_data.selections.contains(&town_selection) {
                                                     self.ui_data.selections.push(town_selection);
                                                 }
@@ -157,11 +157,11 @@ impl View {
                             .show_open_multiple_file();
                         match files_res {
                             Ok(files) => {
-                                let results = TownSelection::try_from_path(&files);
+                                let results = EmptyTownSelection::try_from_path(&files);
                                 for result in results{
                                     match result {
                                         Ok(town_selections) => {
-                                            for town_selection in town_selections {
+                                            for town_selection in town_selections.iter().map(EmptyTownSelection::fill) {
                                                 if !self.ui_data.selections.contains(&town_selection) {
                                                     self.ui_data.selections.push(town_selection);
                                                 }

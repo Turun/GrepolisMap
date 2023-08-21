@@ -1,9 +1,9 @@
+use crate::emptyconstraint::EmptyConstraint;
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::Change;
 use serde::{Deserialize, Serialize};
-use std::default::Default;
 use std::fmt;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -13,18 +13,29 @@ pub struct Constraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
     pub value: String,
-
-    // #[serde(skip)] // defaults to None
     pub drop_down_values: Option<Arc<Vec<String>>>,
 }
 
+impl Default for Constraint {
+    fn default() -> Self {
+        EmptyConstraint::default().fill()
+    }
+}
+
+impl PartialEq<EmptyConstraint> for Constraint {
+    fn eq(&self, other: &EmptyConstraint) -> bool {
+        self.constraint_type == other.constraint_type
+            && self.comparator == other.comparator
+            && self.value == other.value
+    }
+}
+
 impl Constraint {
-    pub fn partial_clone(&self) -> Self {
-        Self {
+    pub fn partial_clone(&self) -> EmptyConstraint {
+        EmptyConstraint {
             constraint_type: self.constraint_type,
             comparator: self.comparator,
             value: self.value.clone(),
-            drop_down_values: None,
         }
     }
 
@@ -114,44 +125,6 @@ impl Constraint {
         });
 
         (re_change, re_edited)
-    }
-}
-
-impl fmt::Display for Constraint {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Constraint({} {} {})",
-            self.constraint_type, self.comparator, self.value
-        )
-    }
-}
-
-impl Default for Constraint {
-    fn default() -> Self {
-        Self {
-            constraint_type: ConstraintType::PlayerName,
-            comparator: Comparator::Equal,
-            value: String::new(),
-            drop_down_values: None,
-        }
-    }
-}
-
-impl Eq for Constraint {}
-impl PartialEq for Constraint {
-    fn eq(&self, other: &Self) -> bool {
-        self.constraint_type == other.constraint_type
-            && self.comparator == other.comparator
-            && self.value == other.value
-    }
-}
-
-impl Hash for Constraint {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.constraint_type.hash(state);
-        self.comparator.hash(state);
-        self.value.hash(state);
     }
 }
 

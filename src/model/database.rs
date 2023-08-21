@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use rusqlite::{Connection, Statement};
 
 use crate::constraint::Comparator;
-use crate::model::Constraint;
+use crate::emptyconstraint::EmptyConstraint;
 use crate::model::ConstraintType;
 use crate::town::Town;
 
@@ -28,7 +28,7 @@ impl ToSqlFragment for AllTowns {
     }
 }
 
-impl ToSqlFragment for Constraint {
+impl ToSqlFragment for EmptyConstraint {
     fn to_sql_fragment(&self, parameter_index: usize) -> String {
         match self.comparator {
             Comparator::LessThan
@@ -98,7 +98,7 @@ impl Database {
 
     fn bind_statement(
         prepared_statement: &mut Statement<'_>,
-        constraints: &[Constraint],
+        constraints: &[EmptyConstraint],
     ) -> anyhow::Result<()> {
         for (index, constraint) in constraints.iter().enumerate() {
             // TODO implement in selction constraint value
@@ -176,7 +176,7 @@ impl Database {
     pub fn get_names_for_constraint_type_in_constraints(
         &self,
         constraint_type: ConstraintType,
-        constraints: &[Constraint],
+        constraints: &[EmptyConstraint],
     ) -> anyhow::Result<Vec<String>> {
         if constraints.is_empty() {
             return self.get_names_for_constraint_type(constraint_type);
@@ -222,7 +222,7 @@ impl Database {
 
     pub fn get_towns_for_constraints(
         &self,
-        constraints: &[Constraint],
+        constraints: &[EmptyConstraint],
     ) -> anyhow::Result<Vec<Town>> {
         if constraints.is_empty() {
             return Ok(Vec::new());
