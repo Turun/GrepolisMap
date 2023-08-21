@@ -13,20 +13,6 @@ pub struct Database {
     pub connection: rusqlite::Connection,
 }
 
-enum EitherOr {
-    A(String),
-    B(usize),
-}
-
-impl ToSql for EitherOr {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        match self {
-            EitherOr::A(value) => value.to_sql(),
-            EitherOr::B(value) => value.to_sql(),
-        }
-    }
-}
-
 pub trait ToSqlFragment {
     fn to_sql_fragment(&self, parameter_index: usize) -> String;
 }
@@ -97,6 +83,17 @@ impl Database {
             .prepare(&sql_text)
             .context("Failed to get towns from database (build statement)")?;
         Ok(statement)
+    }
+
+    fn bind_statement(
+        prepared_statement: &mut Statement<'_>,
+        constraints: &[Constraint],
+    ) -> anyhow::Result<()> {
+        for (index, constraint) in constraints.iter().enumerate() {
+            // TODO implement in selction constraint value
+            prepared_statement.raw_bind_parameter(index + 1, &constraint.value)?;
+        }
+        Ok(())
     }
 
     pub fn get_all_towns(&self) -> anyhow::Result<Vec<Town>> {
@@ -182,28 +179,10 @@ impl Database {
             Some(&order_clause),
         )?;
 
-        // building a list of &dyn turned out to be very much non trivial.
-        // we can't cast our stuff to &dyn in  a for loop, because the compiler
-        // can't prove that we hold onto it for long enough, but we also can't
-        // return early from the outer function in a map statement. so it's a bit
-        // of both for now
-        let mut query_parameters: Vec<EitherOr> = Vec::new();
-        for constraint in constraints {
-            if constraint.constraint_type.is_string() {
-                query_parameters.push(EitherOr::A(constraint.value.clone()));
-            } else {
-                let opt_parsed = constraint.value.parse::<usize>();
-                if let Ok(parsed) = opt_parsed {
-                    query_parameters.push(EitherOr::B(parsed));
-                } else {
-                    return Ok(Vec::new());
-                }
-            }
-        }
+        Self::bind_statement(&mut statement, constraints)?;
 
         let rows = statement
-            .query(params_from_iter(query_parameters))
-            .context("Failed to get names from the database (perform query)")?
+            .raw_query()
             .mapped(|row| {
                 if constraint_type.is_string() {
                     row.get::<usize, String>(0)
@@ -211,7 +190,10 @@ impl Database {
                     let value_option = row.get::<usize, usize>(0);
                     match value_option {
                         Ok(value) => Ok(format!("{value}")),
-                        Err(err) => Err(err),
+                        Err(err) => {
+                            eprintln!("{err:?}");
+                            Err(err)
+                        }
                     }
                 }
             })
@@ -231,28 +213,10 @@ impl Database {
 
         let mut statement = self.prepare_statement(TOWN_SELECTION, constraints, None)?;
 
-        // building a list of &dyn turned out to be very much non trivial.
-        // we can't cast our stuff to &dyn in  a for loop, because the compiler
-        // can't prove that we hold onto it for long enough, but we also can't
-        // return early from the outer function in a map statement. so it's a bit
-        // of both for now
-        let mut query_parameters: Vec<EitherOr> = Vec::new();
-        for constraint in constraints {
-            if constraint.constraint_type.is_string() {
-                query_parameters.push(EitherOr::A(constraint.value.clone()));
-            } else {
-                let opt_parsed = constraint.value.parse::<usize>();
-                if let Ok(parsed) = opt_parsed {
-                    query_parameters.push(EitherOr::B(parsed));
-                } else {
-                    return Ok(Vec::new());
-                }
-            }
-        }
+        Self::bind_statement(&mut statement, constraints)?;
 
         let rows = statement
-            .query(params_from_iter(query_parameters))
-            .context("Failed to get ghost towns from the database (perform query)")?
+            .raw_query()
             .mapped(Town::from)
             .collect::<std::result::Result<Vec<Town>, rusqlite::Error>>()
             .context("Failed to create a town from row")?;
