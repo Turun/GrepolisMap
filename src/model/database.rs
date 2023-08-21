@@ -3,6 +3,7 @@ use std::str::FromStr;
 use anyhow::{Context, Result};
 use rusqlite::Statement;
 use rusqlite::{self, types::ToSqlOutput, ToSql};
+use rusqlite::{params_from_iter, Statement};
 
 use crate::model::Constraint;
 use crate::model::ConstraintType;
@@ -200,13 +201,8 @@ impl Database {
             }
         }
 
-        let query_parameters: Vec<&dyn ToSql> = query_parameters
-            .iter()
-            .map(|param| param as &dyn ToSql)
-            .collect();
-
         let rows = statement
-            .query(query_parameters.as_slice())
+            .query(params_from_iter(query_parameters))
             .context("Failed to get names from the database (perform query)")?
             .mapped(|row| {
                 if constraint_type.is_string() {
@@ -254,13 +250,8 @@ impl Database {
             }
         }
 
-        let query_parameters: Vec<&dyn ToSql> = query_parameters
-            .iter()
-            .map(|param| param as &dyn ToSql)
-            .collect();
-
         let rows = statement
-            .query(query_parameters.as_slice())
+            .query(params_from_iter(query_parameters))
             .context("Failed to get ghost towns from the database (perform query)")?
             .mapped(Town::from)
             .collect::<std::result::Result<Vec<Town>, rusqlite::Error>>()
