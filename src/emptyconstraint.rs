@@ -1,4 +1,8 @@
-use crate::constraint::{Comparator, Constraint, ConstraintType};
+use crate::{
+    constraint::{Comparator, Constraint, ConstraintType},
+    emptyselection::EmptyTownSelection,
+    model::database::Database,
+};
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -18,6 +22,63 @@ impl EmptyConstraint {
             comparator: self.comparator,
             value: self.value.clone(),
             drop_down_values: None,
+        }
+    }
+
+    pub fn referenced_selection(&self) -> Option<String> {
+        match self.comparator {
+            Comparator::LessThan
+            | Comparator::Equal
+            | Comparator::GreaterThan
+            | Comparator::NotEqual => None,
+            Comparator::InSelection | Comparator::NotInSelection => Some(self.value.clone()),
+        }
+    }
+
+    pub fn get_sql_value(&self, db: &Database, all_selections: &[EmptyTownSelection]) -> String {
+        match self.comparator {
+            Comparator::LessThan
+            | Comparator::Equal
+            | Comparator::GreaterThan
+            | Comparator::NotEqual => self.value.clone(),
+            Comparator::InSelection | Comparator::NotInSelection => {
+                let target_selection = all_selections
+                    .iter()
+                    .find(|&selection| selection.name == self.value);
+                match target_selection {
+                    Some(selection) => {
+                        // TODO error handling
+                        let selection_clause = format!(
+                            "{}.{}",
+                            self.constraint_type.table(),
+                            self.constraint_type.property()
+                        );
+                        let sql_string = db
+                            .selection_to_sql(&selection_clause, selection, all_selections)
+                            .unwrap();
+                        println!(">>>> {sql_string}");
+                        sql_string
+                    }
+                    None => {
+                        // The user typed in a selection name that does not exist. If the user wants towns that are IN
+                        // this imaginary selection, they'll get none. If they want all town that are NOT IN this imaginary
+                        // selection they'll get all possible ones (an empty selection does not restrict the search in any way)
+                        if self.comparator == Comparator::NotInSelection {
+                            // The where clause will definitely evaluate to true
+                            format!(
+                                "SELECT {0}.{1} FROM {0}",
+                                self.constraint_type.table(),
+                                self.constraint_type.property()
+                            )
+                        } else if self.comparator == Comparator::InSelection {
+                            // The where clause will definitely evaluate to false
+                            String::new()
+                        } else {
+                            unreachable!("The comparator type somehow changed between the match and the if case")
+                        }
+                    }
+                }
+            }
         }
     }
 }

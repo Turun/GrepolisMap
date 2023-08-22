@@ -68,6 +68,49 @@ impl EmptyTownSelection {
         }
     }
 
+    pub fn directly_referenced_selection_names(&self) -> Vec<String> {
+        self.constraints
+            .iter()
+            .filter_map(EmptyConstraint::referenced_selection)
+            .collect()
+    }
+
+    pub fn directly_referenced_selections(&self, all_selections: &[Self]) -> Vec<Self> {
+        let referenced_names = self.directly_referenced_selection_names();
+        all_selections
+            .iter()
+            .cloned()
+            .filter(|selection| referenced_names.contains(&selection.name))
+            .collect()
+    }
+
+    /// Starting from self, create the tree of selection references.
+    /// If a reference cycle is detected, return an error. If not,
+    /// return the list of referenced `EmptyTownSelections`.
+    pub fn all_referenced_selections(&self, all_selections: &[Self]) -> anyhow::Result<Vec<Self>> {
+        let mut re = Vec::new();
+        let mut referenced_names = self.directly_referenced_selection_names();
+        let mut visited_names = vec![self.name.clone()];
+        while let Some(name) = referenced_names.pop() {
+            if let Some(selection) = all_selections
+                .iter()
+                .find(|selection| selection.name == name)
+            {
+                if visited_names.contains(&name) {
+                    return Err(anyhow::format_err!(
+                        "Circular Selection Reference Detected!"
+                    ));
+                }
+
+                visited_names.push(name.clone());
+                referenced_names.append(&mut selection.directly_referenced_selection_names());
+                re.push(selection.clone());
+            }
+        }
+
+        Ok(re)
+    }
+
     pub fn try_from_str(text: &str) -> anyhow::Result<Vec<Self>> {
         // Attempt to parse text as a vector of selections, and it that doesn't work, parse it as a single selection.
         let res_parse_as_vec = serde_yaml::from_str(text);
