@@ -2,12 +2,13 @@ use anyhow::Context;
 use eframe::epaint::ahash::HashMap;
 
 use crate::emptyconstraint::EmptyConstraint;
+use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToView};
 use crate::model::database::Database;
 use crate::model::Model;
 use crate::storage;
 use crate::view::preferences::CacheSize;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::Duration;
 
@@ -54,6 +55,25 @@ impl Presenter {
             channel_tx: tx,
             channel_rx: rx,
         }
+    }
+
+    fn possible_ddv_selections_or(
+        constraint: &EmptyConstraint,
+        selection: &EmptyTownSelection,
+        all_selections: &[EmptyTownSelection],
+    ) -> Option<Arc<Vec<String>>> {
+        // TODO also filter all selections that would lead to a circular dependency
+        constraint
+            .referenced_selection()
+            .map(|_referenced_selection| {
+                Arc::new(
+                    all_selections
+                        .iter()
+                        .map(|s| s.name.clone())
+                        .filter(|name| name != &selection.name)
+                        .collect(),
+                )
+            })
     }
 
     #[allow(clippy::too_many_lines)] // processing all variants of incoming messages simply needs a lot of lines
@@ -163,7 +183,7 @@ impl Presenter {
                         String::from("Failed to send ghost town list to view"),
                     );
                 }
-                MessageToModel::FetchTowns(selection, constraints_edited) => {
+                MessageToModel::FetchTowns(selection, constraints_edited, all_selections) => {
                     // a list of filled constraints that are not being edited. For each one, filter the ddv list by all _other_ filled, unedited constratins
                     let constraints_filled_not_edited: Vec<EmptyConstraint> = selection
                         .constraints
@@ -191,18 +211,23 @@ impl Presenter {
                         .filter(|c| !constraints_edited.contains(c))
                         .collect();
 
-                    // TODO we need a good way to set the drop down values for <in selection> <not
-                    // in selection> constraints. I think we should just return the full list of
-                    // selections? Excluding the name of the currently edited one
-                    // !!! and any that would lead to a circular dependency !!!
+                    // TODO if a selection references another selection the cache items for it must become
+                    // stale if the other selection changes. => take all referenced selections into account
+                    // for the key (Should we even cache anything if that is the case?)
 
                     // The drop down values for the constraints currently being edited
                     for c in constraints_edited {
-                        let towns = self.model.get_names_for_constraint_type_with_constraints(
-                            c.constraint_type,
-                            &constraints_filled_not_edited,
-                        );
-                        let msg = towns.map(|t| {
+                        let possible_ddv =
+                            Self::possible_ddv_selections_or(&c, &selection, &all_selections)
+                                .ok_or(Err(0))
+                                .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
+                                    self.model.get_names_for_constraint_with_constraints(
+                                        c.constraint_type,
+                                        &constraints_filled_not_edited,
+                                        &all_selections,
+                                    )
+                                });
+                        let msg = possible_ddv.map(|t| {
                             MessageToView::ValueListForConstraint(c.clone(), selection.clone(), t)
                         });
                         send_to_view(
@@ -215,7 +240,7 @@ impl Presenter {
                     // Towns of this selection
                     let towns = self
                         .model
-                        .get_towns_for_constraints(&constraints_filled_all);
+                        .get_towns_for_constraints(&constraints_filled_all, &all_selections);
                     let msg =
                         towns.map(|t| MessageToView::TownListForSelection(selection.clone(), t));
                     send_to_view(
@@ -227,12 +252,17 @@ impl Presenter {
                     // drop down values for the empty constraints
                     if !constraints_empty.is_empty() {
                         for c in constraints_empty {
-                            let c_towns =
-                                self.model.get_names_for_constraint_type_with_constraints(
-                                    c.constraint_type,
-                                    &constraints_filled_all,
-                                );
-                            let msg = c_towns.map(|t| {
+                            let possible_ddv =
+                                Self::possible_ddv_selections_or(c, &selection, &all_selections)
+                                    .ok_or(Err(0))
+                                    .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
+                                        self.model.get_names_for_constraint_with_constraints(
+                                            c.constraint_type,
+                                            &constraints_filled_all,
+                                            &all_selections,
+                                        )
+                                    });
+                            let msg = possible_ddv.map(|t| {
                                 MessageToView::ValueListForConstraint(
                                     c.clone(),
                                     selection.clone(),
@@ -251,9 +281,15 @@ impl Presenter {
                     if constraints_filled_not_edited.is_empty() {
                         // nothing
                     } else if constraints_filled_not_edited.len() == 1 {
+                        // only one constraint that is filled, but not edited -> no restrictions apply
                         let c = constraints_filled_not_edited[0].clone();
-                        let c_towns = self.model.get_names_for_constraint_type(c.constraint_type);
-                        let msg = c_towns.map(|t| {
+                        let possible_ddv =
+                            Self::possible_ddv_selections_or(&c, &selection, &all_selections)
+                                .ok_or(Err(0))
+                                .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
+                                    self.model.get_names_for_constraint_type(c.constraint_type)
+                                });
+                        let msg = possible_ddv.map(|t| {
                             MessageToView::ValueListForConstraint(c, selection.clone(), t)
                         });
                         send_to_view(
@@ -263,16 +299,26 @@ impl Presenter {
                         );
                     } else {
                         // for each constraint, make a list of all other filled constraints and get the ddv list filtered by those
-                        for (i, c) in constraints_filled_not_edited.iter().enumerate() {
+                        for c in constraints_filled_not_edited {
                             let mut other_constraints = constraints_filled_all.clone();
-                            let _this_constraint = other_constraints.swap_remove(i);
+                            let index = other_constraints.iter().position(|x| x == &c);
+                            if index.is_none() {
+                                continue;
+                            }
+                            let index = index.unwrap();
+                            let _this_constraint = other_constraints.swap_remove(index);
 
-                            let c_towns =
-                                self.model.get_names_for_constraint_type_with_constraints(
-                                    c.constraint_type,
-                                    &other_constraints,
-                                );
-                            let msg = c_towns.map(|t| {
+                            let possible_ddv =
+                                Self::possible_ddv_selections_or(&c, &selection, &all_selections)
+                                    .ok_or(Err(0))
+                                    .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
+                                        self.model.get_names_for_constraint_with_constraints(
+                                            c.constraint_type,
+                                            &other_constraints,
+                                            &all_selections,
+                                        )
+                                    });
+                            let msg = possible_ddv.map(|t| {
                                 MessageToView::ValueListForConstraint(
                                     c.clone(),
                                     selection.clone(),

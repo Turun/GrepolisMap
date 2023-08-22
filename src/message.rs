@@ -78,7 +78,11 @@ pub enum MessageToModel {
     SetServer(Server, egui::Context),
     FetchAll,
     FetchGhosts,
-    FetchTowns(EmptyTownSelection, HashSet<EmptyConstraint>),
+    FetchTowns(
+        EmptyTownSelection,
+        HashSet<EmptyConstraint>,
+        Vec<EmptyTownSelection>,
+    ),
     LoadDataFromFile(PathBuf, egui::Context),
     DiscoverSavedDatabases,
     MaxCacheSize(CacheSize),
@@ -90,11 +94,12 @@ impl fmt::Display for MessageToModel {
             MessageToModel::SetServer(server, _frame) => {
                 write!(f, "MessageToMode::SetServer({})", server.id)
             }
-            MessageToModel::FetchTowns(selection, constraints) => {
+            MessageToModel::FetchTowns(selection, constraints, selections) => {
                 write!(
                     f,
-                    "MessageToModel::FetchTowns({selection}, {} Constraints currently edited)",
-                    constraints.len()
+                    "MessageToModel::FetchTowns({selection}, {} Constraints currently edited, {} total selections)",
+                    constraints.len(),
+                    selections.len()
                 )
             }
             MessageToModel::FetchAll => {

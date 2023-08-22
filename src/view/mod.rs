@@ -6,12 +6,14 @@ pub(crate) mod preferences;
 mod selectable_label;
 mod sidepanel;
 
+use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
-use crate::selection::SelectionState;
+use crate::selection::{SelectionState, TownSelection};
 use crate::view::data::Data;
 use crate::VERSION;
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Ui};
+use std::collections::HashSet;
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
 
@@ -249,9 +251,19 @@ impl eframe::App for View {
                     // ensure the towns in the selection are fetched anew after loading the data from the server.
                     // If we don't do this the selection may become stale and show towns from server ab12 on a
                     // map that is otherwise pulled from server cd34
+                    let all_selections: Vec<EmptyTownSelection> = self
+                        .ui_data
+                        .selections
+                        .iter()
+                        .map(TownSelection::partial_clone)
+                        .collect();
                     for selection in &mut self.ui_data.selections {
                         selection.towns = Arc::new(Vec::new());
-                        selection.refresh(&self.channel_presenter_tx);
+                        selection.refresh(
+                            &self.channel_presenter_tx,
+                            HashSet::new(),
+                            &all_selections,
+                        );
                     }
                 }
                 MessageToView::TownListForSelection(selection, town_list) => {

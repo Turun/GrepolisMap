@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+
 use anyhow::{Context, Result};
-use rusqlite::{Connection, Statement};
+use runtime_format::FormatArgs;
+use rusqlite::Statement;
 
 use crate::constraint::Comparator;
 use crate::emptyconstraint::EmptyConstraint;
+use crate::emptyselection::EmptyTownSelection;
 use crate::model::ConstraintType;
 use crate::town::Town;
 
@@ -45,7 +49,7 @@ impl ToSqlFragment for EmptyConstraint {
             }
             Comparator::InSelection | Comparator::NotInSelection => {
                 format!(
-                    "{}.{} {} (?{})",
+                    "{}.{} {} ({{{}}})",
                     self.constraint_type.table(),
                     self.constraint_type.property(),
                     self.comparator,
@@ -60,12 +64,11 @@ static TOWN_SELECTION: &str =
     "towns.*, offsets.offset_x, offsets.offset_y, players.name, alliances.name";
 
 impl Database {
-    fn prepare_statement<'a, SQL>(
-        connection: &'a Connection,
+    fn construct_sql<SQL>(
         selection_clause: &str,
         filter_clauses: &[SQL],
         order_clause: Option<&str>,
-    ) -> anyhow::Result<Statement<'a>>
+    ) -> String
     where
         SQL: ToSqlFragment,
     {
@@ -89,27 +92,61 @@ impl Database {
             sql_text += " \n";
             sql_text += text;
         }
+        sql_text
+    }
 
-        let statement = connection
-            .prepare(&sql_text)
-            .context("Failed to get towns from database (build statement)")?;
+    fn sql_to_prepared_statement(&self, sql: &str) -> anyhow::Result<Statement> {
+        self.connection
+            .prepare(sql)
+            .context("Failed to get towns from database (build statement)")
+    }
+
+    fn sql_to_bound_statement<'a>(
+        &'a self,
+        sql_text: &str,
+        constraints: &[EmptyConstraint],
+        all_selections: &[EmptyTownSelection],
+    ) -> anyhow::Result<Statement<'a>> {
+        let mut format_mapping = HashMap::new();
+        for (index, constraint) in constraints.iter().enumerate() {
+            if constraint.referenced_selection().is_some() {
+                format_mapping.insert(
+                    (index + 1).to_string(),
+                    constraint.get_sql_value(self, all_selections),
+                );
+            }
+        }
+        let sql_text = FormatArgs::new(sql_text, &format_mapping).to_string();
+        let mut statement = self.sql_to_prepared_statement(&sql_text)?;
+
+        for (index, constraint) in constraints.iter().enumerate() {
+            if constraint.referenced_selection().is_none() {
+                statement.raw_bind_parameter(
+                    index + 1,
+                    &constraint.get_sql_value(self, all_selections),
+                )?;
+            }
+        }
         Ok(statement)
     }
 
-    fn bind_statement(
-        prepared_statement: &mut Statement<'_>,
-        constraints: &[EmptyConstraint],
-    ) -> anyhow::Result<()> {
-        for (index, constraint) in constraints.iter().enumerate() {
-            // TODO implement in selction constraint value
-            prepared_statement.raw_bind_parameter(index + 1, &constraint.value)?;
-        }
-        Ok(())
+    pub fn selection_to_sql(
+        &self,
+        selection_clause: &str,
+        selection: &EmptyTownSelection,
+        all_selections: &[EmptyTownSelection],
+    ) -> anyhow::Result<String> {
+        let sql = Self::construct_sql(selection_clause, &selection.constraints, None);
+        let statement =
+            self.sql_to_bound_statement(&sql, &selection.constraints, all_selections)?;
+        statement.expanded_sql().ok_or(anyhow::Error::msg(
+            "Failed to convert the selection {selection} into an SQL string",
+        ))
     }
 
     pub fn get_all_towns(&self) -> anyhow::Result<Vec<Town>> {
-        let mut statement =
-            Self::prepare_statement::<AllTowns>(&self.connection, TOWN_SELECTION, &[], None)?;
+        let sql = Self::construct_sql(TOWN_SELECTION, &[AllTowns], None);
+        let mut statement = self.sql_to_prepared_statement(&sql)?;
         let rows = statement
             .query([])
             .context("Failed to get towns from the database (perform query)")?
@@ -121,8 +158,8 @@ impl Database {
     }
 
     pub fn get_ghost_towns(&self) -> anyhow::Result<Vec<Town>> {
-        let mut statement =
-            Self::prepare_statement(&self.connection, TOWN_SELECTION, &[GhostTown], None)?;
+        let sql = Self::construct_sql(TOWN_SELECTION, &[GhostTown], None);
+        let mut statement = self.sql_to_prepared_statement(&sql)?;
         let rows = statement
             .query([])
             .context("Failed to get ghost towns from the database (perform query)")?
@@ -153,10 +190,7 @@ impl Database {
             )
         };
 
-        let mut statement = self
-            .connection
-            .prepare(&statement_text)
-            .context("Failed to get names from database (build statement)")?;
+        let mut statement = self.sql_to_prepared_statement(&statement_text)?;
         let rows = statement
             .query([])
             .context("Failed to get names from the database (perform query)")?
@@ -177,6 +211,7 @@ impl Database {
         &self,
         constraint_type: ConstraintType,
         constraints: &[EmptyConstraint],
+        all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Vec<String>> {
         if constraints.is_empty() {
             return self.get_names_for_constraint_type(constraint_type);
@@ -189,15 +224,13 @@ impl Database {
         } else {
             format!("ORDER BY {ct_table}.{ct_property}")
         };
-        let mut statement = Self::prepare_statement(
-            &self.connection,
+        let sql = Self::construct_sql(
             &format!("DISTINCT {ct_table}.{ct_property}"),
             constraints,
             Some(&order_clause),
-        )?;
+        );
 
-        Self::bind_statement(&mut statement, constraints)?;
-
+        let mut statement = self.sql_to_bound_statement(&sql, constraints, all_selections)?;
         let rows = statement
             .raw_query()
             .mapped(|row| {
@@ -223,15 +256,21 @@ impl Database {
     pub fn get_towns_for_constraints(
         &self,
         constraints: &[EmptyConstraint],
+        all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Vec<Town>> {
         if constraints.is_empty() {
             return Ok(Vec::new());
         }
 
-        let mut statement =
-            Self::prepare_statement(&self.connection, TOWN_SELECTION, constraints, None)?;
+        let sql = Self::construct_sql(TOWN_SELECTION, constraints, None);
+        let mut statement = self.sql_to_bound_statement(&sql, constraints, all_selections)?;
 
-        Self::bind_statement(&mut statement, constraints)?;
+        println!(
+            "<<<< {} >>>>",
+            statement
+                .expanded_sql()
+                .unwrap_or("!!!!!!!!!!!!!!!!!!".into())
+        );
 
         let rows = statement
             .raw_query()

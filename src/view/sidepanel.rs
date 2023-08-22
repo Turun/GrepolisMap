@@ -1,5 +1,6 @@
 use super::Change;
 use super::View;
+use crate::emptyselection::EmptyTownSelection;
 use crate::selection::TownSelection;
 
 impl View {
@@ -24,13 +25,22 @@ impl View {
                 ui.separator();
 
                 egui::ScrollArea::vertical().show(ui, |ui| {
+                    let all_selections: Vec<EmptyTownSelection> = self
+                        .ui_data
+                        .selections
+                        .iter()
+                        .map(TownSelection::partial_clone)
+                        .collect();
                     let mut selection_change_action: Option<Change> = None;
                     for (selection_index, selection) in
                         self.ui_data.selections.iter_mut().enumerate()
                     {
-                        if let Some(change) =
-                            selection.make_ui(ui, &self.channel_presenter_tx, selection_index)
-                        {
+                        if let Some(change) = selection.make_ui(
+                            ui,
+                            &self.channel_presenter_tx,
+                            selection_index,
+                            &all_selections,
+                        ) {
                             selection_change_action = Some(change);
                         }
                         ui.separator();

@@ -5,6 +5,7 @@ use std::sync::{mpsc, Arc};
 use serde::{Deserialize, Serialize};
 
 use crate::constraint::Constraint;
+use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::message::MessageToModel;
 use crate::town::Town;
@@ -83,21 +84,58 @@ impl TownSelection {
         }
     }
 
-    pub fn refresh(&mut self, channel_tx: &mpsc::Sender<MessageToModel>) {
+    pub fn refresh(
+        &mut self,
+        channel_tx: &mpsc::Sender<MessageToModel>,
+        keep_ddv: HashSet<EmptyConstraint>,
+        all_selections: &[EmptyTownSelection],
+    ) {
+        // Check if there is a cycle. If so, do not send to the backend
+        let referenced_selections = self
+            .partial_clone()
+            .all_referenced_selections(all_selections);
+        if let Err(err) = referenced_selections {
+            eprintln!("{err}");
+            return;
+        }
+
         self.state = SelectionState::Loading;
-        for constraint in &mut self.constraints {
+        for constraint in &mut self
+            .constraints
+            .iter_mut()
+            .filter(|c| !keep_ddv.contains(&c.partial_clone()))
+        {
+            // drop the current list of values for all non-edited constraints
+            // in other words, make sure it's refreshed but also dont flash the
+            // list in the users face everytime they type a single character
             constraint.drop_down_values = None;
         }
 
         channel_tx
             .send(MessageToModel::FetchTowns(
                 self.partial_clone(),
-                HashSet::new(),
+                keep_ddv,
+                all_selections.to_vec(),
             ))
             .expect(&format!(
                 "Failed to send Message to Model for Selection {}",
                 self.partial_clone()
             ));
+
+        // Trigger refresh for all directly referenced Selections
+        for selection in self
+            .partial_clone()
+            .directly_referenced_selections(all_selections)
+        {
+            // it is fine to use selection.fill here, because the drop down
+            // values of not currently edited selections are not that important
+            // Also kind hard to work on the list of TownSelections directly
+            // We will probably run into all sorts of data ownership issues with
+            // that one. Nevertheless a TODO for the future.
+            selection
+                .fill()
+                .refresh(channel_tx, HashSet::new(), all_selections);
+        }
     }
 
     pub fn make_ui(
@@ -105,6 +143,7 @@ impl TownSelection {
         ui: &mut egui::Ui,
         channel_tx: &mpsc::Sender<MessageToModel>,
         selection_index: usize,
+        all_selections: &[EmptyTownSelection],
     ) -> Option<Change> {
         let mut re = None;
 
@@ -185,27 +224,9 @@ impl TownSelection {
         );
         if refresh_complete_selection {
             self.towns = Arc::new(Vec::new());
-            self.refresh(channel_tx);
+            self.refresh(channel_tx, HashSet::new(), all_selections);
         } else if !edited_constraints.is_empty() {
-            self.state = SelectionState::Loading;
-            for constraint in &mut self
-                .constraints
-                .iter_mut()
-                .filter(|c| !edited_constraints.contains(&c.partial_clone()))
-            {
-                // the ddvs of all constraints that were not edited are invalidated.
-                constraint.drop_down_values = None;
-            }
-
-            channel_tx
-                .send(MessageToModel::FetchTowns(
-                    self.partial_clone(),
-                    edited_constraints,
-                ))
-                .expect(&format!(
-                    "Failed to send Message to Model for selection {}",
-                    &self.partial_clone()
-                ));
+            self.refresh(channel_tx, edited_constraints, all_selections);
         }
 
         re

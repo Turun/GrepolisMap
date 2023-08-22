@@ -1,5 +1,6 @@
 use crate::constraint::ConstraintType;
 use crate::emptyconstraint::EmptyConstraint;
+use crate::emptyselection::EmptyTownSelection;
 use crate::town::Town;
 use eframe::epaint::ahash::HashMap;
 use std::collections::hash_map::Entry;
@@ -83,6 +84,7 @@ impl Model {
     pub fn get_towns_for_constraints(
         &mut self,
         constraints: &[EmptyConstraint],
+        all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
             Model::Uninitialized => Ok(Arc::new(Vec::new())),
@@ -97,7 +99,8 @@ impl Model {
                         tuple.1.clone()
                     }
                     Entry::Vacant(entry) => {
-                        let value = Arc::new(db.get_towns_for_constraints(constraints)?);
+                        let value =
+                            Arc::new(db.get_towns_for_constraints(constraints, all_selections)?);
                         entry.insert((1.0, value)).1.clone()
                     }
                 };
@@ -106,16 +109,20 @@ impl Model {
         }
     }
 
-    pub fn get_names_for_constraint_type_with_constraints(
+    pub fn get_names_for_constraint_with_constraints(
         &mut self,
         constraint_type: ConstraintType,
         constraints: &[EmptyConstraint],
+        all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Arc<Vec<String>>> {
         match self {
             Model::Uninitialized => Ok(Arc::new(Vec::new())),
             Model::Loaded {
                 db, cache_strings, ..
             } => {
+                // TODO we need to put all the directly and indirectly referenced selections into the key of the cache.
+                //  if no other selections are referenced, great we simply add an empty BTreeSet. Otherwise we need to walk the whole reference tree
+
                 let key = (constraint_type, constraints.to_vec());
                 let value = match cache_strings.entry(key) {
                     Entry::Occupied(entry) => {
@@ -127,6 +134,7 @@ impl Model {
                         let value = Arc::new(db.get_names_for_constraint_type_in_constraints(
                             constraint_type,
                             constraints,
+                            all_selections,
                         )?);
                         entry.insert((1.0, value)).1.clone()
                     }
