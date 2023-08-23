@@ -71,6 +71,15 @@ impl Presenter {
                         .iter()
                         .map(|s| s.name.clone())
                         .filter(|name| name != &selection.name)
+                        .filter(|name| {
+                            let mut test_selection = selection.clone();
+                            test_selection.constraints.push(EmptyConstraint {
+                                constraint_type: crate::constraint::ConstraintType::PlayerName,
+                                comparator: crate::constraint::Comparator::InSelection,
+                                value: name.clone(),
+                            });
+                            test_selection.contains_circular_reference(all_selections)
+                        })
                         .collect(),
                 )
             })

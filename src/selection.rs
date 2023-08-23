@@ -91,6 +91,7 @@ impl TownSelection {
         all_selections: &[EmptyTownSelection],
     ) {
         // Check if there is a cycle. If so, do not send to the backend
+        // TODO inform the user of this!
         let referenced_selections = self
             .partial_clone()
             .all_referenced_selections(all_selections);

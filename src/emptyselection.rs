@@ -1,6 +1,7 @@
 use anyhow::Context;
 use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::default::Default;
 use std::fmt;
 use std::path::PathBuf;
@@ -10,7 +11,7 @@ use crate::emptyconstraint::EmptyConstraint;
 use crate::selection::{SelectionState, TownSelection};
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct EmptyTownSelection {
     #[serde(default = "String::new")]
     pub name: String,
@@ -29,21 +30,6 @@ impl Default for EmptyTownSelection {
             constraints: vec![EmptyConstraint::default()],
             color: egui::Color32::GREEN,
         }
-    }
-}
-
-impl PartialEq<EmptyTownSelection> for &mut EmptyTownSelection {
-    fn eq(&self, other: &EmptyTownSelection) -> bool {
-        self.name == other.name
-            && self.constraints == other.constraints
-            && self.color == other.color
-    }
-}
-impl PartialEq<EmptyTownSelection> for EmptyTownSelection {
-    fn eq(&self, other: &EmptyTownSelection) -> bool {
-        self.name == other.name
-            && self.constraints == other.constraints
-            && self.color == other.color
     }
 }
 
@@ -88,27 +74,70 @@ impl EmptyTownSelection {
     /// If a reference cycle is detected, return an error. If not,
     /// return the list of referenced `EmptyTownSelections`.
     pub fn all_referenced_selections(&self, all_selections: &[Self]) -> anyhow::Result<Vec<Self>> {
+        if self.contains_circular_reference(all_selections) {
+            return Err(anyhow::format_err!(
+                "Circular Selection Reference Detected!"
+            ));
+        }
+
         let mut re = Vec::new();
         let mut referenced_names = self.directly_referenced_selection_names();
-        let mut visited_names = vec![self.name.clone()];
         while let Some(name) = referenced_names.pop() {
             if let Some(selection) = all_selections
                 .iter()
                 .find(|selection| selection.name == name)
             {
-                if visited_names.contains(&name) {
-                    return Err(anyhow::format_err!(
-                        "Circular Selection Reference Detected!"
-                    ));
-                }
-
-                visited_names.push(name.clone());
                 referenced_names.append(&mut selection.directly_referenced_selection_names());
                 re.push(selection.clone());
             }
         }
 
         Ok(re)
+    }
+
+    /// performs depth first search to detect if there are any cycles in the constraints. A cycle
+    /// can happen if the user uses the `InSelction` or `NotInSelection` constraint comparators,
+    /// which links to another selection, which in turn can link to more selections
+    pub fn contains_circular_reference(&self, all_selections: &[Self]) -> bool {
+        // from https://stackoverflow.com/a/53995651/14053391
+        let mut discovered: HashSet<Self> = HashSet::new();
+        let mut finished: HashSet<Self> = HashSet::new();
+        Self::depth_first_search(all_selections, self, &mut finished, &mut discovered)
+    }
+
+    fn depth_first_search(
+        all_selections: &[Self],
+        leaf_selection: &Self,
+        finished: &mut HashSet<Self>,
+        discovered: &mut HashSet<Self>,
+    ) -> bool {
+        let mut cycle_detected = false;
+        discovered.insert(leaf_selection.clone());
+
+        for referenced_selection in leaf_selection.directly_referenced_selections(all_selections) {
+            if discovered.contains(&referenced_selection) {
+                eprintln!("Cycle detected: found a back edge from {leaf_selection} to {referenced_selection}.");
+                cycle_detected = true;
+                break;
+            }
+
+            // short curcuits, so we don't have to worry about side effect
+            if !finished.contains(&referenced_selection)
+                && Self::depth_first_search(
+                    all_selections,
+                    &referenced_selection,
+                    finished,
+                    discovered,
+                )
+            {
+                cycle_detected = true;
+            }
+        }
+
+        let _was_present = discovered.remove(leaf_selection);
+        finished.insert(leaf_selection.clone());
+
+        cycle_detected
     }
 
     pub fn try_from_str(text: &str) -> anyhow::Result<Vec<Self>> {
