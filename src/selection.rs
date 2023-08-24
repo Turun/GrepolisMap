@@ -103,7 +103,7 @@ impl TownSelection {
             .partial_clone()
             .all_referenced_selections(all_selections);
         if let Err(err) = referenced_selections {
-            eprintln!("{err}");
+            eprintln!("abort refresh: {err}");
             return;
         }
 

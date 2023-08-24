@@ -62,7 +62,6 @@ impl Presenter {
         selection: &EmptyTownSelection,
         all_selections: &[EmptyTownSelection],
     ) -> Option<Arc<Vec<String>>> {
-        // TODO also filter all selections that would lead to a circular dependency
         constraint
             .referenced_selection()
             .map(|_referenced_selection| {
@@ -78,7 +77,7 @@ impl Presenter {
                                 comparator: crate::constraint::Comparator::InSelection,
                                 value: name.clone(),
                             });
-                            test_selection.contains_circular_reference(all_selections)
+                            !test_selection.contains_circular_reference(all_selections)
                         })
                         .collect(),
                 )

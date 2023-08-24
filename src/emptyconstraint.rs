@@ -42,38 +42,43 @@ impl EmptyConstraint {
             | Comparator::GreaterThan
             | Comparator::NotEqual => self.value.clone(),
             Comparator::InSelection | Comparator::NotInSelection => {
+                let definitely_true = format!(
+                    "SELECT {0}.{1} FROM {0}",
+                    self.constraint_type.table(),
+                    self.constraint_type.property()
+                );
+                let definitely_false = String::new();
+
+                if self.value.is_empty() {
+                    return definitely_true;
+                }
+
                 let target_selection = all_selections
                     .iter()
                     .find(|&selection| selection.name == self.value);
-                match target_selection {
-                    Some(selection) => {
-                        // TODO error handling
-                        let selection_clause = format!(
-                            "{}.{}",
-                            self.constraint_type.table(),
-                            self.constraint_type.property()
-                        );
+                if let Some(selection) = target_selection {
+                    // user has typed in a valid name
+                    let selection_clause = format!(
+                        "{}.{}",
+                        self.constraint_type.table(),
+                        self.constraint_type.property()
+                    );
 
-                        db.selection_to_sql(&selection_clause, selection, all_selections)
-                            .unwrap()
-                    }
-                    None => {
-                        // The user typed in a selection name that does not exist. If the user wants towns that are IN
-                        // this imaginary selection, they'll get none. If they want all town that are NOT IN this imaginary
-                        // selection they'll get all possible ones (an empty selection does not restrict the search in any way)
-                        if self.comparator == Comparator::NotInSelection {
-                            // The where clause will definitely evaluate to true
-                            format!(
-                                "SELECT {0}.{1} FROM {0}",
-                                self.constraint_type.table(),
-                                self.constraint_type.property()
-                            )
-                        } else if self.comparator == Comparator::InSelection {
-                            // The where clause will definitely evaluate to false
-                            String::new()
-                        } else {
-                            unreachable!("The comparator type somehow changed between the match and the if case")
-                        }
+                    // TODO error handling
+                    db.selection_to_sql(&selection_clause, selection, all_selections)
+                        .unwrap()
+                } else {
+                    // The user typed in a selection name that does not exist. If the user wants towns that are IN
+                    // this imaginary selection, they'll get none. If they want all town that are NOT IN this imaginary
+                    // selection they'll get all possible ones (an empty selection does not restrict the search in any way)
+                    if self.comparator == Comparator::NotInSelection {
+                        definitely_true
+                    } else if self.comparator == Comparator::InSelection {
+                        definitely_false
+                    } else {
+                        unreachable!(
+                            "The comparator type somehow changed between the match and the if case"
+                        )
                     }
                 }
             }
