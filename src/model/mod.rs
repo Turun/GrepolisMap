@@ -14,14 +14,20 @@ mod offset_data;
 const DECAY: f32 = 0.9;
 const MIN_AGE: f32 = 0.1; // anything that was not touched `DECAY.powi(20)` times in a row should be removed from cache
 
+type StringCacheKey = (
+    ConstraintType,
+    Vec<EmptyConstraint>,
+    Vec<EmptyTownSelection>,
+);
+type TownCacheKey = (Vec<EmptyConstraint>, Vec<EmptyTownSelection>);
+
 pub enum Model {
     Uninitialized,
     Loaded {
         db: database::Database,
         ctx: egui::Context,
-        #[allow(clippy::type_complexity)]
-        cache_strings: HashMap<(ConstraintType, Vec<EmptyConstraint>), (f32, Arc<Vec<String>>)>,
-        cache_towns: HashMap<Vec<EmptyConstraint>, (f32, Arc<Vec<Town>>)>,
+        cache_strings: HashMap<StringCacheKey, (f32, Arc<Vec<String>>)>,
+        cache_towns: HashMap<TownCacheKey, (f32, Arc<Vec<Town>>)>,
     },
 }
 
@@ -83,6 +89,7 @@ impl Model {
 
     pub fn get_towns_for_constraints(
         &mut self,
+        selection: &EmptyTownSelection,
         constraints: &[EmptyConstraint],
         all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Arc<Vec<Town>>> {
@@ -91,7 +98,15 @@ impl Model {
             Model::Loaded {
                 db, cache_towns, ..
             } => {
-                let key = constraints.to_vec();
+                let mut cache_selection = selection.clone();
+                cache_selection.constraints = constraints.to_vec();
+
+                // TODO change from vec to BTreeSet?
+                let mut referenced_selections =
+                    cache_selection.all_referenced_selections(all_selections)?;
+                referenced_selections.sort_by_key(|selection| selection.name.clone());
+
+                let key = (constraints.to_vec(), referenced_selections);
                 let value = match cache_towns.entry(key) {
                     Entry::Occupied(entry) => {
                         let tuple = entry.into_mut();
@@ -111,6 +126,7 @@ impl Model {
 
     pub fn get_names_for_constraint_with_constraints(
         &mut self,
+        selection: &EmptyTownSelection,
         constraint_type: ConstraintType,
         constraints: &[EmptyConstraint],
         all_selections: &[EmptyTownSelection],
@@ -120,10 +136,15 @@ impl Model {
             Model::Loaded {
                 db, cache_strings, ..
             } => {
-                // TODO we need to put all the directly and indirectly referenced selections into the key of the cache.
-                //  if no other selections are referenced, great we simply add an empty BTreeSet. Otherwise we need to walk the whole reference tree
+                let mut cache_selection = selection.clone();
+                cache_selection.constraints = constraints.to_vec();
 
-                let key = (constraint_type, constraints.to_vec());
+                // TODO change from vec to BTreeSet?
+                let mut referenced_selections =
+                    cache_selection.all_referenced_selections(all_selections)?;
+                referenced_selections.sort_by_key(|selection| selection.name.clone());
+
+                let key = (constraint_type, constraints.to_vec(), referenced_selections);
                 let value = match cache_strings.entry(key) {
                     Entry::Occupied(entry) => {
                         let tuple = entry.into_mut();
@@ -167,7 +188,7 @@ impl Model {
             Model::Loaded {
                 db, cache_strings, ..
             } => {
-                let key = (constraint_type, Vec::new());
+                let key = (constraint_type, Vec::new(), Vec::new());
                 let value = match cache_strings.entry(key) {
                     Entry::Occupied(entry) => {
                         let tuple = entry.into_mut();

@@ -25,6 +25,12 @@ pub enum SelectionState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(from = "EmptyTownSelection", into = "EmptyTownSelection")]
 pub struct TownSelection {
+    // TODO add a switch for and/or combinators
+    // TODO add a toggle to collapse a selection in the GUI
+    // TODO make it so that collapsed selections are no longer
+    //requested from the Database and shown on the map. Or maybe
+    //add an extra toggle for that. Or maybe make that bound to the
+    //opacity of the chosen color
     pub name: String,
     pub state: SelectionState,
     pub constraints: Vec<Constraint>,
@@ -92,6 +98,7 @@ impl TownSelection {
     ) {
         // Check if there is a cycle. If so, do not send to the backend
         // TODO inform the user of this!
+        // TODO THIS IS NOT WHAT WE NEED TO DO. We need to update all references that reference self, not all selections that are references by self!
         let referenced_selections = self
             .partial_clone()
             .all_referenced_selections(all_selections);

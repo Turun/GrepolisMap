@@ -19,6 +19,7 @@ pub struct EmptyTownSelection {
     #[serde(default, with = "crate::emptyconstraint::short_serialization")]
     pub constraints: Vec<EmptyConstraint>,
 
+    // TODO maybe we can remove that from the eq method?
     #[serde(default)]
     pub color: egui::Color32,
 }

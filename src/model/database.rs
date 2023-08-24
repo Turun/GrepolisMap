@@ -264,14 +264,6 @@ impl Database {
 
         let sql = Self::construct_sql(TOWN_SELECTION, constraints, None);
         let mut statement = self.sql_to_bound_statement(&sql, constraints, all_selections)?;
-
-        println!(
-            "<<<< {} >>>>",
-            statement
-                .expanded_sql()
-                .unwrap_or("!!!!!!!!!!!!!!!!!!".into())
-        );
-
         let rows = statement
             .raw_query()
             .mapped(Town::from)

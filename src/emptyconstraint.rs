@@ -53,11 +53,9 @@ impl EmptyConstraint {
                             self.constraint_type.table(),
                             self.constraint_type.property()
                         );
-                        let sql_string = db
-                            .selection_to_sql(&selection_clause, selection, all_selections)
-                            .unwrap();
-                        println!(">>>> {sql_string}");
-                        sql_string
+
+                        db.selection_to_sql(&selection_clause, selection, all_selections)
+                            .unwrap()
                     }
                     None => {
                         // The user typed in a selection name that does not exist. If the user wants towns that are IN

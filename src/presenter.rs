@@ -220,10 +220,6 @@ impl Presenter {
                         .filter(|c| !constraints_edited.contains(c))
                         .collect();
 
-                    // TODO if a selection references another selection the cache items for it must become
-                    // stale if the other selection changes. => take all referenced selections into account
-                    // for the key (Should we even cache anything if that is the case?)
-
                     // The drop down values for the constraints currently being edited
                     for c in constraints_edited {
                         let possible_ddv =
@@ -231,6 +227,7 @@ impl Presenter {
                                 .ok_or(Err(0))
                                 .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
                                     self.model.get_names_for_constraint_with_constraints(
+                                        &selection,
                                         c.constraint_type,
                                         &constraints_filled_not_edited,
                                         &all_selections,
@@ -247,9 +244,11 @@ impl Presenter {
                     }
 
                     // Towns of this selection
-                    let towns = self
-                        .model
-                        .get_towns_for_constraints(&constraints_filled_all, &all_selections);
+                    let towns = self.model.get_towns_for_constraints(
+                        &selection,
+                        &constraints_filled_all,
+                        &all_selections,
+                    );
                     let msg =
                         towns.map(|t| MessageToView::TownListForSelection(selection.clone(), t));
                     send_to_view(
@@ -266,6 +265,7 @@ impl Presenter {
                                     .ok_or(Err(0))
                                     .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
                                         self.model.get_names_for_constraint_with_constraints(
+                                            &selection,
                                             c.constraint_type,
                                             &constraints_filled_all,
                                             &all_selections,
@@ -322,6 +322,7 @@ impl Presenter {
                                     .ok_or(Err(0))
                                     .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
                                         self.model.get_names_for_constraint_with_constraints(
+                                            &selection,
                                             c.constraint_type,
                                             &other_constraints,
                                             &all_selections,
