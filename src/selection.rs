@@ -1,3 +1,4 @@
+use core::fmt;
 use std::collections::HashSet;
 use std::default::Default;
 use std::sync::{mpsc, Arc};
@@ -71,6 +72,19 @@ impl PartialEq<EmptyTownSelection> for TownSelection {
 impl PartialEq<EmptyTownSelection> for &mut TownSelection {
     fn eq(&self, other: &EmptyTownSelection) -> bool {
         &self.partial_clone() == other
+    }
+}
+
+impl fmt::Display for TownSelection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TownSelection({}, {:?}, {:?}, {} towns)",
+            self.name,
+            self.state,
+            self.constraints,
+            self.towns.len()
+        )
     }
 }
 

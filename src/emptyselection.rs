@@ -38,8 +38,8 @@ impl fmt::Display for EmptyTownSelection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "EmptyTownSelection({} constraints)",
-            self.constraints.len(),
+            "EmptyTownSelection({}, {:?})",
+            self.name, self.constraints
         )
     }
 }

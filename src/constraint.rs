@@ -8,7 +8,7 @@ use std::sync::Arc;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Constraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
@@ -27,6 +27,19 @@ impl PartialEq<EmptyConstraint> for Constraint {
         self.constraint_type == other.constraint_type
             && self.comparator == other.comparator
             && self.value == other.value
+    }
+}
+
+impl fmt::Debug for Constraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Constraint({} {} {}, {} ddv)",
+            self.constraint_type,
+            self.comparator,
+            self.value,
+            self.drop_down_values.as_ref().map_or(0, |x| x.len())
+        )
     }
 }
 

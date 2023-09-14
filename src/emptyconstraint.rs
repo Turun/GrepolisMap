@@ -8,11 +8,21 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EmptyConstraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
     pub value: String,
+}
+
+impl fmt::Debug for EmptyConstraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Constraint({} {} {})",
+            self.constraint_type, self.comparator, self.value,
+        )
+    }
 }
 
 impl EmptyConstraint {
