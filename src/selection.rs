@@ -104,7 +104,54 @@ impl TownSelection {
         }
     }
 
-    pub fn refresh(
+    /// refresh all selections that depend on self in some way.
+    pub fn refresh_dependents(
+        &self,
+        channel_tx: &mpsc::Sender<MessageToModel>,
+        all_selections: &[EmptyTownSelection],
+    ) {
+        println!("refresh dependents of {self}");
+        // Check if there is a cycle. If so, do not send to the backend
+        // TODO inform the user of this!
+        let mut referenced_selections = Vec::new();
+        for selection in all_selections {
+            println!("checking {selection}");
+            match selection.all_referenced_selections(all_selections) {
+                Ok(list) => {
+                    // let containts_bool = list.contains(&self.partial_clone());
+                    let containts_bool = list
+                        .iter()
+                        .map(|ets| ets.name.as_str())
+                        .any(|name| name == self.name);
+                    println!(
+                        "have {list:?} -> {}",
+                        if containts_bool {
+                            // TODO if we just changed self, it will not be referenced by any one of all_selections, as that list contains selections that reference the old state.
+                            "push"
+                        } else {
+                            "no push"
+                        }
+                    );
+                    if containts_bool {
+                        referenced_selections.push(selection);
+                    }
+                }
+                Err(err) => {
+                    eprintln!("selection {selection} contains a cycle!: {err}");
+                }
+            }
+        }
+        println!("got references to {referenced_selections:?}");
+
+        for selection in referenced_selections {
+            selection
+                .fill()
+                .refresh_self(channel_tx, HashSet::new(), all_selections); // We send the old state of all_selections... It will not update to the latest state of self TODO
+        }
+    }
+
+    /// ask the backend to refresh this selection. Dependent selections must be refeshed independently
+    pub fn refresh_self(
         &mut self,
         channel_tx: &mpsc::Sender<MessageToModel>,
         keep_ddv: HashSet<EmptyConstraint>,
@@ -112,7 +159,6 @@ impl TownSelection {
     ) {
         // Check if there is a cycle. If so, do not send to the backend
         // TODO inform the user of this!
-        // TODO THIS IS NOT WHAT WE NEED TO DO. We need to update all references that reference self, not all selections that are references by self!
         let referenced_selections = self
             .partial_clone()
             .all_referenced_selections(all_selections);
@@ -143,21 +189,6 @@ impl TownSelection {
                 "Failed to send Message to Model for Selection {}",
                 self.partial_clone()
             ));
-
-        // Trigger refresh for all directly referenced Selections
-        for selection in self
-            .partial_clone()
-            .directly_referenced_selections(all_selections)
-        {
-            // it is fine to use selection.fill here, because the drop down
-            // values of not currently edited selections are not that important
-            // Also kind hard to work on the list of TownSelections directly
-            // We will probably run into all sorts of data ownership issues with
-            // that one. Nevertheless a TODO for the future.
-            selection
-                .fill()
-                .refresh(channel_tx, HashSet::new(), all_selections);
-        }
     }
 
     pub fn make_ui(
@@ -245,10 +276,14 @@ impl TownSelection {
                  | (_, Some(Change::Add | Change::Remove(_))) // or if a constraint was added or removed
         );
         if refresh_complete_selection {
+            println!("refresh complete selection for {self}");
             self.towns = Arc::new(Vec::new());
-            self.refresh(channel_tx, HashSet::new(), all_selections);
+            self.refresh_self(channel_tx, HashSet::new(), all_selections);
+            self.refresh_dependents(channel_tx, all_selections);
         } else if !edited_constraints.is_empty() {
-            self.refresh(channel_tx, edited_constraints, all_selections);
+            println!("refresh edited constraints for {self}");
+            self.refresh_self(channel_tx, edited_constraints, all_selections);
+            self.refresh_dependents(channel_tx, all_selections);
         }
 
         re

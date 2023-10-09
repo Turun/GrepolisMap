@@ -259,7 +259,7 @@ impl eframe::App for View {
                         .collect();
                     for selection in &mut self.ui_data.selections {
                         selection.towns = Arc::new(Vec::new());
-                        selection.refresh(
+                        selection.refresh_self(
                             &self.channel_presenter_tx,
                             HashSet::new(),
                             &all_selections,
