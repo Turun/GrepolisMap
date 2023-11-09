@@ -144,6 +144,7 @@ impl Constraint {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ConstraintType {
+    PlayerID,
     PlayerName,
     PlayerPoints,
     PlayerRank,
@@ -153,10 +154,13 @@ pub enum ConstraintType {
     AllianceTowns,
     AllianceMembers,
     AllianceRank,
+    TownID,
     TownName,
     TownPoints,
+    IslandID,
     IslandX,
     IslandY,
+    IslandType,
     IslandTowns,
     IslandResMore,
     IslandResLess,
@@ -165,6 +169,7 @@ pub enum ConstraintType {
 impl fmt::Display for ConstraintType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ConstraintType::PlayerID => write!(f, "PlayerID"),
             ConstraintType::PlayerName => write!(f, "PlayerName"),
             ConstraintType::PlayerPoints => write!(f, "PlayerPoints"),
             ConstraintType::PlayerRank => write!(f, "PlayerRank"),
@@ -174,10 +179,13 @@ impl fmt::Display for ConstraintType {
             ConstraintType::AllianceTowns => write!(f, "AllianceTowns"),
             ConstraintType::AllianceMembers => write!(f, "AllianceMembers"),
             ConstraintType::AllianceRank => write!(f, "AllianceRank"),
+            ConstraintType::TownID => write!(f, "TownID"),
             ConstraintType::TownName => write!(f, "TownName"),
             ConstraintType::TownPoints => write!(f, "TownPoints"),
+            ConstraintType::IslandID => write!(f, "IslandID"),
             ConstraintType::IslandX => write!(f, "IslandX"),
             ConstraintType::IslandY => write!(f, "IslandY"),
+            ConstraintType::IslandType => write!(f, "IslandType"),
             ConstraintType::IslandTowns => write!(f, "IslandTowns"),
             ConstraintType::IslandResMore => write!(f, "IslandResMore"),
             ConstraintType::IslandResLess => write!(f, "IslandResLess"),
@@ -189,6 +197,7 @@ impl ConstraintType {
     pub fn table(self) -> String {
         match self {
             ConstraintType::PlayerName
+            | ConstraintType::PlayerID
             | ConstraintType::PlayerPoints
             | ConstraintType::PlayerRank
             | ConstraintType::PlayerTowns => String::from("players"),
@@ -197,9 +206,13 @@ impl ConstraintType {
             | ConstraintType::AllianceTowns
             | ConstraintType::AllianceMembers
             | ConstraintType::AllianceRank => String::from("alliances"),
-            ConstraintType::TownName | ConstraintType::TownPoints => String::from("towns"),
-            ConstraintType::IslandX
+            ConstraintType::TownName | ConstraintType::TownPoints | ConstraintType::TownID => {
+                String::from("towns")
+            }
+            ConstraintType::IslandID
+            | ConstraintType::IslandX
             | ConstraintType::IslandY
+            | ConstraintType::IslandType
             | ConstraintType::IslandTowns
             | ConstraintType::IslandResMore
             | ConstraintType::IslandResLess => String::from("islands"),
@@ -208,6 +221,7 @@ impl ConstraintType {
 
     pub fn property(self) -> String {
         match self {
+            ConstraintType::PlayerID => String::from("player_id"),
             ConstraintType::PlayerName
             | ConstraintType::AllianceName
             | ConstraintType::TownName => String::from("name"),
@@ -218,9 +232,12 @@ impl ConstraintType {
             ConstraintType::PlayerTowns
             | ConstraintType::AllianceTowns
             | ConstraintType::IslandTowns => String::from("towns"),
+            ConstraintType::TownID => String::from("town_id"),
             ConstraintType::AllianceMembers => String::from("members"),
+            ConstraintType::IslandID => String::from("island_id"),
             ConstraintType::IslandX => String::from("x"),
             ConstraintType::IslandY => String::from("y"),
+            ConstraintType::IslandType => String::from("type"),
             ConstraintType::IslandResMore => String::from("ressource_plus"),
             ConstraintType::IslandResLess => String::from("ressource_minus"),
         }
@@ -234,16 +251,20 @@ impl ConstraintType {
             | ConstraintType::IslandResMore
             | ConstraintType::IslandResLess => true,
 
-            ConstraintType::PlayerPoints
+            ConstraintType::PlayerID
+            | ConstraintType::PlayerPoints
             | ConstraintType::PlayerRank
             | ConstraintType::PlayerTowns
             | ConstraintType::AlliancePoints
             | ConstraintType::AllianceTowns
             | ConstraintType::AllianceMembers
             | ConstraintType::AllianceRank
+            | ConstraintType::TownID
             | ConstraintType::TownPoints
+            | ConstraintType::IslandID
             | ConstraintType::IslandX
             | ConstraintType::IslandY
+            | ConstraintType::IslandType
             | ConstraintType::IslandTowns => false,
         }
     }
