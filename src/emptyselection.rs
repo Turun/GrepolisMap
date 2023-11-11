@@ -1,7 +1,7 @@
 use anyhow::Context;
 use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::default::Default;
 use std::fmt;
 use std::path::PathBuf;
@@ -44,6 +44,18 @@ impl fmt::Display for EmptyTownSelection {
     }
 }
 
+impl PartialOrd for EmptyTownSelection {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.name.partial_cmp(&other.name)
+    }
+}
+
+impl Ord for EmptyTownSelection {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
 impl EmptyTownSelection {
     pub fn fill(&self) -> TownSelection {
         TownSelection {
@@ -74,14 +86,17 @@ impl EmptyTownSelection {
     /// Starting from self, create the tree of selection references.
     /// If a reference cycle is detected, return an error. If not,
     /// return the list of referenced `EmptyTownSelections`.
-    pub fn all_referenced_selections(&self, all_selections: &[Self]) -> anyhow::Result<Vec<Self>> {
+    pub fn all_referenced_selections(
+        &self,
+        all_selections: &[Self],
+    ) -> anyhow::Result<BTreeSet<Self>> {
         if self.contains_circular_reference(all_selections) {
             return Err(anyhow::format_err!(
                 "Circular Selection Reference Detected!"
             ));
         }
 
-        let mut re = Vec::new();
+        let mut re = BTreeSet::new();
         let mut referenced_names = self.directly_referenced_selection_names();
         while let Some(name) = referenced_names.pop() {
             if let Some(selection) = all_selections
@@ -89,7 +104,7 @@ impl EmptyTownSelection {
                 .find(|selection| selection.name == name)
             {
                 referenced_names.append(&mut selection.directly_referenced_selection_names());
-                re.push(selection.clone());
+                re.insert(selection.clone());
             }
         }
 

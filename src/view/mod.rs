@@ -6,6 +6,7 @@ pub(crate) mod preferences;
 mod selectable_label;
 mod sidepanel;
 
+use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
 use crate::selection::{SelectionState, TownSelection};
@@ -23,6 +24,12 @@ pub enum Change {
     MoveUp(usize),
     Remove(usize),
     MoveDown(usize),
+}
+
+pub enum Refresh {
+    Complete,
+    InSitu(HashSet<EmptyConstraint>),
+    None,
 }
 
 #[derive(Debug, Clone)]

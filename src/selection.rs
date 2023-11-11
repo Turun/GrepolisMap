@@ -10,7 +10,7 @@ use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::message::MessageToModel;
 use crate::town::Town;
-use crate::view::Change;
+use crate::view::{Change, Refresh};
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
@@ -104,16 +104,13 @@ impl TownSelection {
         }
     }
 
-    /// refresh all selections that depend on self in some way.
-    pub fn refresh_dependents(
+    /// get a list of all `EmptyTownSelection`s that reference self, directly or indirectly. We need this so we can
+    /// figure out which `TownSelections` need to be updated if self changes.
+    pub fn get_dependents(
         &self,
-        channel_tx: &mpsc::Sender<MessageToModel>,
         all_selections: &[EmptyTownSelection],
-    ) {
-        println!("refresh dependents of {self}");
-        // Check if there is a cycle. If so, do not send to the backend
-        // TODO inform the user of this!
-        let mut referenced_selections = Vec::new();
+    ) -> HashSet<EmptyTownSelection> {
+        let mut dependent_selections = HashSet::new();
         for selection in all_selections {
             println!("checking {selection}");
             match selection.all_referenced_selections(all_selections) {
@@ -123,17 +120,8 @@ impl TownSelection {
                         .iter()
                         .map(|ets| ets.name.as_str())
                         .any(|name| name == self.name);
-                    println!(
-                        "have {list:?} -> {}",
-                        if containts_bool {
-                            // TODO if we just changed self, it will not be referenced by any one of all_selections, as that list contains selections that reference the old state.
-                            "push"
-                        } else {
-                            "no push"
-                        }
-                    );
                     if containts_bool {
-                        referenced_selections.push(selection);
+                        dependent_selections.insert(selection.clone());
                     }
                 }
                 Err(err) => {
@@ -141,13 +129,8 @@ impl TownSelection {
                 }
             }
         }
-        println!("got references to {referenced_selections:?}");
-
-        for selection in referenced_selections {
-            selection
-                .fill()
-                .refresh_self(channel_tx, HashSet::new(), all_selections); // We send the old state of all_selections... It will not update to the latest state of self TODO
-        }
+        println!("got references to {dependent_selections:?}");
+        dependent_selections
     }
 
     /// ask the backend to refresh this selection. Dependent selections must be refeshed independently
@@ -194,10 +177,8 @@ impl TownSelection {
     pub fn make_ui(
         &mut self,
         ui: &mut egui::Ui,
-        channel_tx: &mpsc::Sender<MessageToModel>,
         selection_index: usize,
-        all_selections: &[EmptyTownSelection],
-    ) -> Option<Change> {
+    ) -> (Option<Change>, Refresh) {
         let mut re = None;
 
         let _first_row_response = ui.horizontal(|ui| {
@@ -275,17 +256,14 @@ impl TownSelection {
             (SelectionState::NewlyCreated, _)  // reload everything if this selection is newly created (This is probably not needed, but I'll leave it in, just to be save)
                  | (_, Some(Change::Add | Change::Remove(_))) // or if a constraint was added or removed
         );
-        if refresh_complete_selection {
-            println!("refresh complete selection for {self}");
-            self.towns = Arc::new(Vec::new());
-            self.refresh_self(channel_tx, HashSet::new(), all_selections);
-            self.refresh_dependents(channel_tx, all_selections);
+        let refresh_action = if refresh_complete_selection {
+            Refresh::Complete
         } else if !edited_constraints.is_empty() {
-            println!("refresh edited constraints for {self}");
-            self.refresh_self(channel_tx, edited_constraints, all_selections);
-            self.refresh_dependents(channel_tx, all_selections);
-        }
+            Refresh::InSitu(edited_constraints)
+        } else {
+            Refresh::None
+        };
 
-        re
+        (re, refresh_action)
     }
 }

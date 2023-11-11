@@ -4,6 +4,7 @@ use crate::emptyselection::EmptyTownSelection;
 use crate::town::Town;
 use eframe::epaint::ahash::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -17,9 +18,9 @@ const MIN_AGE: f32 = 0.1; // anything that was not touched `DECAY.powi(20)` time
 type StringCacheKey = (
     ConstraintType,
     Vec<EmptyConstraint>,
-    Vec<EmptyTownSelection>,
+    BTreeSet<EmptyTownSelection>,
 );
-type TownCacheKey = (Vec<EmptyConstraint>, Vec<EmptyTownSelection>);
+type TownCacheKey = (Vec<EmptyConstraint>, BTreeSet<EmptyTownSelection>);
 
 pub enum Model {
     Uninitialized,
@@ -102,9 +103,8 @@ impl Model {
                 cache_selection.constraints = constraints.to_vec();
 
                 // TODO change from vec to BTreeSet?
-                let mut referenced_selections =
+                let referenced_selections =
                     cache_selection.all_referenced_selections(all_selections)?;
-                referenced_selections.sort_by_key(|selection| selection.name.clone());
 
                 let key = (constraints.to_vec(), referenced_selections);
                 let value = match cache_towns.entry(key) {
@@ -140,9 +140,8 @@ impl Model {
                 cache_selection.constraints = constraints.to_vec();
 
                 // TODO change from vec to BTreeSet?
-                let mut referenced_selections =
+                let referenced_selections =
                     cache_selection.all_referenced_selections(all_selections)?;
-                referenced_selections.sort_by_key(|selection| selection.name.clone());
 
                 let key = (constraint_type, constraints.to_vec(), referenced_selections);
                 let value = match cache_strings.entry(key) {
@@ -188,7 +187,7 @@ impl Model {
             Model::Loaded {
                 db, cache_strings, ..
             } => {
-                let key = (constraint_type, Vec::new(), Vec::new());
+                let key = (constraint_type, Vec::new(), BTreeSet::new());
                 let value = match cache_strings.entry(key) {
                     Entry::Occupied(entry) => {
                         let tuple = entry.into_mut();
