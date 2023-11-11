@@ -22,8 +22,6 @@ use view::View;
 
 use crate::presenter::Presenter;
 
-static VERSION: &str = "1.2.7";
-
 fn main() {
     let (view_tx, model_rx) = mpsc::channel::<MessageToModel>();
     let (model_tx, view_rx) = mpsc::channel::<MessageToView>();

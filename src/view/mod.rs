@@ -11,7 +11,6 @@ use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToView, Progress, Server};
 use crate::selection::{SelectionState, TownSelection};
 use crate::view::data::Data;
-use crate::VERSION;
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Ui};
 use std::collections::HashSet;
@@ -115,8 +114,9 @@ impl View {
             app_id: Some("Turun Map".to_owned()),
             ..eframe::NativeOptions::default()
         };
+        let version = env!("CARGO_PKG_VERSION");
         eframe::run_native(
-            &format!("Turun Map {VERSION}"),
+            &format!("Turun Map {version}"),
             native_options,
             Box::new(|cc| Box::new(View::setup(cc, rx, tx))),
         )
