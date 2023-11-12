@@ -58,6 +58,7 @@ pub struct TownSelection {
     //requested from the Database and shown on the map. Or maybe
     //add an extra toggle for that. Or maybe make that bound to the
     //opacity of the chosen color
+    pub collapsed: bool,
     pub name: String,
     pub state: SelectionState,
     pub constraints: Vec<Constraint>,
@@ -208,18 +209,30 @@ impl TownSelection {
         selection_index: usize,
     ) -> (Option<Change>, Refresh) {
         let mut re = None;
+        let num_constraints = self.constraints.len();
+        let mut edited_constraints = HashSet::new();
+        let mut constraint_change_action = None;
+        let mut constraint_join_mode_toggled = false;
 
-        let _first_row_response = ui.horizontal(|ui| {
-            // TODO make the selection collapsible
+        egui::collapsing_header::CollapsingState::load_with_default_open(
+            ui.ctx(),
+            ui.make_persistent_id(format!("collapsible header {selection_index}")),
+            !self.collapsed,
+        )
+        .show_header(ui, |ui| {
+            // add
             if ui.button("+").clicked() {
                 re = Some(Change::Add);
             }
+            // remove
             if ui.button("-").clicked() {
                 re = Some(Change::Remove(selection_index));
             }
+            // move up
             if ui.button("↑").clicked() {
                 re = Some(Change::MoveUp(selection_index));
             }
+            // move down
             if ui.button("↓").clicked() {
                 re = Some(Change::MoveDown(selection_index));
             }
@@ -235,37 +248,35 @@ impl TownSelection {
             if self.state == SelectionState::Loading {
                 ui.spinner();
             }
-        });
+        })
+        .body_unindented(|ui| {
+            for (constraint_index, constraint) in self.constraints.iter_mut().enumerate() {
+                let (change, edited, bool_toggled) = constraint.make_ui(
+                    ui,
+                    selection_index,
+                    constraint_index,
+                    constraint_index + 1 == num_constraints,
+                    self.constraint_join_mode,
+                );
 
-        let num_constraints = self.constraints.len();
-        let mut edited_constraints = HashSet::new();
-        let mut constraint_change_action = None;
-        let mut constraint_join_mode_toggled = false;
-        for (constraint_index, constraint) in self.constraints.iter_mut().enumerate() {
-            let (change, edited, bool_toggled) = constraint.make_ui(
-                ui,
-                selection_index,
-                constraint_index,
-                constraint_index + 1 == num_constraints,
-                self.constraint_join_mode,
-            );
+                if bool_toggled {
+                    constraint_join_mode_toggled = true;
+                    self.constraint_join_mode = match self.constraint_join_mode {
+                        AndOr::And => AndOr::Or,
+                        AndOr::Or => AndOr::And,
+                    }
+                }
 
-            if bool_toggled {
-                constraint_join_mode_toggled = true;
-                self.constraint_join_mode = match self.constraint_join_mode {
-                    AndOr::And => AndOr::Or,
-                    AndOr::Or => AndOr::And,
+                if edited {
+                    edited_constraints.insert(constraint.partial_clone());
+                }
+
+                if change.is_some() {
+                    constraint_change_action = change;
                 }
             }
+        });
 
-            if edited {
-                edited_constraints.insert(constraint.partial_clone());
-            }
-
-            if change.is_some() {
-                constraint_change_action = change;
-            }
-        }
         if let Some(change) = constraint_change_action {
             match change {
                 Change::MoveUp(index) => {

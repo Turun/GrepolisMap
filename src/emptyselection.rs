@@ -63,6 +63,7 @@ impl Ord for EmptyTownSelection {
 impl EmptyTownSelection {
     pub fn fill(&self) -> TownSelection {
         TownSelection {
+            collapsed: false, // The state of the headers is saved by egui by default. We don't do need to do that ourselves
             name: self.name.clone(),
             state: SelectionState::default(),
             constraints: self.constraints.iter().map(EmptyConstraint::fill).collect(),
