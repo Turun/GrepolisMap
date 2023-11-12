@@ -117,6 +117,11 @@ impl fmt::Display for TownSelection {
 }
 
 impl TownSelection {
+    /// If the color has an alpha value of 0, it is fully transparent and therefore invisible on the map
+    pub fn is_hidden(&self) -> bool {
+        self.color.a() == 0
+    }
+
     /// Clone the `TownSelection`, but without the list of towns. Less memory
     /// required and we can reconstruct the list of towns anyway, if given
     /// the list of constraints.
@@ -179,6 +184,11 @@ impl TownSelection {
             return;
         }
 
+        // this check introduces a bug! If this check is commented in all
+        // dependents of this selection spam the backend with update requests.
+        // If this check is commented out, this does not happen. I dont know
+        // why.
+        // if !self.is_hidden() {
         self.state = SelectionState::Loading;
         for constraint in &mut self
             .constraints
@@ -201,6 +211,7 @@ impl TownSelection {
                 "Failed to send Message to Model for Selection {}",
                 self.partial_clone()
             ));
+        // }
     }
 
     pub fn make_ui(
@@ -209,6 +220,7 @@ impl TownSelection {
         selection_index: usize,
     ) -> (Option<Change>, Refresh) {
         let mut re = None;
+        let mut refresh_action = Refresh::None;
         let num_constraints = self.constraints.len();
         let mut edited_constraints = HashSet::new();
         let mut constraint_change_action = None;
@@ -243,8 +255,19 @@ impl TownSelection {
                 ],
                 egui::TextEdit::singleline(&mut self.name),
             );
-            ui.color_edit_button_srgba(&mut self.color);
-            ui.label(format!("{} Towns", self.towns.len()));
+            // Color picker. Send a new request to the DB is the hidden status changed
+            let previously_hidden = self.is_hidden();
+            if ui.color_edit_button_srgba(&mut self.color).changed()
+                && previously_hidden != self.is_hidden()
+            {
+                refresh_action = Refresh::InSitu(HashSet::new());
+            }
+
+            if self.is_hidden() {
+                ui.label("Hidden");
+            } else {
+                ui.label(format!("{} Towns", self.towns.len()));
+            }
             if self.state == SelectionState::Loading {
                 ui.spinner();
             }
@@ -310,12 +333,12 @@ impl TownSelection {
                  | (_, Some(Change::Add | Change::Remove(_)), _) // or if a constraint was added or removed
             | (_, _, true) // or the join mode was switched (AND vs OR joining in SQL)
         );
-        let refresh_action = if refresh_complete_selection {
+        refresh_action = if refresh_complete_selection {
             Refresh::Complete
         } else if !edited_constraints.is_empty() {
             Refresh::InSitu(edited_constraints)
         } else {
-            Refresh::None
+            refresh_action
         };
 
         (re, refresh_action)

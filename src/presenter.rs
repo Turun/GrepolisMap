@@ -192,6 +192,19 @@ impl Presenter {
                     );
                 }
                 MessageToModel::FetchTowns(selection, constraints_edited, all_selections) => {
+                    if selection.is_hidden() {
+                        let msg = Ok(MessageToView::TownListForSelection(
+                            selection.clone(),
+                            Arc::new(Vec::new()),
+                        ));
+                        send_to_view(
+                            &self.channel_tx,
+                            msg,
+                            String::from("Failed to send town list to view"),
+                        );
+                        continue;
+                    }
+
                     // a list of filled constraints that are not being edited. For each one, filter the ddv list by all _other_ filled, unedited constratins
                     let constraints_filled_not_edited: Vec<EmptyConstraint> = selection
                         .constraints

@@ -11,7 +11,7 @@ use crate::emptyconstraint::EmptyConstraint;
 use crate::selection::{AndOr, SelectionState, TownSelection};
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub struct EmptyTownSelection {
     #[serde(default = "String::new")]
     pub name: String,
@@ -48,6 +48,14 @@ impl fmt::Display for EmptyTownSelection {
     }
 }
 
+impl PartialEq for EmptyTownSelection {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.constraints == other.constraints
+            && self.constraint_join_mode == other.constraint_join_mode
+    }
+}
+
 impl PartialOrd for EmptyTownSelection {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.name.partial_cmp(&other.name)
@@ -61,6 +69,11 @@ impl Ord for EmptyTownSelection {
 }
 
 impl EmptyTownSelection {
+    /// If the color has an alpha value of 0, it is fully transparent and therefore invisible on the map
+    pub fn is_hidden(&self) -> bool {
+        self.color.a() == 0
+    }
+
     pub fn fill(&self) -> TownSelection {
         TownSelection {
             collapsed: false, // The state of the headers is saved by egui by default. We don't do need to do that ourselves
