@@ -53,12 +53,12 @@ impl View {
                         let selection = self.ui_data.selections.get_mut(index).unwrap();
                         let edited_constraints = match refresh {
                             super::Refresh::Complete => {
-                                println!("refresh complete selection for {selection}");
+                                // println!("refresh complete selection for {selection}");
                                 selection.towns = Arc::new(Vec::new());
                                 HashSet::new()
                             }
                             super::Refresh::InSitu(edited_constraints) => {
-                                println!("refresh edited constraints for {selection}");
+                                // println!("refresh edited constraints for {selection}");
                                 edited_constraints
                             }
                             super::Refresh::None => {

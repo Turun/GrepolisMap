@@ -1,6 +1,7 @@
 use core::fmt;
 use std::collections::HashSet;
 use std::default::Default;
+use std::fmt::Display;
 use std::sync::{mpsc, Arc};
 
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,31 @@ pub enum SelectionState {
     NewlyCreated,
 }
 
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+pub enum AndOr {
+    #[default]
+    And,
+    Or,
+}
+
+impl Display for AndOr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AndOr::And => write!(f, "and"),
+            AndOr::Or => write!(f, "or"),
+        }
+    }
+}
+
+impl AndOr {
+    pub fn as_sql(self) -> String {
+        match self {
+            AndOr::And => String::from("AND"),
+            AndOr::Or => String::from("OR"),
+        }
+    }
+}
+
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(from = "EmptyTownSelection", into = "EmptyTownSelection")]
@@ -35,6 +61,7 @@ pub struct TownSelection {
     pub name: String,
     pub state: SelectionState,
     pub constraints: Vec<Constraint>,
+    pub constraint_join_mode: AndOr,
     pub color: egui::Color32,
     pub towns: Arc<Vec<Town>>,
 }
@@ -100,6 +127,7 @@ impl TownSelection {
                 .iter()
                 .map(Constraint::partial_clone)
                 .collect(),
+            constraint_join_mode: self.constraint_join_mode,
             color: self.color, // implements copy
         }
     }
@@ -112,7 +140,7 @@ impl TownSelection {
     ) -> HashSet<EmptyTownSelection> {
         let mut dependent_selections = HashSet::new();
         for selection in all_selections {
-            println!("checking {selection}");
+            // println!("checking {selection}");
             match selection.all_referenced_selections(all_selections) {
                 Ok(list) => {
                     // let containts_bool = list.contains(&self.partial_clone());
@@ -129,7 +157,7 @@ impl TownSelection {
                 }
             }
         }
-        println!("got references to {dependent_selections:?}");
+        // println!("got references to {dependent_selections:?}");
         dependent_selections
     }
 
@@ -212,13 +240,23 @@ impl TownSelection {
         let num_constraints = self.constraints.len();
         let mut edited_constraints = HashSet::new();
         let mut constraint_change_action = None;
+        let mut constraint_join_mode_toggled = false;
         for (constraint_index, constraint) in self.constraints.iter_mut().enumerate() {
-            let (change, edited) = constraint.make_ui(
+            let (change, edited, bool_toggled) = constraint.make_ui(
                 ui,
                 selection_index,
                 constraint_index,
                 constraint_index + 1 == num_constraints,
+                self.constraint_join_mode,
             );
+
+            if bool_toggled {
+                constraint_join_mode_toggled = true;
+                self.constraint_join_mode = match self.constraint_join_mode {
+                    AndOr::And => AndOr::Or,
+                    AndOr::Or => AndOr::And,
+                }
+            }
 
             if edited {
                 edited_constraints.insert(constraint.partial_clone());
@@ -252,9 +290,14 @@ impl TownSelection {
         }
 
         let refresh_complete_selection = matches!(
-            (self.state, constraint_change_action),
-            (SelectionState::NewlyCreated, _)  // reload everything if this selection is newly created (This is probably not needed, but I'll leave it in, just to be save)
-                 | (_, Some(Change::Add | Change::Remove(_))) // or if a constraint was added or removed
+            (
+                self.state,
+                constraint_change_action,
+                constraint_join_mode_toggled
+            ),
+            (SelectionState::NewlyCreated, _, _)  // reload everything if this selection is newly created (This is probably not needed, but I'll leave it in, just to be save)
+                 | (_, Some(Change::Add | Change::Remove(_)), _) // or if a constraint was added or removed
+            | (_, _, true) // or the join mode was switched (AND vs OR joining in SQL)
         );
         let refresh_action = if refresh_complete_selection {
             Refresh::Complete

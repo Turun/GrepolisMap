@@ -1,6 +1,7 @@
 use crate::constraint::ConstraintType;
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
+use crate::selection::AndOr;
 use crate::town::Town;
 use eframe::epaint::ahash::HashMap;
 use std::collections::hash_map::Entry;
@@ -18,9 +19,10 @@ const MIN_AGE: f32 = 0.1; // anything that was not touched `DECAY.powi(20)` time
 type StringCacheKey = (
     ConstraintType,
     Vec<EmptyConstraint>,
+    AndOr,
     BTreeSet<EmptyTownSelection>,
 );
-type TownCacheKey = (Vec<EmptyConstraint>, BTreeSet<EmptyTownSelection>);
+type TownCacheKey = (Vec<EmptyConstraint>, AndOr, BTreeSet<EmptyTownSelection>);
 
 pub enum Model {
     Uninitialized,
@@ -50,15 +52,15 @@ fn age_and_filter_hashmap<K, V>(map: &mut HashMap<K, (f32, V)>, keep_count: usiz
     let cutoff = f32::max(cutoff, MIN_AGE);
     map.retain(|_key, (age, _value)| *age > cutoff);
 
-    println!(
-        "Filter entries: Previous {}, Goal {}, Now {}; Age: max {}, cutoff {}, min {}",
-        ages.len(),
-        keep_count,
-        map.len(),
-        ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
-        cutoff,
-        ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
-    );
+    // println!(
+    //     "Filter entries: Previous {}, Goal {}, Now {}; Age: max {}, cutoff {}, min {}",
+    //     ages.len(),
+    //     keep_count,
+    //     map.len(),
+    //     ages.iter().copied().reduce(f32::max).unwrap_or(f32::NAN),
+    //     cutoff,
+    //     ages.iter().copied().reduce(f32::min).unwrap_or(f32::NAN)
+    // );
 }
 
 impl Model {
@@ -106,7 +108,11 @@ impl Model {
                 let referenced_selections =
                     cache_selection.all_referenced_selections(all_selections)?;
 
-                let key = (constraints.to_vec(), referenced_selections);
+                let key = (
+                    constraints.to_vec(),
+                    selection.constraint_join_mode,
+                    referenced_selections,
+                );
                 let value = match cache_towns.entry(key) {
                     Entry::Occupied(entry) => {
                         let tuple = entry.into_mut();
@@ -114,8 +120,11 @@ impl Model {
                         tuple.1.clone()
                     }
                     Entry::Vacant(entry) => {
-                        let value =
-                            Arc::new(db.get_towns_for_constraints(constraints, all_selections)?);
+                        let value = Arc::new(db.get_towns_for_constraints(
+                            constraints,
+                            &selection.constraint_join_mode.as_sql(),
+                            all_selections,
+                        )?);
                         entry.insert((1.0, value)).1.clone()
                     }
                 };
@@ -143,7 +152,12 @@ impl Model {
                 let referenced_selections =
                     cache_selection.all_referenced_selections(all_selections)?;
 
-                let key = (constraint_type, constraints.to_vec(), referenced_selections);
+                let key = (
+                    constraint_type,
+                    constraints.to_vec(),
+                    selection.constraint_join_mode,
+                    referenced_selections,
+                );
                 let value = match cache_strings.entry(key) {
                     Entry::Occupied(entry) => {
                         let tuple = entry.into_mut();
@@ -154,6 +168,7 @@ impl Model {
                         let value = Arc::new(db.get_names_for_constraint_type_in_constraints(
                             constraint_type,
                             constraints,
+                            &selection.constraint_join_mode.as_sql(),
                             all_selections,
                         )?);
                         entry.insert((1.0, value)).1.clone()
@@ -187,7 +202,7 @@ impl Model {
             Model::Loaded {
                 db, cache_strings, ..
             } => {
-                let key = (constraint_type, Vec::new(), BTreeSet::new());
+                let key = (constraint_type, Vec::new(), AndOr::And, BTreeSet::new());
                 let value = match cache_strings.entry(key) {
                     Entry::Occupied(entry) => {
                         let tuple = entry.into_mut();

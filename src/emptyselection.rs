@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::emptyconstraint::EmptyConstraint;
-use crate::selection::{SelectionState, TownSelection};
+use crate::selection::{AndOr, SelectionState, TownSelection};
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
@@ -18,6 +18,9 @@ pub struct EmptyTownSelection {
 
     #[serde(default, with = "crate::emptyconstraint::short_serialization")]
     pub constraints: Vec<EmptyConstraint>,
+
+    #[serde(default)]
+    pub constraint_join_mode: AndOr,
 
     // TODO maybe we can remove that from the eq method?
     #[serde(default)]
@@ -29,6 +32,7 @@ impl Default for EmptyTownSelection {
         Self {
             name: Alphanumeric.sample_string(&mut rand::thread_rng(), 6), // https://stackoverflow.com/a/72977937
             constraints: vec![EmptyConstraint::default()],
+            constraint_join_mode: AndOr::default(),
             color: egui::Color32::GREEN,
         }
     }
@@ -62,6 +66,7 @@ impl EmptyTownSelection {
             name: self.name.clone(),
             state: SelectionState::default(),
             constraints: self.constraints.iter().map(EmptyConstraint::fill).collect(),
+            constraint_join_mode: self.constraint_join_mode,
             color: self.color,
             towns: Arc::new(Vec::new()),
         }

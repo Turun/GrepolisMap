@@ -1,4 +1,5 @@
 use crate::emptyconstraint::EmptyConstraint;
+use crate::selection::AndOr;
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::Change;
 use serde::{Deserialize, Serialize};
@@ -58,9 +59,11 @@ impl Constraint {
         selection_index: usize,
         constraint_index: usize,
         last_item: bool,
-    ) -> (Option<Change>, bool) {
+        and_or: AndOr,
+    ) -> (Option<Change>, bool, bool) {
         let mut re_edited = false;
         let mut re_change = None;
+        let mut re_and_or_toggled = false;
 
         ui.horizontal(|ui| {
             // Filter for which attribute?
@@ -119,12 +122,18 @@ impl Constraint {
             };
 
             // Buttons
-            if last_item {
+            let first_item = constraint_index == 0;
+            if first_item {
+                if ui.button(format!("{and_or}")).clicked() {
+                    re_and_or_toggled = true;
+                    re_edited = true;
+                }
+            } else if last_item {
                 if ui.button("+").clicked() {
                     re_change = Some(Change::Add);
                 }
             } else {
-                ui.label("and");
+                ui.label(format!("{and_or}"));
             }
             if ui.button("-").clicked() {
                 re_change = Some(Change::Remove(constraint_index));
@@ -137,7 +146,7 @@ impl Constraint {
             }
         });
 
-        (re_change, re_edited)
+        (re_change, re_edited, re_and_or_toggled)
     }
 }
 

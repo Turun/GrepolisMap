@@ -255,7 +255,7 @@ impl eframe::App for View {
 
         // process any messages that came in from the backend since the last frame
         while let Ok(message) = self.channel_presenter_rx.try_recv() {
-            println!("Got Message from Model to View: {message}");
+            // println!("Got Message from Model to View: {message}");
             match message {
                 MessageToView::GotServer => {
                     self.ui_state = State::Show;

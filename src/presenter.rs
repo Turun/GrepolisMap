@@ -90,7 +90,7 @@ impl Presenter {
         let mut spawned_threads = Vec::new();
 
         for message in &self.channel_rx {
-            println!("Got Message from View to Model: {message}");
+            // println!("Got Message from View to Model: {message}");
             match message {
                 MessageToModel::MaxCacheSize(x) => {
                     self.max_cache_size = x;

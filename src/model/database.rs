@@ -67,32 +67,38 @@ impl Database {
     fn construct_sql<SQL>(
         selection_clause: &str,
         filter_clauses: &[SQL],
+        join_mode: &str,
         order_clause: Option<&str>,
     ) -> String
     where
         SQL: ToSqlFragment,
     {
-        let mut sql_fragments = filter_clauses
-            .iter()
-            .enumerate()
-            .map(|(i, x)| x.to_sql_fragment(i))
-            .collect();
-        let mut sql_start = vec![format!(
+        let sql_start = format!(
             "SELECT {selection_clause} from \n\
                 towns \n\
                 LEFT JOIN islands ON (towns.island_x = islands.x AND towns.island_y = islands.y) \n\
                 LEFT JOIN offsets ON (towns.slot_number = offsets.slot_number) \n\
                 LEFT JOIN players ON (towns.player_id = players.player_id) \n\
                 LEFT JOIN alliances ON (players.alliance_id = alliances.alliance_id) \n\
-                WHERE islands.type = offsets.type",
-        )];
-        sql_start.append(&mut sql_fragments);
-        let mut sql_text = sql_start.join(" \nAND ");
-        if let Some(text) = order_clause {
-            sql_text += " \n";
-            sql_text += text;
-        }
-        sql_text
+                WHERE islands.type = offsets.type AND \n",
+        );
+
+        let sql_fragments = filter_clauses
+            .iter()
+            .enumerate()
+            .map(|(i, x)| x.to_sql_fragment(i))
+            .collect::<Vec<String>>()
+            .join(&format!(" \n{join_mode} "));
+
+        let sql_order = if let Some(text) = order_clause {
+            String::from(" \n") + text
+        } else {
+            String::new()
+        };
+        // join the different parts together. The parentheses are important, because
+        // they ensure the order of precedence does not mingle the island type join
+        // with the user defined constraints.
+        sql_start + "(" + &sql_fragments + ")" + &sql_order
     }
 
     fn sql_to_prepared_statement(&self, sql: &str) -> anyhow::Result<Statement> {
@@ -136,7 +142,12 @@ impl Database {
         selection: &EmptyTownSelection,
         all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<String> {
-        let sql = Self::construct_sql(selection_clause, &selection.constraints, None);
+        let sql = Self::construct_sql(
+            selection_clause,
+            &selection.constraints,
+            &selection.constraint_join_mode.as_sql(),
+            None,
+        );
         let statement =
             self.sql_to_bound_statement(&sql, &selection.constraints, all_selections)?;
         statement.expanded_sql().ok_or(anyhow::Error::msg(
@@ -145,7 +156,7 @@ impl Database {
     }
 
     pub fn get_all_towns(&self) -> anyhow::Result<Vec<Town>> {
-        let sql = Self::construct_sql(TOWN_SELECTION, &[AllTowns], None);
+        let sql = Self::construct_sql(TOWN_SELECTION, &[AllTowns], "and", None);
         let mut statement = self.sql_to_prepared_statement(&sql)?;
         let rows = statement
             .query([])
@@ -158,7 +169,7 @@ impl Database {
     }
 
     pub fn get_ghost_towns(&self) -> anyhow::Result<Vec<Town>> {
-        let sql = Self::construct_sql(TOWN_SELECTION, &[GhostTown], None);
+        let sql = Self::construct_sql(TOWN_SELECTION, &[GhostTown], "and", None);
         let mut statement = self.sql_to_prepared_statement(&sql)?;
         let rows = statement
             .query([])
@@ -211,6 +222,7 @@ impl Database {
         &self,
         constraint_type: ConstraintType,
         constraints: &[EmptyConstraint],
+        join_mode: &str,
         all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Vec<String>> {
         if constraints.is_empty() {
@@ -227,6 +239,7 @@ impl Database {
         let sql = Self::construct_sql(
             &format!("DISTINCT {ct_table}.{ct_property}"),
             constraints,
+            join_mode,
             Some(&order_clause),
         );
 
@@ -256,13 +269,14 @@ impl Database {
     pub fn get_towns_for_constraints(
         &self,
         constraints: &[EmptyConstraint],
+        join_mode: &str,
         all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Vec<Town>> {
         if constraints.is_empty() {
             return Ok(Vec::new());
         }
 
-        let sql = Self::construct_sql(TOWN_SELECTION, constraints, None);
+        let sql = Self::construct_sql(TOWN_SELECTION, constraints, join_mode, None);
         let mut statement = self.sql_to_bound_statement(&sql, constraints, all_selections)?;
         let rows = statement
             .raw_query()
