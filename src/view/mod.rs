@@ -155,20 +155,37 @@ impl View {
                 // detect enter on text field: https://github.com/emilk/egui/issues/229
                 should_load_server = true;
             }
-            // ////////////////////////////
-            // // TODO only for testing
-            // let button = egui::Button::image(egui::include_image!("../../assets/png.png"));
-            // if ui.add(button).clicked() {
-            //     ui.label("BUTTON WAS CLICKED!");
-            // }
-
-            // ////////////////////////////
         });
         if ui
             .add(egui::Button::new("Load Data for this Server"))
             .clicked()
         {
             should_load_server = true;
+        }
+
+        let most_recently_loaded = self
+            .ui_data
+            .saved_db
+            .iter()
+            .flat_map(|(server_id, saved_dbs)| {
+                saved_dbs
+                    .iter()
+                    .map(|saved_db| (server_id.clone(), saved_db.clone()))
+            })
+            .max_by_key(|(_, saved_db)| saved_db.date);
+
+        if let Some((server_id, saved_db)) = most_recently_loaded {
+            if ui
+                .button(format!("Open most recent file: {server_id}: {saved_db}"))
+                .clicked()
+            {
+                self.ui_data.server_id = server_id;
+                self.reload_server();
+                self.channel_presenter_tx
+                    .send(MessageToModel::LoadDataFromFile(saved_db.path, ctx.clone()))
+                    .expect("Failed to send message to Model");
+                self.ui_state = State::Uninitialized(Progress::None);
+            }
         }
 
         if should_load_server {

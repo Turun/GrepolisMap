@@ -28,7 +28,7 @@ const FORMAT_DISPLAY: &[FormatItem<'_>] =
 #[derive(Debug, Clone)]
 pub struct SavedDB {
     pub path: PathBuf,
-    date: OffsetDateTime,
+    pub date: OffsetDateTime,
     server_str: String,
     date_str: String,
 }
