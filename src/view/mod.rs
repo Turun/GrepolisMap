@@ -15,6 +15,7 @@ use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Ui};
 use std::collections::HashSet;
 use std::sync::{mpsc, Arc};
+use std::thread;
 use std::time::Duration;
 
 #[derive(Clone, Copy)]
@@ -45,10 +46,12 @@ pub struct View {
 }
 
 impl View {
+    #[allow(clippy::needless_pass_by_value)]
     fn setup(
         cc: &eframe::CreationContext,
         rx: mpsc::Receiver<MessageToView>,
         tx: mpsc::Sender<MessageToModel>,
+        telemetry_tx: mpsc::Sender<(String, String)>,
     ) -> Self {
         let mut re = Self {
             ui_state: State::Uninitialized(Progress::None),
@@ -80,6 +83,7 @@ impl View {
         // load saved app data from disk
         if let Some(storage) = cc.storage {
             re.ui_data = if let Some(text) = storage.get_string(eframe::APP_KEY) {
+                let _result = telemetry_tx.send(("stored_config".into(), text.clone()));
                 serde_yaml::from_str(&text).unwrap_or_else(|err| {
                     eprintln!("Failed to read saved config as YAML: {err}");
                     Data::default()
@@ -107,7 +111,11 @@ impl View {
         re
     }
 
-    pub fn new_and_start(rx: mpsc::Receiver<MessageToView>, tx: mpsc::Sender<MessageToModel>) {
+    pub fn new_and_start(
+        rx: mpsc::Receiver<MessageToView>,
+        tx: mpsc::Sender<MessageToModel>,
+        telemetry_tx: mpsc::Sender<(String, String)>,
+    ) {
         let native_options = eframe::NativeOptions {
             // defaults to window title, but we include the version in the window title. Since
             // it should stay the same across version changes we give it a fixed value here.
@@ -118,7 +126,7 @@ impl View {
         eframe::run_native(
             &format!("Turun Map {version}"),
             native_options,
-            Box::new(|cc| Box::new(View::setup(cc, rx, tx))),
+            Box::new(|cc| Box::new(View::setup(cc, rx, tx, telemetry_tx))),
         )
         .expect("Eframe failed!");
     }
@@ -248,7 +256,6 @@ impl View {
         });
     }
 
-    #[allow(clippy::too_many_lines)] // UI Code, am I right, hahah
     fn ui_init(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.ui_menu(ctx, frame);
         self.ui_sidepanel(ctx);
@@ -257,6 +264,7 @@ impl View {
 }
 
 impl eframe::App for View {
+    #[allow(clippy::too_many_lines)]
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // enable screen reader support on the web
         ctx.options_mut(|o| o.screen_reader = true);
@@ -274,6 +282,24 @@ impl eframe::App for View {
         while let Ok(message) = self.channel_presenter_rx.try_recv() {
             // println!("Got Message from Model to View: {message}");
             match message {
+                MessageToView::VersionInfo(server_version, message) => {
+                    let this_version = env!("CARGO_PKG_VERSION");
+                    if this_version != server_version {
+                        let _handle = thread::spawn(move || {
+                            let _result = native_dialog::MessageDialog::new()
+                            .set_title("New Version avaibale")
+                            .set_text(&format!(
+                                    "Your Version: {this_version} -> Latest Version: {server_version}\n\
+                                    {message}\n\
+                                    \n\
+                                    You can get the latest version here:\n\
+                                    https://github.com/Turun/GrepolisMap/releases\n\
+                                    For questions and bug reports message \"erstes\" on the Grepolis Forum or Game"
+                                ))
+                            .set_type(native_dialog::MessageType::Info).show_alert();
+                        });
+                    }
+                }
                 MessageToView::GotServer => {
                     self.ui_state = State::Show;
                     self.channel_presenter_tx

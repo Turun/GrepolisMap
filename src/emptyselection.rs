@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashSet};
 use std::default::Default;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -11,7 +12,7 @@ use crate::emptyconstraint::EmptyConstraint;
 use crate::selection::{AndOr, SelectionState, TownSelection};
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct EmptyTownSelection {
     #[serde(default = "String::new")]
     pub name: String,
@@ -53,6 +54,14 @@ impl PartialEq for EmptyTownSelection {
         self.name == other.name
             && self.constraints == other.constraints
             && self.constraint_join_mode == other.constraint_join_mode
+    }
+}
+
+impl Hash for EmptyTownSelection {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.constraints.hash(state);
+        self.constraint_join_mode.hash(state);
     }
 }
 

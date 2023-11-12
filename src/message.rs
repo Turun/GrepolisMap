@@ -26,6 +26,8 @@ pub enum MessageToView {
     BackendCrashed(anyhow::Error),
     FoundSavedDatabases(BTreeMap<String, Vec<SavedDB>>),
     RemovedDatabases(Vec<SavedDB>),
+
+    VersionInfo(String, String),
 }
 
 impl fmt::Display for MessageToView {
@@ -68,6 +70,9 @@ impl fmt::Display for MessageToView {
                     "MessageToView::RemovedDatabases({})",
                     removed_paths.len()
                 )
+            }
+            MessageToView::VersionInfo(version, message) => {
+                write!(f, "MessageToView::VersionInfo({version}, {message})")
             }
         }
     }

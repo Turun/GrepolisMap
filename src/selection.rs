@@ -214,6 +214,7 @@ impl TownSelection {
         // }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn make_ui(
         &mut self,
         ui: &mut egui::Ui,

@@ -45,15 +45,21 @@ pub struct Presenter {
     max_cache_size: CacheSize,
     channel_tx: mpsc::Sender<MessageToView>,
     channel_rx: mpsc::Receiver<MessageToModel>,
+    telemetry_tx: mpsc::Sender<(String, String)>,
 }
 
 impl Presenter {
-    pub fn new(rx: mpsc::Receiver<MessageToModel>, tx: mpsc::Sender<MessageToView>) -> Self {
+    pub fn new(
+        rx: mpsc::Receiver<MessageToModel>,
+        tx: mpsc::Sender<MessageToView>,
+        telemetry_tx: mpsc::Sender<(String, String)>,
+    ) -> Self {
         Self {
             model: Model::Uninitialized,
             max_cache_size: CacheSize::Normal,
             channel_tx: tx,
             channel_rx: rx,
+            telemetry_tx,
         }
     }
 
@@ -134,6 +140,9 @@ impl Presenter {
                     }
                 }
                 MessageToModel::SetServer(server, ctx) => {
+                    let _result = self
+                        .telemetry_tx
+                        .send(("load_server".into(), server.id.clone()));
                     let db_path = storage::get_new_db_filename(&server.id);
                     let db_result = Database::create_for_world(
                         &server.id,
