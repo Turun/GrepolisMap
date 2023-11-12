@@ -104,7 +104,6 @@ impl Model {
                 let mut cache_selection = selection.clone();
                 cache_selection.constraints = constraints.to_vec();
 
-                // TODO change from vec to BTreeSet?
                 let referenced_selections =
                     cache_selection.all_referenced_selections(all_selections)?;
 
@@ -148,7 +147,6 @@ impl Model {
                 let mut cache_selection = selection.clone();
                 cache_selection.constraints = constraints.to_vec();
 
-                // TODO change from vec to BTreeSet?
                 let referenced_selections =
                     cache_selection.all_referenced_selections(all_selections)?;
 

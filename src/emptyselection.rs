@@ -23,7 +23,6 @@ pub struct EmptyTownSelection {
     #[serde(default)]
     pub constraint_join_mode: AndOr,
 
-    // TODO maybe we can remove that from the eq method?
     #[serde(default)]
     pub color: egui::Color32,
 }

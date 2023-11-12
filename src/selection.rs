@@ -52,12 +52,6 @@ impl AndOr {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(from = "EmptyTownSelection", into = "EmptyTownSelection")]
 pub struct TownSelection {
-    // TODO add a switch for and/or combinators
-    // TODO add a toggle to collapse a selection in the GUI
-    // TODO make it so that collapsed selections are no longer
-    //requested from the Database and shown on the map. Or maybe
-    //add an extra toggle for that. Or maybe make that bound to the
-    //opacity of the chosen color
     pub collapsed: bool,
     pub name: String,
     pub state: SelectionState,

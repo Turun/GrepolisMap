@@ -185,9 +185,6 @@ impl Database {
         &self,
         constraint_type: ConstraintType,
     ) -> anyhow::Result<Vec<String>> {
-        // TODO this is not needed for <constraint type> <IN/NOT IN>.
-        // for those constraints we need to give the user a list of selection names!
-
         let ct_property = constraint_type.property();
         let ct_table = constraint_type.table();
 

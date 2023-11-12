@@ -293,7 +293,6 @@ pub enum Comparator {
     Equal,
     GreaterThan,
     NotEqual,
-    // TODO with this addition we need to make sure we do not send queries to the db for selections that eventually reference themselves
     InSelection,
     NotInSelection,
 }

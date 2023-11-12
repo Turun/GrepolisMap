@@ -25,7 +25,6 @@ impl View {
                     for (server, saved_dbs) in &self.ui_data.saved_db {
                         ui.menu_button(server, |ui| {
                             for saved_db in saved_dbs {
-                                // TODO use ui.add_sized() to add an appropriately large button that does not contain any linebreaks
                                 if ui.button(format!("{saved_db}")).clicked() {
                                     clicked_path = Some(saved_db.clone());
                                     ui.close_menu();
@@ -149,6 +148,7 @@ impl View {
                                 eprintln!("Did not get the clipboard: {err}");
                             }
                         }
+                        ui.close_menu();
                     }
                     if ui.button("From File(s)").clicked() {
                         let files_res = FileDialog::new()
@@ -179,7 +179,6 @@ impl View {
                 });
 
                 //////////////////////////////////////////////////////////////////////////////////
-                // TODO evaluate if we can offer export of single selections. Either by name in the menu, or via an additional button in the side list
                 ui.menu_button("Export Selections", |ui| {
                     if ui.button("To Clipboard").clicked() {
                         match Clipboard::new() {
@@ -200,6 +199,7 @@ impl View {
                                 eprintln!("Did not get the clipboard: {err}");
                             }
                         }
+                        ui.close_menu();
                     }
                     if ui.button("To File").clicked() {
                         let file_res = FileDialog::new()
