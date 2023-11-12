@@ -1,7 +1,6 @@
 use core::fmt;
 use std::collections::HashSet;
 use std::default::Default;
-use std::fmt::Display;
 use std::sync::{mpsc, Arc};
 
 use serde::{Deserialize, Serialize};
@@ -30,11 +29,11 @@ pub enum AndOr {
     Or,
 }
 
-impl Display for AndOr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl ToString for AndOr {
+    fn to_string(&self) -> String {
         match self {
-            AndOr::And => write!(f, "and"),
-            AndOr::Or => write!(f, "or"),
+            AndOr::And => t!("selection.and_or.and"),
+            AndOr::Or => t!("selection.and_or.or"),
         }
     }
 }
@@ -259,9 +258,9 @@ impl TownSelection {
             }
 
             if self.is_hidden() {
-                ui.label("Hidden");
+                ui.label(t!("selection.hidden"));
             } else {
-                ui.label(format!("{} Towns", self.towns.len()));
+                ui.label(t!("selection.town_count", count = self.towns.len()));
             }
             if self.state == SelectionState::Loading {
                 ui.spinner();

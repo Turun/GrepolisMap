@@ -1,0 +1,36 @@
+selection:
+  hidden: "Hidden"
+  town_count: "%{count} Towns"
+
+  player_id: "PlayerID"
+  player_name: ""
+
+  constraint:
+    player_id: "PlayerID"
+    player_name: "PlayerName"
+    player_points: "PlayerPoints"
+    player_rank: "PlayerRank"
+    player_towns: "PlayerTowns"
+    alliance_name: "AllianceName"
+    alliance_points: "AlliancePoints"
+    alliance_towns: "AllianceTowns"
+    alliance_members: "AllianceMembers"
+    alliance_rank: "AllianceRank"
+    town_id: "TownID"
+    town_name: "TownName"
+    town_points: "TownPoints"
+    island_id: "IslandID"
+    island_x: "IslandX"
+    island_y: "IslandY"
+    island_type: "IslandType"
+    island_towns: "IslandTowns"
+    island_resmore: "IslandResMore"
+    island_resless: "IslandResLess"
+
+  comparator:
+    in: "in"
+    not_in: "not in"
+
+  and_or:
+    and: "and"
+    or: "or"

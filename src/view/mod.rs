@@ -153,7 +153,7 @@ impl View {
     fn ui_server_input(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         let mut should_load_server = false;
         ui.horizontal(|ui| {
-            ui.label("Server ID");
+            ui.label(t!("sidepanel.header.server_id"));
             let response = ui.text_edit_singleline(&mut self.ui_data.server_id);
             if response.lost_focus()
                 && response
@@ -165,7 +165,7 @@ impl View {
             }
         });
         if ui
-            .add(egui::Button::new("Load Data for this Server"))
+            .add(egui::Button::new(t!("sidepanel.header.load_data")))
             .clicked()
         {
             should_load_server = true;
@@ -184,7 +184,11 @@ impl View {
 
         if let Some((server_id, saved_db)) = most_recently_loaded {
             if ui
-                .button(format!("Open most recent file: {server_id}: {saved_db}"))
+                .button(t!(
+                    "sidepanel.header.open_recent",
+                    server_id = server_id,
+                    db = saved_db
+                ))
                 .clicked()
             {
                 self.ui_data.server_id = server_id;
@@ -229,7 +233,7 @@ impl View {
                     Progress::None => {}
                     Progress::BackendCrashed => {
                         ui.label(
-                            RichText::new("The Database Crashed. Please Reload The Data.")
+                            RichText::new(t!("sidepanel.loading.db_crashed"))
                                 .color(ui.style().visuals.warn_fg_color),
                         );
                     }

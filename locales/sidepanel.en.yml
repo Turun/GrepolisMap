@@ -1,0 +1,13 @@
+sidepanel:
+  header:
+    server_id: "Server ID"
+    load_data: "Load data for this server"
+    open_recent: "Open most recent file: %{server_id}: %{db}"
+  loading:
+    db_crashed: "The database crashed. Please load the data again."
+  town_stats:
+    total: "Total Towns: %{count}"
+    ghosts: "Ghost Towns: %{count}"
+  town_toggle:
+    all: "All Towns:"
+    ghosts: "Ghost Towns:"

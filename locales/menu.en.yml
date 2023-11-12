@@ -1,0 +1,35 @@
+_version: 1
+
+menu:
+  open:
+    title: "Open Saved Data"
+  delete:
+    title: "Delete Saved Data"
+    all: "Delete All"
+    confirm: "Yes, delete all saved data"
+
+  preferences:
+    title: "Preferences"
+    darkmode: "Darkmode"
+    follow_system_theme: "Follow System Theme (Restart Required)"
+    lightmode: "Lightmode"
+
+    no_cache: "No Cache"
+    normal_cache: "Normal Cache"
+    large_cache: "Large Cache"
+
+    reset: "Reset Preferences"
+
+  import:
+    title: "Import Selections"
+    from_clipboard: "From Clipboard"
+    from_file: "From File(s)"
+
+  export:
+    title: "Export Selections"
+    to_clipboard: "To Clipboard"
+    to_file: "To File"
+
+
+
+

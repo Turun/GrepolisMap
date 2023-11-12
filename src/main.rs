@@ -3,6 +3,10 @@
 // hide the cmd when opening the exe on windows, see: https://github.com/emilk/egui/issues/116
 #![windows_subsystem = "windows"]
 
+#[macro_use]
+extern crate rust_i18n;
+i18n!("locales", fallback = "en");
+
 mod constraint;
 mod emptyconstraint;
 mod emptyselection;

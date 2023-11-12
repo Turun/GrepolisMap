@@ -20,7 +20,9 @@ impl fmt::Debug for EmptyConstraint {
         write!(
             f,
             "Constraint({} {} {})",
-            self.constraint_type, self.comparator, self.value,
+            self.constraint_type.to_string(),
+            self.comparator.to_string(),
+            self.value,
         )
     }
 }
@@ -128,7 +130,9 @@ impl fmt::Display for EmptyConstraint {
         write!(
             f,
             "Constraint({} {} {})",
-            self.constraint_type, self.comparator, self.value
+            self.constraint_type.to_string(),
+            self.comparator.to_string(),
+            self.value
         )
     }
 }

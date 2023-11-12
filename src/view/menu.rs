@@ -9,6 +9,7 @@ use crate::{
 };
 use arboard::Clipboard;
 use native_dialog::FileDialog;
+use rust_i18n::t;
 use std::collections::BTreeMap;
 
 impl View {
@@ -16,11 +17,13 @@ impl View {
     #[allow(clippy::single_match)] // temporary, until we fix the error reporting and make it more user friendly
     pub(crate) fn ui_menu(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // TODO [preferences] [auto delete saved data] after 1d/1w/1m/never
+        // TODO localization
+        // TODO disable telemetry
 
         egui::TopBottomPanel::top("menu bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 //////////////////////////////////////////////////////////////////////////////////
-                ui.menu_button("Open Saved Data", |ui| {
+                ui.menu_button(t!("menu.open.title"), |ui| {
                     let mut clicked_path = None;
                     for (server, saved_dbs) in &self.ui_data.saved_db {
                         ui.menu_button(server, |ui| {
@@ -42,9 +45,9 @@ impl View {
                 });
 
                 //////////////////////////////////////////////////////////////////////////////////
-                ui.menu_button("Delete Saved Data", |ui| {
-                    ui.menu_button("Delete All", |ui| {
-                        if ui.button("Yes, delete all saved data").clicked() {
+                ui.menu_button(t!("menu.delete.title"), |ui| {
+                    ui.menu_button(t!("menu.delete.all"), |ui| {
+                        if ui.button(t!("menu.delete.confirm")).clicked() {
                             storage::remove_all();
                             self.ui_data.saved_db = BTreeMap::new();
                             ui.close_menu();
@@ -70,40 +73,41 @@ impl View {
                 });
 
                 //////////////////////////////////////////////////////////////////////////////////
-                ui.menu_button("Preferences", |ui| {
-                    if ui.button("Darkmode").clicked() {
+                let text = t!("menu.preferences.title");
+                ui.menu_button(text, |ui| {
+                    if ui.button(t!("menu.preferences.darkmode")).clicked() {
                         self.ui_data.apply_darkmode(ctx, DarkModePref::Dark);
                         ui.close_menu();
                     }
                     if ui
-                        .button("Follow System Theme (Restart required)")
+                        .button(t!("menu.preferences.follow_system_theme"))
                         .clicked()
                     {
                         self.ui_data.apply_darkmode(ctx, DarkModePref::FollowSystem);
                         ui.close_menu();
                     }
-                    if ui.button("Lightmode").clicked() {
+                    if ui.button(t!("menu.preferences.lightmode")).clicked() {
                         self.ui_data.apply_darkmode(ctx, DarkModePref::Light);
                         ui.close_menu();
                     }
 
                     ui.separator();
 
-                    if ui.button("No Cache").clicked() {
+                    if ui.button(t!("menu.preferences.no_cache")).clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::None;
                         self.channel_presenter_tx
                             .send(MessageToModel::MaxCacheSize(CacheSize::None))
                             .expect("Failed to send MaxCacheSize message to backend");
                         ui.close_menu();
                     }
-                    if ui.button("Normal Cache").clicked() {
+                    if ui.button(t!("menu.preferences.normal_cache")).clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::Normal;
                         self.channel_presenter_tx
                             .send(MessageToModel::MaxCacheSize(CacheSize::Normal))
                             .expect("Failed to send MaxCacheSize message to backend");
                         ui.close_menu();
                     }
-                    if ui.button("Large Cache").clicked() {
+                    if ui.button(t!("menu.preferences.large_cache")).clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::Large;
                         self.channel_presenter_tx
                             .send(MessageToModel::MaxCacheSize(CacheSize::Large))
@@ -113,7 +117,18 @@ impl View {
 
                     ui.separator();
 
-                    if ui.button("Reset Preferences").clicked() {
+                    if ui.button("EN").clicked(){
+                        rust_i18n::set_locale("en");
+                        ui.close_menu();
+                    }
+                    if ui.button("DE").clicked(){
+                        rust_i18n::set_locale("de");
+                        ui.close_menu();
+                    }
+
+                    ui.separator();
+
+                    if ui.button(t!("menu.preferences.reset")).clicked() {
                         self.ui_data.preferences = Preferences::default();
                         self.ui_data
                             .apply_darkmode(ctx, self.ui_data.preferences.darkmode);
@@ -123,8 +138,8 @@ impl View {
                 });
 
                 //////////////////////////////////////////////////////////////////////////////////
-                ui.menu_button("Import Selections", |ui| {
-                    if ui.button("From Clipboard").clicked() {
+                ui.menu_button(t!("menu.import.title"), |ui| {
+                    if ui.button(t!("menu.import.from_clipboard")).clicked() {
                         match Clipboard::new() {
                             Ok(mut clipboard) => match clipboard.get_text() {
                                 Ok(text) => {
@@ -150,7 +165,7 @@ impl View {
                         }
                         ui.close_menu();
                     }
-                    if ui.button("From File(s)").clicked() {
+                    if ui.button(t!("menu.import.from_file")).clicked() {
                         let files_res = FileDialog::new()
                             // .title("Choose one or more files to import selections")
                             .add_filter("Turun Map Selections", &["tms"])
@@ -179,8 +194,8 @@ impl View {
                 });
 
                 //////////////////////////////////////////////////////////////////////////////////
-                ui.menu_button("Export Selections", |ui| {
-                    if ui.button("To Clipboard").clicked() {
+                ui.menu_button(t!("menu.export.title"), |ui| {
+                    if ui.button(t!("menu.export.to_clipboard")).clicked() {
                         match Clipboard::new() {
                             Ok(mut clipboard) => {
                                 let selections_yaml = serde_yaml::to_string(&self.ui_data.selections);
@@ -201,7 +216,7 @@ impl View {
                         }
                         ui.close_menu();
                     }
-                    if ui.button("To File").clicked() {
+                    if ui.button(t!("menu.export.to_file")).clicked() {
                         let file_res = FileDialog::new()
                             .add_filter("Turun Map Selections", &["tms"])
                             .show_save_single_file();

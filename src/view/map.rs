@@ -188,12 +188,12 @@ impl View {
                         if closest_distance >= 1.5 {
                             return;
                         }
-                        ui.label(format!(
-                            "{}\nPoints: {}\nPlayer: {}\nAlliance: {}",
-                            closest_town.name,
-                            closest_town.points,
-                            closest_town.player_name.as_deref().unwrap_or(""),
-                            closest_town.alliance_name.as_deref().unwrap_or(""),
+                        ui.label(t!(
+                            "map.hover",
+                            name = closest_town.name,
+                            points = closest_town.points,
+                            player = closest_town.player_name.as_deref().unwrap_or(""),
+                            alliance = closest_town.alliance_name.as_deref().unwrap_or(""),
                         ));
                     });
                 }

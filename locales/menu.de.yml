@@ -1,0 +1,35 @@
+_version: 1
+
+menu:
+  open:
+    title: "Gespeicherte Daten Öffnen"
+  delete:
+    title: "Gespeicherte Daten Löschen"
+    all: "Alle Daten Löschen"
+    confirm: "Ja, lösche alle Daten"
+
+  preferences:
+    title: "Einstellungen"
+    darkmode: "Dunkler Modus"
+    follow_system_theme: "Sytemeinstellung folgen (Programmneustart erforderlich)"
+    lightmode: "Heller Modus"
+
+    no_cache: "Kein Cache"
+    normal_cache: "Normaler Cache"
+    large_cache: "Großer Cache"
+
+    reset: "Einstellungen zurücksetzen"
+
+  import:
+    title: "Auswahlen importieren"
+    from_clipboard: "Aus Zwischenablage"
+    from_file: "Aus Datei(en)"
+
+  export:
+    title: "Auswahlen exportieren"
+    to_clipboard: "In Zwischenablage"
+    to_file: "In Datei"
+
+
+
+

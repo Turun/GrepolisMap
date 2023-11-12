@@ -37,8 +37,8 @@ impl fmt::Debug for Constraint {
         write!(
             f,
             "Constraint({} {} {}, {} ddv)",
-            self.constraint_type,
-            self.comparator,
+            self.constraint_type.to_string(),
+            self.comparator.to_string(),
             self.value,
             self.drop_down_values.as_ref().map_or(0, |x| x.len())
         )
@@ -72,7 +72,7 @@ impl Constraint {
                 "ComboxBox {selection_index}/{constraint_index} Type"
             ))
             .width(ui.style().spacing.interact_size.x * 3.5)
-            .selected_text(format!("{}", self.constraint_type))
+            .selected_text(self.constraint_type.to_string())
             .show_ui(ui, |ui| {
                 for value in ConstraintType::iter() {
                     let text = value.to_string();
@@ -90,7 +90,7 @@ impl Constraint {
                 "ComboxBox {selection_index}/{constraint_index} Comparator"
             ))
             .width(ui.style().spacing.interact_size.x * 1.75)
-            .selected_text(format!("{}", self.comparator))
+            .selected_text(self.comparator.to_string())
             .show_ui(ui, |ui| {
                 for value in Comparator::iter() {
                     let text = value.to_string();
@@ -134,13 +134,13 @@ impl Constraint {
                     re_change = Some(Change::Add);
                 }
             } else if first_item {
-                let button = Button::new(format!("{and_or}"));
+                let button = Button::new(and_or.to_string());
                 if ui.add_sized(and_or_plus_size, button).clicked() {
                     re_and_or_toggled = true;
                     re_edited = true;
                 }
             } else {
-                let label = Label::new(format!("{and_or}"));
+                let label = Label::new(and_or.to_string());
                 ui.add_sized(and_or_plus_size, label);
             }
             if ui.button(" - ").clicked() {
@@ -183,29 +183,29 @@ pub enum ConstraintType {
     IslandResLess,
 }
 
-impl fmt::Display for ConstraintType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl ToString for ConstraintType {
+    fn to_string(&self) -> String {
         match self {
-            ConstraintType::PlayerID => write!(f, "PlayerID"),
-            ConstraintType::PlayerName => write!(f, "PlayerName"),
-            ConstraintType::PlayerPoints => write!(f, "PlayerPoints"),
-            ConstraintType::PlayerRank => write!(f, "PlayerRank"),
-            ConstraintType::PlayerTowns => write!(f, "PlayerTowns"),
-            ConstraintType::AllianceName => write!(f, "AllianceName"),
-            ConstraintType::AlliancePoints => write!(f, "AlliancePoints"),
-            ConstraintType::AllianceTowns => write!(f, "AllianceTowns"),
-            ConstraintType::AllianceMembers => write!(f, "AllianceMembers"),
-            ConstraintType::AllianceRank => write!(f, "AllianceRank"),
-            ConstraintType::TownID => write!(f, "TownID"),
-            ConstraintType::TownName => write!(f, "TownName"),
-            ConstraintType::TownPoints => write!(f, "TownPoints"),
-            ConstraintType::IslandID => write!(f, "IslandID"),
-            ConstraintType::IslandX => write!(f, "IslandX"),
-            ConstraintType::IslandY => write!(f, "IslandY"),
-            ConstraintType::IslandType => write!(f, "IslandType"),
-            ConstraintType::IslandTowns => write!(f, "IslandTowns"),
-            ConstraintType::IslandResMore => write!(f, "IslandResMore"),
-            ConstraintType::IslandResLess => write!(f, "IslandResLess"),
+            ConstraintType::PlayerID => t!("selection.constraint.player_id"),
+            ConstraintType::PlayerName => t!("selection.constraint.player_name"),
+            ConstraintType::PlayerPoints => t!("selection.constraint.player_points"),
+            ConstraintType::PlayerRank => t!("selection.constraint.player_rank"),
+            ConstraintType::PlayerTowns => t!("selection.constraint.player_towns"),
+            ConstraintType::AllianceName => t!("selection.constraint.alliance_name"),
+            ConstraintType::AlliancePoints => t!("selection.constraint.alliance_points"),
+            ConstraintType::AllianceTowns => t!("selection.constraint.alliance_towns"),
+            ConstraintType::AllianceMembers => t!("selection.constraint.alliance_members"),
+            ConstraintType::AllianceRank => t!("selection.constraint.alliance_rank"),
+            ConstraintType::TownID => t!("selection.constraint.town_id"),
+            ConstraintType::TownName => t!("selection.constraint.town_name"),
+            ConstraintType::TownPoints => t!("selection.constraint.town_points"),
+            ConstraintType::IslandID => t!("selection.constraint.island_id"),
+            ConstraintType::IslandX => t!("selection.constraint.island_x"),
+            ConstraintType::IslandY => t!("selection.constraint.island_y"),
+            ConstraintType::IslandType => t!("selection.constraint.island_type"),
+            ConstraintType::IslandTowns => t!("selection.constraint.island_towns"),
+            ConstraintType::IslandResMore => t!("selection.constraint.island_resmore"),
+            ConstraintType::IslandResLess => t!("selection.constraint.island_resless"),
         }
     }
 }
@@ -297,15 +297,28 @@ pub enum Comparator {
     NotInSelection,
 }
 
-impl fmt::Display for Comparator {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Comparator {
+    pub fn as_sql(self) -> String {
         match self {
-            Comparator::LessThan => write!(f, "<="),
-            Comparator::Equal => write!(f, "="),
-            Comparator::GreaterThan => write!(f, ">="),
-            Comparator::NotEqual => write!(f, "<>"),
-            Comparator::InSelection => write!(f, "IN"),
-            Comparator::NotInSelection => write!(f, "NOT IN"),
+            Comparator::LessThan => "<=".to_string(),
+            Comparator::Equal => "=".to_string(),
+            Comparator::GreaterThan => ">=".to_string(),
+            Comparator::NotEqual => "<>".to_string(),
+            Comparator::InSelection => "IN".to_string(),
+            Comparator::NotInSelection => "NOT IN".to_string(),
+        }
+    }
+}
+
+impl ToString for Comparator {
+    fn to_string(&self) -> String {
+        match self {
+            Comparator::LessThan => "<=".to_string(),
+            Comparator::Equal => "=".to_string(),
+            Comparator::GreaterThan => ">=".to_string(),
+            Comparator::NotEqual => "!=".to_string(),
+            Comparator::InSelection => t!("selection.comparator.in"),
+            Comparator::NotInSelection => t!("selection.comparator.not_in"),
         }
     }
 }

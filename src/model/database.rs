@@ -43,7 +43,7 @@ impl ToSqlFragment for EmptyConstraint {
                     "{}.{} {} ?{}",
                     self.constraint_type.table(),
                     self.constraint_type.property(),
-                    self.comparator,
+                    self.comparator.as_sql(),
                     parameter_index + 1
                 )
             }
@@ -52,7 +52,7 @@ impl ToSqlFragment for EmptyConstraint {
                     "{}.{} {} ({{{}}})",
                     self.constraint_type.table(),
                     self.constraint_type.property(),
-                    self.comparator,
+                    self.comparator.as_sql(),
                     parameter_index + 1
                 )
             }

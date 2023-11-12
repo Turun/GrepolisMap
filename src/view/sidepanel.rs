@@ -7,22 +7,29 @@ use crate::emptyselection::EmptyTownSelection;
 use crate::selection::TownSelection;
 
 impl View {
+    #[allow(clippy::too_many_lines)]
     pub fn ui_sidepanel(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {
                 self.ui_server_input(ui, ctx);
-                ui.label(format!("Total Towns: {}", self.ui_data.all_towns.len()));
-                ui.label(format!("Ghost Towns: {}", self.ui_data.ghost_towns.len()));
+                ui.label(t!(
+                    "sidepanel.town_stats.total",
+                    count = self.ui_data.all_towns.len()
+                ));
+                ui.label(t!(
+                    "sidepanel.town_stats.ghosts",
+                    count = self.ui_data.ghost_towns.len()
+                ));
                 ui.separator();
 
                 ui.horizontal(|ui| {
                     ui.checkbox(&mut self.ui_data.settings_all.enabled, "");
-                    ui.label("All Towns:");
+                    ui.label(t!("sidepanel.town_toggle.all"));
                     ui.color_edit_button_srgba(&mut self.ui_data.settings_all.color);
                 });
                 ui.horizontal(|ui| {
                     ui.checkbox(&mut self.ui_data.settings_ghosts.enabled, "");
-                    ui.label("Ghost Towns:");
+                    ui.label(t!("sidepanel.town_toggle.ghosts"));
                     ui.color_edit_button_srgba(&mut self.ui_data.settings_ghosts.color);
                 });
                 ui.separator();
