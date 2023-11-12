@@ -128,15 +128,15 @@ impl Constraint {
                 ui.style().spacing.interact_size.x * 1.0,
                 ui.style().spacing.interact_size.y,
             ];
-            if first_item {
+            if last_item {
+                let button = Button::new("+");
+                if ui.add_sized(and_or_plus_size, button).clicked() {
+                    re_change = Some(Change::Add);
+                }
+            } else if first_item {
                 let button = Button::new(format!("{and_or}"));
                 if ui.add_sized(and_or_plus_size, button).clicked() {
                     re_and_or_toggled = true;
-                    re_edited = true;
-                }
-            } else if last_item {
-                let button = Button::new("+");
-                if ui.add_sized(and_or_plus_size, button).clicked() {
                     re_edited = true;
                 }
             } else {
