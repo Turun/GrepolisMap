@@ -4,12 +4,13 @@ use std::sync::mpsc;
 use crate::message::MessageToView;
 
 static SERVER_POST: &str = "https://grepolismap.turun.de/v1/";
-static SERVER_VERSION: &str = "https://grepolismap.turun.de/lastest_version";
+static SERVER_VERSION: &str = "https://grepolismap.turun.de/lastest_version?installed=";
 
 /// check on the server what the latest version is.
 pub fn get_latest_version(view_tx: &mpsc::Sender<MessageToView>) {
+    let version = env!("CARGO_PKG_VERSION");
     let client = reqwest::blocking::Client::new();
-    let res_response = client.get(SERVER_VERSION).send();
+    let res_response = client.get(SERVER_VERSION.to_owned() + version).send();
     if let Err(_err) = res_response {
         return;
     }

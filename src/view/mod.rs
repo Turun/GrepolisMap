@@ -283,6 +283,7 @@ impl eframe::App for View {
             // println!("Got Message from Model to View: {message}");
             match message {
                 MessageToView::VersionInfo(server_version, message) => {
+                    // TODO preferences -> disable telemetry
                     let this_version = env!("CARGO_PKG_VERSION");
                     if this_version != server_version {
                         let _handle = thread::spawn(move || {
