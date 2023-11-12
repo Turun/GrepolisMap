@@ -73,9 +73,9 @@ impl Model {
                 ..
             } => {
                 // Alternatives to the current aging method could incorporate something between LeastRecentlyUsed cache, time base cache and LeastOftenUsed cache.
-                print!("Strings: ");
+                // print!("Strings: ");
                 age_and_filter_hashmap(cache_strings, keep_count);
-                print!("Towns  : ");
+                // print!("Towns  : ");
                 age_and_filter_hashmap(cache_towns, keep_count);
             }
         }
