@@ -120,7 +120,7 @@ impl fmt::Display for MessageToModel {
                 write!(f, "MessageToModel::DiscoverSavedDatabases")
             }
             MessageToModel::MaxCacheSize(x) => {
-                write!(f, "MessageToModel::MaxCacheSize({x})")
+                write!(f, "MessageToModel::MaxCacheSize({})", x.to_string())
             }
         }
     }

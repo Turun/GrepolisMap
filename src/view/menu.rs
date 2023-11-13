@@ -1,5 +1,5 @@
 use super::{
-    preferences::{CacheSize, DarkModePref, Preferences},
+    preferences::{CacheSize, DarkModePref, Language, Preferences},
     State, View,
 };
 use crate::{
@@ -11,6 +11,7 @@ use arboard::Clipboard;
 use native_dialog::FileDialog;
 use rust_i18n::t;
 use std::collections::BTreeMap;
+use strum::IntoEnumIterator;
 
 impl View {
     #[allow(clippy::too_many_lines)] // UI Code, am I right, hahah
@@ -117,13 +118,12 @@ impl View {
 
                     ui.separator();
 
-                    if ui.button("EN").clicked(){
-                        rust_i18n::set_locale("en");
-                        ui.close_menu();
-                    }
-                    if ui.button("DE").clicked(){
-                        rust_i18n::set_locale("de");
-                        ui.close_menu();
+                    for language in Language::iter() {
+                        if ui.button(language.to_string()).clicked() {
+                            language.apply();
+                            self.ui_data.preferences.language = language;
+                            ui.close_menu();
+                        }
                     }
 
                     ui.separator();

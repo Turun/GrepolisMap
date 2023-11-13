@@ -83,6 +83,7 @@ impl View {
         // load saved app data from disk
         if let Some(storage) = cc.storage {
             re.ui_data = if let Some(text) = storage.get_string(eframe::APP_KEY) {
+                // println!("{}", text);
                 let _result = telemetry_tx.send(("stored_config".into(), text.clone()));
                 serde_yaml::from_str(&text).unwrap_or_else(|err| {
                     eprintln!("Failed to read saved config as YAML: {err}");
@@ -92,6 +93,8 @@ impl View {
                 println!("No previously saved preferences found");
                 Data::default()
             };
+        } else {
+            println!("No persistence storage configured");
         }
 
         re.channel_presenter_tx
@@ -107,6 +110,8 @@ impl View {
 
         re.ui_data
             .apply_darkmode(&cc.egui_ctx, re.ui_data.preferences.darkmode);
+
+        re.ui_data.preferences.language.apply();
 
         re
     }
