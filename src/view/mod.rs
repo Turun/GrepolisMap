@@ -73,9 +73,6 @@ impl View {
             .push(String::from("Custom Font"));
         cc.egui_ctx.set_fonts(fonts);
 
-        // enable loading images
-        egui_extras::install_image_loaders(&cc.egui_ctx);
-
         re.channel_presenter_tx
             .send(MessageToModel::DiscoverSavedDatabases)
             .expect("Failed to send message to backend: Discover Saved Databases");
