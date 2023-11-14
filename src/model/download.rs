@@ -134,20 +134,22 @@ impl Database {
         // TODO for a proper optimization we should build a new table that pre-performs the list of joins we do in every single query.
         //      only if we want to support more complex queries, which are not based on towns (but instead users or alliances) do we
         //      even need the DB to be split up into different tables.
+        // The following code did in fact lead to worse performance....
+        // Severely worse performance...
         // optimize the DB
         // make the DB automatically optimize. Can't set analysis_limit though, because it crashed the DB
-        let _result = conn.execute("PRAGMA optimize", [])?;
-        let _result = conn.query_row("PRAGMA optimize(-1)", [], |row| {
-            println!("{row:?}");
-            Ok(())
-        });
+        // let _result = conn.execute("PRAGMA optimize", [])?;
+        // let _result = conn.query_row("PRAGMA optimize(-1)", [], |row| {
+        //     println!("{row:?}");
+        //     Ok(())
+        // });
 
-        // create indices
-        let _result = conn.execute("CREATE INDEX towns_slot ON towns (slot_number ASC);", [])?;
-        let _result = conn.execute("CREATE INDEX towns_x ON towns (island_x ASC);", [])?;
-        let _result = conn.execute("CREATE INDEX towns_y ON towns (island_y ASC);", [])?;
-        let _result = conn.execute("CREATE INDEX islands_x ON islands (x ASC);", [])?;
-        let _result = conn.execute("CREATE INDEX islands_y ON islands (y ASC);", [])?;
+        // // create indices
+        // let _result = conn.execute("CREATE INDEX towns_slot ON towns (slot_number ASC);", [])?;
+        // let _result = conn.execute("CREATE INDEX towns_x ON towns (island_x ASC);", [])?;
+        // let _result = conn.execute("CREATE INDEX towns_y ON towns (island_y ASC);", [])?;
+        // let _result = conn.execute("CREATE INDEX islands_x ON islands (x ASC);", [])?;
+        // let _result = conn.execute("CREATE INDEX islands_y ON islands (y ASC);", [])?;
 
         Ok(Self { connection: conn })
     }
