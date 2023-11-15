@@ -35,10 +35,10 @@ fn main() {
     // use std::time::Duration;
     // let test_tx_to_view = tx_to_view.clone();
     // let _handle_test = thread::spawn(move || {
-    //     thread::sleep(Duration::from_secs(5));
+    //     thread::sleep(Duration::from_secs(1));
     //     let _result = test_tx_to_view.send(MessageToView::VersionInfo(
     //         "1.2.9".to_owned(),
-    //         "This is a test message".to_owned(),
+    //         "This is a test message\n".to_owned(),
     //     ));
     // });
 

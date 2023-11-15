@@ -29,7 +29,16 @@ menu:
     title: "Export Selections"
     to_clipboard: "To Clipboard"
     to_file: "To File"
-
+    
+  update_notice:
+    title:
+      "New Version Available"
+    content:
+      "Your Version: %{user_version} -> Latest Version: %{server_version}\n\
+      %{message}\n\
+      You can get the latest version here:\n\
+      https://github.com/Turun/GrepolisMap/releases/latest\n\
+      For questions, feedback and bug reports message \"erstes\" on the Grepolis Forum or in Game"
 
 
 

@@ -23,8 +23,18 @@ pub fn get_latest_version(view_tx: &mpsc::Sender<MessageToView>) {
     let text = res_text.unwrap();
 
     let version_and_message: Vec<&str> = text.splitn(2, '\n').collect();
-    let version = version_and_message[0];
-    let message = version_and_message[1];
+    let (version, message) = if version_and_message.len() == 0 {
+        return;
+    } else if version_and_message.len() == 1 {
+        let version = version_and_message[0];
+        (version, "")
+    } else if version_and_message.len() == 2 {
+        let version = version_and_message[0];
+        let message = version_and_message[1];
+        (version, message)
+    } else {
+        return;
+    };
 
     let _result = view_tx.send(MessageToView::VersionInfo(
         version.to_owned(),

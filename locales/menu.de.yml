@@ -30,6 +30,14 @@ menu:
     to_clipboard: "In Zwischenablage"
     to_file: "In Datei"
 
-
+  update_notice:
+    title:
+      "Neue Version Verfügbar"
+    content:
+      "Deine Version: %{user_version} -> Neueste Version: %{server_version}\n\
+      %{message}\n\
+      Du kannst die neueste Version hier herunterladen:\n\
+      https://github.com/Turun/GrepolisMap/releases/latest\n\
+      Bei Fragen, Feedback oder Bugs, sende \"erstes\" eine Nachricht im Grepolis Forum oder im Spiel"
 
 

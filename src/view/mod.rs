@@ -294,16 +294,15 @@ impl eframe::App for View {
                     if this_version != server_version {
                         let _handle = thread::spawn(move || {
                             let _result = native_dialog::MessageDialog::new()
-                            .set_title("New Version avaibale")
-                            .set_text(&format!(
-                                    "Your Version: {this_version} -> Latest Version: {server_version}\n\
-                                    {message}\n\
-                                    \n\
-                                    You can get the latest version here:\n\
-                                    https://github.com/Turun/GrepolisMap/releases\n\
-                                    For questions and bug reports message \"erstes\" on the Grepolis Forum or Game"
+                                .set_title(&t!("menu.update_notice.title"))
+                                .set_text(&t!(
+                                    "menu.update_notice.content",
+                                    user_version = this_version,
+                                    server_version = server_version,
+                                    message = message
                                 ))
-                            .set_type(native_dialog::MessageType::Info).show_alert();
+                                .set_type(native_dialog::MessageType::Info)
+                                .show_alert();
                         });
                     }
                 }
