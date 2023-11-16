@@ -291,20 +291,18 @@ impl eframe::App for View {
                 MessageToView::VersionInfo(server_version, message) => {
                     // TODO preferences -> disable telemetry
                     let this_version = env!("CARGO_PKG_VERSION");
-                    if this_version != server_version {
-                        let _handle = thread::spawn(move || {
-                            let _result = native_dialog::MessageDialog::new()
-                                .set_title(&t!("menu.update_notice.title"))
-                                .set_text(&t!(
-                                    "menu.update_notice.content",
-                                    user_version = this_version,
-                                    server_version = server_version,
-                                    message = message
-                                ))
-                                .set_type(native_dialog::MessageType::Info)
-                                .show_alert();
-                        });
-                    }
+                    let _handle = thread::spawn(move || {
+                        let _result = native_dialog::MessageDialog::new()
+                            .set_title(&t!("menu.update_notice.title"))
+                            .set_text(&t!(
+                                "menu.update_notice.content",
+                                user_version = this_version,
+                                server_version = server_version,
+                                message = message
+                            ))
+                            .set_type(native_dialog::MessageType::Info)
+                            .show_alert();
+                    });
                 }
                 MessageToView::GotServer => {
                     self.ui_state = State::Show;
