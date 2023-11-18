@@ -14,6 +14,11 @@ use crate::view::preferences::CacheSize;
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene
 
+pub enum MessageToServer {
+    LoadServer(String),
+    StoredConfig(String),
+}
+
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum MessageToView {

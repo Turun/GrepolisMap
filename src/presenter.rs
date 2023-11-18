@@ -3,7 +3,7 @@ use eframe::epaint::ahash::HashMap;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToModel, MessageToView};
+use crate::message::{MessageToModel, MessageToServer, MessageToView};
 use crate::model::database::Database;
 use crate::model::Model;
 use crate::storage;
@@ -45,14 +45,14 @@ pub struct Presenter {
     max_cache_size: CacheSize,
     channel_tx: mpsc::Sender<MessageToView>,
     channel_rx: mpsc::Receiver<MessageToModel>,
-    telemetry_tx: mpsc::Sender<(String, String)>,
+    telemetry_tx: mpsc::Sender<MessageToServer>,
 }
 
 impl Presenter {
     pub fn new(
         rx: mpsc::Receiver<MessageToModel>,
         tx: mpsc::Sender<MessageToView>,
-        telemetry_tx: mpsc::Sender<(String, String)>,
+        telemetry_tx: mpsc::Sender<MessageToServer>,
     ) -> Self {
         Self {
             model: Model::Uninitialized,
@@ -145,7 +145,7 @@ impl Presenter {
                 MessageToModel::SetServer(server, ctx) => {
                     let _result = self
                         .telemetry_tx
-                        .send(("load_server".into(), server.id.clone()));
+                        .send(MessageToServer::LoadServer(server.id.clone()));
                     let db_path = storage::get_new_db_filename(&server.id);
                     let db_result = Database::create_for_world(
                         &server.id,

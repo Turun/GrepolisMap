@@ -22,6 +22,7 @@ mod view;
 use std::{sync::mpsc, thread};
 
 use message::MessageToModel;
+use message::MessageToServer;
 use message::MessageToView;
 use view::View;
 
@@ -30,7 +31,7 @@ use crate::presenter::Presenter;
 fn main() {
     let (tx_to_model, model_rx) = mpsc::channel::<MessageToModel>();
     let (tx_to_view, view_rx) = mpsc::channel::<MessageToView>();
-    let (tx_to_telemetry, telemetry_rx) = mpsc::channel::<(String, String)>();
+    let (tx_to_telemetry, telemetry_rx) = mpsc::channel::<MessageToServer>();
 
     // use std::time::Duration;
     // let test_tx_to_view = tx_to_view.clone();

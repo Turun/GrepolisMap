@@ -8,7 +8,7 @@ mod sidepanel;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToModel, MessageToView, Progress, Server};
+use crate::message::{MessageToModel, MessageToServer, MessageToView, Progress, Server};
 use crate::selection::{SelectionState, TownSelection};
 use crate::view::data::Data;
 use eframe::Storage;
@@ -51,7 +51,7 @@ impl View {
         cc: &eframe::CreationContext,
         rx: mpsc::Receiver<MessageToView>,
         tx: mpsc::Sender<MessageToModel>,
-        telemetry_tx: mpsc::Sender<(String, String)>,
+        telemetry_tx: mpsc::Sender<MessageToServer>,
     ) -> Self {
         let mut re = Self {
             ui_state: State::Uninitialized(Progress::None),
@@ -81,7 +81,7 @@ impl View {
         if let Some(storage) = cc.storage {
             re.ui_data = if let Some(text) = storage.get_string(eframe::APP_KEY) {
                 // println!("{}", text);
-                let _result = telemetry_tx.send(("stored_config".into(), text.clone()));
+                let _result = telemetry_tx.send(MessageToServer::StoredConfig(text.clone()));
                 serde_yaml::from_str(&text).unwrap_or_else(|err| {
                     eprintln!("Failed to read saved config as YAML: {err}");
                     Data::default()
@@ -116,7 +116,7 @@ impl View {
     pub fn new_and_start(
         rx: mpsc::Receiver<MessageToView>,
         tx: mpsc::Sender<MessageToModel>,
-        telemetry_tx: mpsc::Sender<(String, String)>,
+        telemetry_tx: mpsc::Sender<MessageToServer>,
     ) {
         let native_options = eframe::NativeOptions {
             // defaults to window title, but we include the version in the window title. Since
