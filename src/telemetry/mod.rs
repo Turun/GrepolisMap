@@ -3,9 +3,9 @@ use std::sync::mpsc;
 
 use crate::message::{MessageToServer, MessageToView};
 
-static SERVER_POST_LOAD_SERVER: &str = "https://grepolismap.turun.de/v1/load_server";
-static SERVER_POST_STORED_CONFIG: &str = "https://grepolismap.turun.de/v1/stored_config";
-static SERVER_GET_VERSION: &str = "https://grepolismap.turun.de/latest_version";
+static SERVER_POST_LOAD_SERVER: &str = "https://gmap.turun.de/v1/load_server";
+static SERVER_POST_STORED_CONFIG: &str = "https://gmap.turun.de/v1/stored_config";
+static SERVER_GET_VERSION: &str = "https://gmap.turun.de/latest_version";
 
 /// check on the server what the latest version is.
 pub fn get_latest_version(view_tx: &mpsc::Sender<MessageToView>) {
@@ -16,6 +16,10 @@ pub fn get_latest_version(view_tx: &mpsc::Sender<MessageToView>) {
         return;
     }
     let response = res_response.unwrap();
+
+    if !response.status().is_success() {
+        return;
+    }
 
     let res_text = response.text();
     if let Err(_err) = res_text {
