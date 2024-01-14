@@ -22,7 +22,9 @@ pub enum SelectionState {
     NewlyCreated,
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+#[derive(
+    Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Default, PartialOrd, Ord,
+)]
 pub enum AndOr {
     #[default]
     And,

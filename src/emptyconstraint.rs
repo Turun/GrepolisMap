@@ -3,12 +3,9 @@ use crate::{
     emptyselection::EmptyTownSelection,
     model::database::Database,
 };
-use std::{
-    fmt,
-    hash::{Hash, Hasher},
-};
+use std::{fmt, hash::Hash};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EmptyConstraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
@@ -105,23 +102,6 @@ impl Default for EmptyConstraint {
             comparator: Comparator::Equal,
             value: String::new(),
         }
-    }
-}
-
-impl Eq for EmptyConstraint {}
-impl PartialEq for EmptyConstraint {
-    fn eq(&self, other: &Self) -> bool {
-        self.constraint_type == other.constraint_type
-            && self.comparator == other.comparator
-            && self.value == other.value
-    }
-}
-
-impl Hash for EmptyConstraint {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.constraint_type.hash(state);
-        self.comparator.hash(state);
-        self.value.hash(state);
     }
 }
 

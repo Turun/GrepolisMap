@@ -159,7 +159,9 @@ impl Constraint {
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub enum ConstraintType {
     PlayerID,
     PlayerName,
@@ -287,7 +289,9 @@ impl ConstraintType {
     }
 }
 
-#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub enum Comparator {
     LessThan,
     Equal,

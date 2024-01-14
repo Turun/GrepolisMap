@@ -66,13 +66,30 @@ impl Hash for EmptyTownSelection {
 
 impl PartialOrd for EmptyTownSelection {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.name.partial_cmp(&other.name)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for EmptyTownSelection {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.name.cmp(&other.name)
+        let cmp_name = self.name.cmp(&other.name);
+        if cmp_name != std::cmp::Ordering::Equal {
+            return cmp_name;
+        }
+
+        let cmp_join = self.constraint_join_mode.cmp(&other.constraint_join_mode);
+        if cmp_join != std::cmp::Ordering::Equal {
+            return cmp_join;
+        }
+
+        for (e_self, e_other) in self.constraints.iter().zip(other.constraints.iter()) {
+            let cmp_e = e_self.cmp(e_other);
+            if cmp_e != std::cmp::Ordering::Equal {
+                return cmp_e;
+            }
+        }
+
+        return std::cmp::Ordering::Equal;
     }
 }
 
