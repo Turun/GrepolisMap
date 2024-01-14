@@ -340,7 +340,7 @@ impl eframe::App for View {
                         .ui_data
                         .selections
                         .iter_mut()
-                        .find(|element| *element == selection);
+                        .find(|element| element.hidden_id == selection.hidden_id);
                     if let Some(selection) = optional_selection {
                         selection.towns = town_list;
                         selection.state = SelectionState::Finished;
@@ -354,7 +354,7 @@ impl eframe::App for View {
                         .ui_data
                         .selections
                         .iter_mut()
-                        .find(|element| *element == selection);
+                        .find(|element| element.hidden_id == selection.hidden_id);
                     if let Some(selection) = optional_selection {
                         let optional_constraint =
                             selection.constraints.iter_mut().find(|c| **c == constraint);

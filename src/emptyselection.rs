@@ -11,11 +11,23 @@ use std::sync::Arc;
 use crate::emptyconstraint::EmptyConstraint;
 use crate::selection::{AndOr, SelectionState, TownSelection};
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HiddenId(String);
+
+impl Default for HiddenId {
+    fn default() -> Self {
+        Self(Alphanumeric.sample_string(&mut rand::thread_rng(), 6))
+    }
+}
+
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct EmptyTownSelection {
     #[serde(default = "String::new")]
     pub name: String,
+
+    #[serde(skip)]
+    pub hidden_id: HiddenId,
 
     #[serde(default, with = "crate::emptyconstraint::short_serialization")]
     pub constraints: Vec<EmptyConstraint>,
@@ -31,6 +43,7 @@ impl Default for EmptyTownSelection {
     fn default() -> Self {
         Self {
             name: Alphanumeric.sample_string(&mut rand::thread_rng(), 6), // https://stackoverflow.com/a/72977937
+            hidden_id: HiddenId::default(),
             constraints: vec![],
             constraint_join_mode: AndOr::default(),
             color: egui::Color32::GREEN,
@@ -102,6 +115,7 @@ impl EmptyTownSelection {
     pub fn fill(&self) -> TownSelection {
         TownSelection {
             collapsed: false, // The state of the headers is saved by egui by default. We don't do need to do that ourselves
+            hidden_id: self.hidden_id.clone(),
             name: self.name.clone(),
             state: SelectionState::default(),
             constraints: self.constraints.iter().map(EmptyConstraint::fill).collect(),

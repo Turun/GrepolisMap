@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::constraint::Constraint;
 use crate::emptyconstraint::EmptyConstraint;
-use crate::emptyselection::EmptyTownSelection;
+use crate::emptyselection::{EmptyTownSelection, HiddenId};
 use crate::message::MessageToModel;
 use crate::town::Town;
 use crate::view::{Change, Refresh};
@@ -54,6 +54,7 @@ impl AndOr {
 #[serde(from = "EmptyTownSelection", into = "EmptyTownSelection")]
 pub struct TownSelection {
     pub collapsed: bool,
+    pub hidden_id: HiddenId,
     pub name: String,
     pub state: SelectionState,
     pub constraints: Vec<Constraint>,
@@ -123,6 +124,7 @@ impl TownSelection {
     pub fn partial_clone(&self) -> EmptyTownSelection {
         EmptyTownSelection {
             name: self.name.clone(),
+            hidden_id: self.hidden_id.clone(),
             constraints: self
                 .constraints
                 .iter()
@@ -224,7 +226,7 @@ impl TownSelection {
 
         egui::collapsing_header::CollapsingState::load_with_default_open(
             ui.ctx(),
-            ui.make_persistent_id(format!("collapsible header {selection_index}")),
+            ui.make_persistent_id(format!("collapsible header {:?}", self.hidden_id)),
             !self.collapsed,
         )
         .show_header(ui, |ui| {
