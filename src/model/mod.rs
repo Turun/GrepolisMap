@@ -132,6 +132,11 @@ impl Model {
         }
     }
 
+    /// get a list of all values in the DB for the given `constraint_type` which match the
+    /// given `constraints`. For a selection that is joined with `AndOr::Or` this is the same as
+    /// `self.get_names_for_constraint_type`. For selections joined with `AndOr::And` this is said
+    /// list, but then filtered by the given `constraints`.  This function is used to provide a list
+    /// of values in the drop down field for the user.
     pub fn get_names_for_constraint_with_constraints(
         &mut self,
         selection: &EmptyTownSelection,
@@ -163,12 +168,22 @@ impl Model {
                         tuple.1.clone()
                     }
                     Entry::Vacant(entry) => {
-                        let value = Arc::new(db.get_names_for_constraint_type_in_constraints(
-                            constraint_type,
-                            constraints,
-                            &selection.constraint_join_mode.as_sql(),
-                            all_selections,
-                        )?);
+                        let value = Arc::new(match selection.constraint_join_mode {
+                            AndOr::And => db.get_names_for_constraint_type_in_constraints(
+                                constraint_type,
+                                constraints,
+                                &selection.constraint_join_mode.as_sql(),
+                                all_selections,
+                            )?,
+                            AndOr::Or => {
+                                // TODO filter this list by the constraints that are
+                                // already present. i.e. if the users makes a selection like
+                                // Selection(joinMode=Or, AllianceName = "AllyA", AllianceName =
+                                // "AllyB", AllianceName = "All...") the suggestions should not
+                                // include "AllyA" or "AllyB", since they are already present verbatim.
+                                db.get_names_for_constraint_type(constraint_type)?
+                            }
+                        });
                         entry.insert((1.0, value)).1.clone()
                     }
                 };
