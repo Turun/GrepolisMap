@@ -270,7 +270,7 @@ impl TownSelection {
                 ui.spinner();
             }
         })
-        .body_unindented(|ui| {
+        .body(|ui| {
             for (constraint_index, constraint) in self.constraints.iter_mut().enumerate() {
                 let (change, edited, bool_toggled) = constraint.make_ui(
                     ui,
