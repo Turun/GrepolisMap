@@ -176,12 +176,15 @@ impl Model {
                                 all_selections,
                             )?,
                             AndOr::Or => {
-                                // TODO filter this list by the constraints that are
-                                // already present. i.e. if the users makes a selection like
-                                // Selection(joinMode=Or, AllianceName = "AllyA", AllianceName =
-                                // "AllyB", AllianceName = "All...") the suggestions should not
-                                // include "AllyA" or "AllyB", since they are already present verbatim.
+                                let present_constraints: Vec<&str> = constraints
+                                    .iter()
+                                    .filter(|c| c.constraint_type == constraint_type)
+                                    .map(|c| c.value.as_str())
+                                    .collect();
                                 db.get_names_for_constraint_type(constraint_type)?
+                                    .into_iter()
+                                    .filter(|s| !present_constraints.contains(&s.as_str()))
+                                    .collect()
                             }
                         });
                         entry.insert((1.0, value)).1.clone()
