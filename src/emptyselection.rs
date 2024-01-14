@@ -31,7 +31,7 @@ impl Default for EmptyTownSelection {
     fn default() -> Self {
         Self {
             name: Alphanumeric.sample_string(&mut rand::thread_rng(), 6), // https://stackoverflow.com/a/72977937
-            constraints: vec![EmptyConstraint::default()],
+            constraints: vec![],
             constraint_join_mode: AndOr::default(),
             color: egui::Color32::GREEN,
         }
