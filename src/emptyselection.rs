@@ -44,7 +44,7 @@ impl Default for EmptyTownSelection {
         Self {
             name: Alphanumeric.sample_string(&mut rand::thread_rng(), 6), // https://stackoverflow.com/a/72977937
             hidden_id: HiddenId::default(),
-            constraints: vec![],
+            constraints: vec![EmptyConstraint::default()],
             constraint_join_mode: AndOr::default(),
             color: egui::Color32::GREEN,
         }
