@@ -51,7 +51,7 @@ impl AndOr {
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(from = "EmptyTownSelection", into = "EmptyTownSelection")]
+#[serde(from = "EmptyTownSelection", into = "EmptyTownSelection")] // TOOD: make this extra, so we can preserve collapsed state across app restarts
 pub struct TownSelection {
     pub collapsed: bool,
     pub hidden_id: HiddenId,
@@ -224,79 +224,85 @@ impl TownSelection {
         let mut constraint_change_action = None;
         let mut constraint_join_mode_toggled = false;
 
-        egui::collapsing_header::CollapsingState::load_with_default_open(
+        // TODO now it's not preserved across app restarts...
+        //  because the TownSelection struct is using the EmptyTownSelection serde path.
+        // TODO make TownSelection implement a serde path that is different from EmptyTownSelection.
+        //  Or make EmptyTownSelection include the hidden_id, so that egui can persist the collapsed state
+        let collapsing_header = egui::collapsing_header::CollapsingState::load_with_default_open(
             ui.ctx(),
             ui.make_persistent_id(format!("collapsible header {:?}", self.hidden_id)),
             !self.collapsed,
-        )
-        .show_header(ui, |ui| {
-            // add
-            if ui.button("+").clicked() {
-                re = Some(Change::Add);
-            }
-            // remove
-            if ui.button("-").clicked() {
-                re = Some(Change::Remove(selection_index));
-            }
-            // move up
-            if ui.button("↑").clicked() {
-                re = Some(Change::MoveUp(selection_index));
-            }
-            // move down
-            if ui.button("↓").clicked() {
-                re = Some(Change::MoveDown(selection_index));
-            }
-            ui.add_sized(
-                [
-                    ui.style().spacing.interact_size.x * 6.0,
-                    ui.style().spacing.interact_size.y,
-                ],
-                egui::TextEdit::singleline(&mut self.name),
-            );
-            // Color picker. Send a new request to the DB is the hidden status changed
-            let previously_hidden = self.is_hidden();
-            if ui.color_edit_button_srgba(&mut self.color).changed()
-                && previously_hidden != self.is_hidden()
-            {
-                refresh_action = Refresh::InSitu(HashSet::new());
-            }
-
-            if self.is_hidden() {
-                ui.label(t!("selection.hidden"));
-            } else {
-                ui.label(t!("selection.town_count", count = self.towns.len()));
-            }
-            if self.state == SelectionState::Loading {
-                ui.spinner();
-            }
-        })
-        .body(|ui| {
-            for (constraint_index, constraint) in self.constraints.iter_mut().enumerate() {
-                let (change, edited, bool_toggled) = constraint.make_ui(
-                    ui,
-                    selection_index,
-                    constraint_index,
-                    constraint_index + 1 == num_constraints,
-                    self.constraint_join_mode,
+        );
+        self.collapsed = !collapsing_header.is_open();
+        collapsing_header
+            .show_header(ui, |ui| {
+                // add
+                if ui.button("+").clicked() {
+                    re = Some(Change::Add);
+                }
+                // remove
+                if ui.button("-").clicked() {
+                    re = Some(Change::Remove(selection_index));
+                }
+                // move up
+                if ui.button("↑").clicked() {
+                    re = Some(Change::MoveUp(selection_index));
+                }
+                // move down
+                if ui.button("↓").clicked() {
+                    re = Some(Change::MoveDown(selection_index));
+                }
+                ui.add_sized(
+                    [
+                        ui.style().spacing.interact_size.x * 6.0,
+                        ui.style().spacing.interact_size.y,
+                    ],
+                    egui::TextEdit::singleline(&mut self.name),
                 );
+                // Color picker. Send a new request to the DB is the hidden status changed
+                let previously_hidden = self.is_hidden();
+                if ui.color_edit_button_srgba(&mut self.color).changed()
+                    && previously_hidden != self.is_hidden()
+                {
+                    refresh_action = Refresh::InSitu(HashSet::new());
+                }
 
-                if bool_toggled {
-                    constraint_join_mode_toggled = true;
-                    self.constraint_join_mode = match self.constraint_join_mode {
-                        AndOr::And => AndOr::Or,
-                        AndOr::Or => AndOr::And,
+                if self.is_hidden() {
+                    ui.label(t!("selection.hidden"));
+                } else {
+                    ui.label(t!("selection.town_count", count = self.towns.len()));
+                }
+                if self.state == SelectionState::Loading {
+                    ui.spinner();
+                }
+            })
+            .body(|ui| {
+                for (constraint_index, constraint) in self.constraints.iter_mut().enumerate() {
+                    let (change, edited, bool_toggled) = constraint.make_ui(
+                        ui,
+                        selection_index,
+                        constraint_index,
+                        constraint_index + 1 == num_constraints,
+                        self.constraint_join_mode,
+                    );
+
+                    if bool_toggled {
+                        constraint_join_mode_toggled = true;
+                        self.constraint_join_mode = match self.constraint_join_mode {
+                            AndOr::And => AndOr::Or,
+                            AndOr::Or => AndOr::And,
+                        }
+                    }
+
+                    if edited {
+                        edited_constraints.insert(constraint.partial_clone());
+                    }
+
+                    if change.is_some() {
+                        constraint_change_action = change;
                     }
                 }
-
-                if edited {
-                    edited_constraints.insert(constraint.partial_clone());
-                }
-
-                if change.is_some() {
-                    constraint_change_action = change;
-                }
-            }
-        });
+            });
 
         if let Some(change) = constraint_change_action {
             match change {
