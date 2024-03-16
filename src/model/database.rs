@@ -10,6 +10,54 @@ use crate::emptyselection::EmptyTownSelection;
 use crate::model::ConstraintType;
 use crate::town::Town;
 
+pub struct RowOffset {
+    pub offset_type: u8,
+    pub offset_x: u16,
+    pub offset_y: u16,
+    pub offset_slot_number: u8,
+}
+
+pub struct RowIsland {
+    pub island_id: u32,
+    pub island_x: u16,
+    pub island_y: u16,
+    pub island_type: u8,
+    pub island_towns: u8,
+    pub island_ressource_plus: String,
+    pub island_ressource_minus: String,
+}
+
+pub struct RowTown {
+    pub town_id: u32,
+    pub town_name: String,
+    pub town_points: u16,
+    pub town_player: Option<(u32, RowPlayer)>, // link town.player_id == player.id
+    pub town_island: (u32, u32, RowIsland),    // link town.x = island.y && town.y == island.y
+    pub town_offset: (u32, RowOffset), // link town.slot_number = offset.slot_number && offset.type == island.type
+}
+
+pub struct RowAlliance {
+    pub alliance_id: u32,
+    pub alliance_name: String,
+    pub alliance_points: u32,
+    pub alliance_towns: u32,
+    pub alliance_members: u16,
+    pub alliance_rank: u16,
+}
+
+pub struct RowPlayer {
+    pub player_id: u32,
+    pub player_name: String,
+    pub player_alliance: Option<(u32, RowAlliance)>, // link player.alliance_id == alliance.id
+    pub player_points: u32,
+    pub player_rank: u16,
+    pub player_towns: u16,
+}
+
+pub struct DataTable {
+    towns: Vec<RowTown>,
+}
+
 pub struct Database {
     pub connection: rusqlite::Connection,
 }
