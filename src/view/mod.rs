@@ -232,6 +232,7 @@ impl View {
             ui.vertical(|ui| {
                 self.ui_server_input(ui, ctx);
                 match progress {
+                    // TODO adjust this once the backend has moved from sql to rust
                     Progress::None => {}
                     Progress::BackendCrashed(stringified_reason) => {
                         ui.label(

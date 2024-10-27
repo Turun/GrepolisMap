@@ -302,6 +302,21 @@ pub enum Comparator {
 }
 
 impl Comparator {
+    pub fn compare<T: PartialEq + PartialOrd>(&self, a: T, b: T) -> bool {
+        match self {
+            Comparator::LessThan => a <= b,
+            Comparator::Equal => a == b,
+            Comparator::GreaterThan => a >= b,
+            Comparator::NotEqual => a != b,
+            Comparator::InSelection => {
+                todo!() // TODO: we either have to handle the case here or make sure Self::compare is never called for In/NotIn comparators
+            }
+            Comparator::NotInSelection => {
+                todo!()
+            }
+        }
+    }
+
     pub fn as_sql(self) -> String {
         match self {
             Comparator::LessThan => "<=".to_string(),

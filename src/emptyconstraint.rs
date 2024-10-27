@@ -1,7 +1,7 @@
 use crate::{
     constraint::{Comparator, Constraint, ConstraintType},
     emptyselection::EmptyTownSelection,
-    model::database::Database,
+    model::database::{BackendTown, Database},
 };
 use std::{fmt, hash::Hash};
 
@@ -91,6 +91,48 @@ impl EmptyConstraint {
                     }
                 }
             }
+        }
+    }
+
+    pub fn matches(&self, t: &&BackendTown, all_selections: &[EmptyTownSelection]) -> bool {
+        let value_f64: Option<f64> = self.value.parse().ok();
+        match self.comparator {
+            Comparator::LessThan
+            | Comparator::Equal
+            | Comparator::GreaterThan
+            | Comparator::NotEqual => match self.constraint_type {
+                ConstraintType::PlayerID => {
+                    if let Some(id) = t.player.map(|(id, _)| id) {
+                        if let Some(value) = value_f64 {
+                            self.comparator.compare(id, value as u32)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::PlayerName => {}
+                ConstraintType::PlayerPoints => {}
+                ConstraintType::PlayerRank => {}
+                ConstraintType::PlayerTowns => {}
+                ConstraintType::AllianceName => {}
+                ConstraintType::AlliancePoints => {}
+                ConstraintType::AllianceTowns => {}
+                ConstraintType::AllianceMembers => {}
+                ConstraintType::AllianceRank => {}
+                ConstraintType::TownID => {}
+                ConstraintType::TownName => {}
+                ConstraintType::TownPoints => {}
+                ConstraintType::IslandID => {}
+                ConstraintType::IslandX => {}
+                ConstraintType::IslandY => {}
+                ConstraintType::IslandType => {}
+                ConstraintType::IslandTowns => {}
+                ConstraintType::IslandResMore => {}
+                ConstraintType::IslandResLess => {}
+            },
+            Comparator::InSelection | Comparator::NotInSelection => todo!(),
         }
     }
 }
