@@ -104,7 +104,7 @@ impl EmptyConstraint {
                 ConstraintType::PlayerID => {
                     if let Some(id) = t.player.map(|(id, _)| id) {
                         if let Some(value) = value_f64 {
-                            self.comparator.compare(id, value as u32)
+                            self.comparator.compare(id as f64, value)
                         } else {
                             false
                         }
@@ -112,25 +112,185 @@ impl EmptyConstraint {
                         false
                     }
                 }
-                ConstraintType::PlayerName => {}
-                ConstraintType::PlayerPoints => {}
-                ConstraintType::PlayerRank => {}
-                ConstraintType::PlayerTowns => {}
-                ConstraintType::AllianceName => {}
-                ConstraintType::AlliancePoints => {}
-                ConstraintType::AllianceTowns => {}
-                ConstraintType::AllianceMembers => {}
-                ConstraintType::AllianceRank => {}
-                ConstraintType::TownID => {}
-                ConstraintType::TownName => {}
-                ConstraintType::TownPoints => {}
-                ConstraintType::IslandID => {}
-                ConstraintType::IslandX => {}
-                ConstraintType::IslandY => {}
-                ConstraintType::IslandType => {}
-                ConstraintType::IslandTowns => {}
-                ConstraintType::IslandResMore => {}
-                ConstraintType::IslandResLess => {}
+                ConstraintType::PlayerName => {
+                    if let Some(name) = t.player.map(|(_id, player)| player.name) {
+                        self.comparator.compare(name, self.value)
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::PlayerPoints => {
+                    if let Some(points) = t.player.map(|(_id, player)| player.points) {
+                        if let Some(value) = value_f64 {
+                            self.comparator.compare(points as f64, value)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::PlayerRank => {
+                    if let Some(rank) = t.player.map(|(_id, player)| player.points) {
+                        if let Some(value) = value_f64 {
+                            self.comparator.compare(rank as f64, value)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::PlayerTowns => {
+                    if let Some(towns) = t.player.map(|(_id, player)| player.towns) {
+                        if let Some(value) = value_f64 {
+                            self.comparator.compare(towns as f64, value)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::AllianceName => {
+                    if let Some(name) = t
+                        .player
+                        .map(|(_id, player)| player.alliance)
+                        .flatten()
+                        .map(|(_id, alliance)| alliance.name)
+                    {
+                        self.comparator.compare(name, self.value)
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::AlliancePoints => {
+                    if let Some(points) = t
+                        .player
+                        .map(|(_id, player)| player.alliance)
+                        .flatten()
+                        .map(|(_id, alliance)| alliance.points)
+                    {
+                        if let Some(value) = value_f64 {
+                            self.comparator.compare(points as f64, value)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::AllianceTowns => {
+                    if let Some(towns) = t
+                        .player
+                        .map(|(_id, player)| player.alliance)
+                        .flatten()
+                        .map(|(_id, alliance)| alliance.towns)
+                    {
+                        if let Some(value) = value_f64 {
+                            self.comparator.compare(towns as f64, value)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::AllianceMembers => {
+                    if let Some(members) = t
+                        .player
+                        .map(|(_id, player)| player.alliance)
+                        .flatten()
+                        .map(|(_id, alliance)| alliance.members)
+                    {
+                        if let Some(value) = value_f64 {
+                            self.comparator.compare(members as f64, value)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::AllianceRank => {
+                    if let Some(rank) = t
+                        .player
+                        .map(|(_id, player)| player.alliance)
+                        .flatten()
+                        .map(|(_id, alliance)| alliance.rank)
+                    {
+                        if let Some(value) = value_f64 {
+                            self.comparator.compare(rank as f64, value)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::TownID => {
+                    if let Some(value) = value_f64 {
+                        self.comparator.compare(t.id as f64, value)
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::TownName => self.comparator.compare(t.name, self.value),
+                ConstraintType::TownPoints => {
+                    if let Some(value) = value_f64 {
+                        self.comparator.compare(t.id as f64, value)
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::IslandID => {
+                    let (_x, _y, island) = t.island;
+                    if let Some(value) = value_f64 {
+                        self.comparator.compare(island.id as f64, value)
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::IslandX => {
+                    let (x, _y, _island) = t.island;
+                    if let Some(value) = value_f64 {
+                        self.comparator.compare(x as f64, value)
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::IslandY => {
+                    let (_x, y, _island) = t.island;
+                    if let Some(value) = value_f64 {
+                        self.comparator.compare(y as f64, value)
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::IslandType => {
+                    let (_x, _y, island) = t.island;
+                    if let Some(value) = value_f64 {
+                        self.comparator.compare(island.typ as f64, value)
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::IslandTowns => {
+                    let (_x, _y, island) = t.island;
+                    if let Some(value) = value_f64 {
+                        self.comparator.compare(island.towns as f64, value)
+                    } else {
+                        false
+                    }
+                }
+                ConstraintType::IslandResMore => {
+                    let (_x, _y, island) = t.island;
+                    self.comparator.compare(island.ressource_plus, self.value)
+                }
+                ConstraintType::IslandResLess => {
+                    let (_x, _y, island) = t.island;
+                    self.comparator.compare(island.ressource_minus, self.value)
+                }
             },
             Comparator::InSelection | Comparator::NotInSelection => todo!(),
         }
