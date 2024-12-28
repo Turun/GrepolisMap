@@ -27,7 +27,7 @@ type TownCacheKey = (Vec<EmptyConstraint>, AndOr, BTreeSet<EmptyTownSelection>);
 pub enum Model {
     Uninitialized,
     Loaded {
-        db: database::Database,
+        db: database::DataTable,
         ctx: egui::Context,
         cache_strings: HashMap<StringCacheKey, (f32, Arc<Vec<String>>)>,
         cache_towns: HashMap<TownCacheKey, (f32, Arc<Vec<Town>>)>,

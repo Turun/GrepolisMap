@@ -4,7 +4,7 @@ use eframe::epaint::ahash::HashMap;
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToServer, MessageToView};
-use crate::model::database::Database;
+use crate::model::database::DataTable;
 use crate::model::Model;
 use crate::storage;
 use crate::view::preferences::CacheSize;
@@ -117,37 +117,38 @@ impl Presenter {
                     spawned_threads.push(handle);
                 }
                 MessageToModel::LoadDataFromFile(path, ctx) => {
-                    let db_result = Database::load_from_file(&path);
-                    match db_result {
-                        Ok(db) => {
-                            self.model = Model::Loaded {
-                                db,
-                                ctx,
-                                cache_strings: HashMap::default(),
-                                cache_towns: HashMap::default(),
-                            };
-                            send_to_view(
-                                &self.channel_tx,
-                                Ok(MessageToView::GotServer),
-                                String::from("Failed to send message 'got server'"),
-                            );
-                        }
-                        Err(err) => {
-                            self.model = Model::Uninitialized;
-                            send_to_view(
-                                &self.channel_tx,
-                                Ok(MessageToView::BackendCrashed(err)),
-                                String::from("Failed to send crash message to view"),
-                            );
-                        }
-                    }
+                    unimplemented!()
+                    // let db_result = Database::load_from_file(&path);
+                    // match db_result {
+                    //     Ok(db) => {
+                    //         self.model = Model::Loaded {
+                    //             db,
+                    //             ctx,
+                    //             cache_strings: HashMap::default(),
+                    //             cache_towns: HashMap::default(),
+                    //         };
+                    //         send_to_view(
+                    //             &self.channel_tx,
+                    //             Ok(MessageToView::GotServer),
+                    //             String::from("Failed to send message 'got server'"),
+                    //         );
+                    //     }
+                    //     Err(err) => {
+                    //         self.model = Model::Uninitialized;
+                    //         send_to_view(
+                    //             &self.channel_tx,
+                    //             Ok(MessageToView::BackendCrashed(err)),
+                    //             String::from("Failed to send crash message to view"),
+                    //         );
+                    //     }
+                    // }
                 }
                 MessageToModel::SetServer(server, ctx) => {
                     let _result = self
                         .telemetry_tx
                         .send(MessageToServer::LoadServer(server.id.clone()));
                     let db_path = storage::get_new_db_filename(&server.id);
-                    let db_result = Database::create_for_world(
+                    let db_result = DataTable::create_for_world(
                         &server.id,
                         db_path.as_deref(),
                         &self.channel_tx,

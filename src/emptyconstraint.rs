@@ -1,7 +1,7 @@
 use crate::{
     constraint::{Comparator, Constraint, ConstraintType},
     emptyselection::EmptyTownSelection,
-    model::database::{BackendTown, Database},
+    model::database::BackendTown,
 };
 use std::{fmt, hash::Hash};
 
@@ -44,57 +44,9 @@ impl EmptyConstraint {
         }
     }
 
-    pub fn get_sql_value(&self, db: &Database, all_selections: &[EmptyTownSelection]) -> String {
-        match self.comparator {
-            Comparator::LessThan
-            | Comparator::Equal
-            | Comparator::GreaterThan
-            | Comparator::NotEqual => self.value.clone(),
-            Comparator::InSelection | Comparator::NotInSelection => {
-                let definitely_true = format!(
-                    "SELECT {0}.{1} FROM {0}",
-                    self.constraint_type.table(),
-                    self.constraint_type.property()
-                );
-                let definitely_false = String::new();
-
-                if self.value.is_empty() {
-                    return definitely_true;
-                }
-
-                let target_selection = all_selections
-                    .iter()
-                    .find(|&selection| selection.name == self.value);
-                if let Some(selection) = target_selection {
-                    // user has typed in a valid name
-                    let selection_clause = format!(
-                        "{}.{}",
-                        self.constraint_type.table(),
-                        self.constraint_type.property()
-                    );
-
-                    // TODO error handling
-                    db.selection_to_sql(&selection_clause, selection, all_selections)
-                        .unwrap()
-                } else {
-                    // The user typed in a selection name that does not exist. If the user wants towns that are IN
-                    // this imaginary selection, they'll get none. If they want all town that are NOT IN this imaginary
-                    // selection they'll get all possible ones (an empty selection does not restrict the search in any way)
-                    if self.comparator == Comparator::NotInSelection {
-                        definitely_true
-                    } else if self.comparator == Comparator::InSelection {
-                        definitely_false
-                    } else {
-                        unreachable!(
-                            "The comparator type somehow changed between the match and the if case"
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     pub fn matches(&self, t: &&BackendTown, all_selections: &[EmptyTownSelection]) -> bool {
+        // TODO: instead of one town we should take a hashset of towns and return (said set).retain(|t| (the current code))
+        //       this is a schema that makes it much easier to incorporate the inselection/notinselection comparators as well.
         let value_f64: Option<f64> = self.value.parse().ok();
         match self.comparator {
             Comparator::LessThan
@@ -131,7 +83,7 @@ impl EmptyConstraint {
                     }
                 }
                 ConstraintType::PlayerRank => {
-                    if let Some(rank) = t.player.map(|(_id, player)| player.points) {
+                    if let Some(rank) = t.player.map(|(_id, player)| player.rank) {
                         if let Some(value) = value_f64 {
                             self.comparator.compare(rank as f64, value)
                         } else {
@@ -238,7 +190,7 @@ impl EmptyConstraint {
                 ConstraintType::TownName => self.comparator.compare(t.name, self.value),
                 ConstraintType::TownPoints => {
                     if let Some(value) = value_f64 {
-                        self.comparator.compare(t.id as f64, value)
+                        self.comparator.compare(t.points as f64, value)
                     } else {
                         false
                     }
