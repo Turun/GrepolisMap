@@ -54,9 +54,9 @@ impl EmptyConstraint {
             | Comparator::GreaterThan
             | Comparator::NotEqual => match self.constraint_type {
                 ConstraintType::PlayerID => {
-                    if let Some(id) = t.player.map(|(id, _)| id) {
+                    if let Some(id) = t.player.as_ref().map(|(id, _)| id) {
                         if let Some(value) = value_f64 {
-                            self.comparator.compare(id as f64, value)
+                            self.comparator.compare(*id as f64, value)
                         } else {
                             false
                         }
@@ -65,14 +65,14 @@ impl EmptyConstraint {
                     }
                 }
                 ConstraintType::PlayerName => {
-                    if let Some(name) = t.player.map(|(_id, player)| player.name) {
-                        self.comparator.compare(name, self.value)
+                    if let Some(name) = t.player.as_ref().map(|(_id, player)| &player.name) {
+                        self.comparator.compare(name, &self.value)
                     } else {
                         false
                     }
                 }
                 ConstraintType::PlayerPoints => {
-                    if let Some(points) = t.player.map(|(_id, player)| player.points) {
+                    if let Some(points) = t.player.as_ref().map(|(_id, player)| player.points) {
                         if let Some(value) = value_f64 {
                             self.comparator.compare(points as f64, value)
                         } else {
@@ -83,7 +83,7 @@ impl EmptyConstraint {
                     }
                 }
                 ConstraintType::PlayerRank => {
-                    if let Some(rank) = t.player.map(|(_id, player)| player.rank) {
+                    if let Some(rank) = t.player.as_ref().map(|(_id, player)| player.rank) {
                         if let Some(value) = value_f64 {
                             self.comparator.compare(rank as f64, value)
                         } else {
@@ -94,7 +94,7 @@ impl EmptyConstraint {
                     }
                 }
                 ConstraintType::PlayerTowns => {
-                    if let Some(towns) = t.player.map(|(_id, player)| player.towns) {
+                    if let Some(towns) = t.player.as_ref().map(|(_id, player)| player.towns) {
                         if let Some(value) = value_f64 {
                             self.comparator.compare(towns as f64, value)
                         } else {
@@ -107,11 +107,12 @@ impl EmptyConstraint {
                 ConstraintType::AllianceName => {
                     if let Some(name) = t
                         .player
-                        .map(|(_id, player)| player.alliance)
+                        .as_ref()
+                        .map(|(_id, player)| player.alliance.clone())
                         .flatten()
-                        .map(|(_id, alliance)| alliance.name)
+                        .map(|(_id, alliance)| alliance.name.clone())
                     {
-                        self.comparator.compare(name, self.value)
+                        self.comparator.compare(&name, &self.value)
                     } else {
                         false
                     }
@@ -119,7 +120,8 @@ impl EmptyConstraint {
                 ConstraintType::AlliancePoints => {
                     if let Some(points) = t
                         .player
-                        .map(|(_id, player)| player.alliance)
+                        .as_ref()
+                        .map(|(_id, player)| player.alliance.clone())
                         .flatten()
                         .map(|(_id, alliance)| alliance.points)
                     {
@@ -135,7 +137,8 @@ impl EmptyConstraint {
                 ConstraintType::AllianceTowns => {
                     if let Some(towns) = t
                         .player
-                        .map(|(_id, player)| player.alliance)
+                        .as_ref()
+                        .map(|(_id, player)| player.alliance.clone())
                         .flatten()
                         .map(|(_id, alliance)| alliance.towns)
                     {
@@ -151,7 +154,8 @@ impl EmptyConstraint {
                 ConstraintType::AllianceMembers => {
                     if let Some(members) = t
                         .player
-                        .map(|(_id, player)| player.alliance)
+                        .as_ref()
+                        .map(|(_id, player)| player.alliance.clone())
                         .flatten()
                         .map(|(_id, alliance)| alliance.members)
                     {
@@ -167,7 +171,8 @@ impl EmptyConstraint {
                 ConstraintType::AllianceRank => {
                     if let Some(rank) = t
                         .player
-                        .map(|(_id, player)| player.alliance)
+                        .as_ref()
+                        .map(|(_id, player)| player.alliance.clone())
                         .flatten()
                         .map(|(_id, alliance)| alliance.rank)
                     {
@@ -187,7 +192,7 @@ impl EmptyConstraint {
                         false
                     }
                 }
-                ConstraintType::TownName => self.comparator.compare(t.name, self.value),
+                ConstraintType::TownName => self.comparator.compare(&t.name, &self.value),
                 ConstraintType::TownPoints => {
                     if let Some(value) = value_f64 {
                         self.comparator.compare(t.points as f64, value)
@@ -196,7 +201,7 @@ impl EmptyConstraint {
                     }
                 }
                 ConstraintType::IslandID => {
-                    let (_x, _y, island) = t.island;
+                    let (_x, _y, island) = &t.island;
                     if let Some(value) = value_f64 {
                         self.comparator.compare(island.id as f64, value)
                     } else {
@@ -204,23 +209,23 @@ impl EmptyConstraint {
                     }
                 }
                 ConstraintType::IslandX => {
-                    let (x, _y, _island) = t.island;
+                    let (x, _y, _island) = &t.island;
                     if let Some(value) = value_f64 {
-                        self.comparator.compare(x as f64, value)
+                        self.comparator.compare(*x as f64, value)
                     } else {
                         false
                     }
                 }
                 ConstraintType::IslandY => {
-                    let (_x, y, _island) = t.island;
+                    let (_x, y, _island) = &t.island;
                     if let Some(value) = value_f64 {
-                        self.comparator.compare(y as f64, value)
+                        self.comparator.compare(*y as f64, value)
                     } else {
                         false
                     }
                 }
                 ConstraintType::IslandType => {
-                    let (_x, _y, island) = t.island;
+                    let (_x, _y, island) = &t.island;
                     if let Some(value) = value_f64 {
                         self.comparator.compare(island.typ as f64, value)
                     } else {
@@ -228,7 +233,7 @@ impl EmptyConstraint {
                     }
                 }
                 ConstraintType::IslandTowns => {
-                    let (_x, _y, island) = t.island;
+                    let (_x, _y, island) = &t.island;
                     if let Some(value) = value_f64 {
                         self.comparator.compare(island.towns as f64, value)
                     } else {
@@ -236,12 +241,13 @@ impl EmptyConstraint {
                     }
                 }
                 ConstraintType::IslandResMore => {
-                    let (_x, _y, island) = t.island;
-                    self.comparator.compare(island.ressource_plus, self.value)
+                    let (_x, _y, island) = &t.island;
+                    self.comparator.compare(&island.ressource_plus, &self.value)
                 }
                 ConstraintType::IslandResLess => {
-                    let (_x, _y, island) = t.island;
-                    self.comparator.compare(island.ressource_minus, self.value)
+                    let (_x, _y, island) = &t.island;
+                    self.comparator
+                        .compare(&island.ressource_minus, &self.value)
                 }
             },
             Comparator::InSelection | Comparator::NotInSelection => todo!(),

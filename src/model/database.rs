@@ -59,14 +59,15 @@ impl From<&BackendTown> for Town {
     fn from(value: &BackendTown) -> Self {
         Self {
             id: value.id as i32,
-            player_id: value.player.map(|(id, _)| id as i32),
-            player_name: value.player.map(|(_, p)| p.name),
+            player_id: value.player.as_ref().map(|(id, _)| *id as i32),
+            player_name: value.player.as_ref().map(|(_, p)| p.name.clone()),
             alliance_name: value
                 .player
-                .map(|(_, p)| p.alliance)
+                .as_ref()
+                .map(|(_, p)| p.alliance.as_ref())
                 .flatten()
-                .map(|(_, a)| a.name),
-            name: value.name,
+                .map(|(_, a)| a.name.clone()),
+            name: value.name.clone(),
             x: value.actual_x,
             y: value.actual_y,
             slot_number: value.offset.1.slot_number,
@@ -171,79 +172,89 @@ pub fn get_names_for_constraint_type_in_town_list(
     let mut re = HashSet::new();
     for t in towns {
         let opt_value: Option<String> = match constraint_type {
-            ConstraintType::PlayerID => t.player.map(|(id, _)| id).map(|x| format!("{x}")),
-            ConstraintType::PlayerName => t.player.map(|(_id, player)| player.name),
+            ConstraintType::PlayerID => t.player.as_ref().map(|(id, _)| id).map(|x| format!("{x}")),
+            ConstraintType::PlayerName => {
+                t.player.as_ref().map(|(_id, player)| player.name.clone())
+            }
             ConstraintType::PlayerPoints => t
                 .player
+                .as_ref()
                 .map(|(_id, player)| player.points)
                 .map(|x| format!("{x}")),
             ConstraintType::PlayerRank => t
                 .player
+                .as_ref()
                 .map(|(_id, player)| player.rank)
                 .map(|x| format!("{x}")),
             ConstraintType::PlayerTowns => t
                 .player
+                .as_ref()
                 .map(|(_id, player)| player.towns)
                 .map(|x| format!("{x}")),
             ConstraintType::AllianceName => t
                 .player
-                .map(|(_id, player)| player.alliance)
+                .as_ref()
+                .map(|(_id, player)| player.alliance.clone())
                 .flatten()
-                .map(|(_id, alliance)| alliance.name),
+                .map(|(_id, alliance)| alliance.name.clone()),
             ConstraintType::AlliancePoints => t
                 .player
-                .map(|(_id, player)| player.alliance)
+                .as_ref()
+                .map(|(_id, player)| player.alliance.clone())
                 .flatten()
                 .map(|(_id, alliance)| alliance.points)
                 .map(|x| format!("{x}")),
             ConstraintType::AllianceTowns => t
                 .player
-                .map(|(_id, player)| player.alliance)
+                .as_ref()
+                .map(|(_id, player)| player.alliance.clone())
                 .flatten()
                 .map(|(_id, alliance)| alliance.towns)
                 .map(|x| format!("{x}")),
             ConstraintType::AllianceMembers => t
                 .player
-                .map(|(_id, player)| player.alliance)
+                .as_ref()
+                .map(|(_id, player)| player.alliance.clone())
                 .flatten()
                 .map(|(_id, alliance)| alliance.members)
                 .map(|x| format!("{x}")),
             ConstraintType::AllianceRank => t
                 .player
-                .map(|(_id, player)| player.alliance)
+                .as_ref()
+                .map(|(_id, player)| player.alliance.clone())
                 .flatten()
                 .map(|(_id, alliance)| alliance.rank)
                 .map(|x| format!("{x}")),
             ConstraintType::TownID => Some(t.id).map(|x| format!("{x}")),
-            ConstraintType::TownName => Some(t.name),
+            ConstraintType::TownName => Some(t.name.clone()),
             ConstraintType::TownPoints => Some(t.id).map(|x| format!("{x}")),
             ConstraintType::IslandID => {
-                let (_x, _y, island) = t.island;
+                let (_x, _y, island) = &t.island;
                 Some(island.id).map(|x| format!("{x}"))
             }
             ConstraintType::IslandX => {
-                let (x, _y, _island) = t.island;
+                let (x, _y, _island) = &t.island;
                 Some(x).map(|x| format!("{x}"))
             }
             ConstraintType::IslandY => {
-                let (_x, y, _island) = t.island;
+                let (_x, y, _island) = &t.island;
                 Some(y).map(|x| format!("{x}"))
             }
             ConstraintType::IslandType => {
-                let (_x, _y, island) = t.island;
+                let (_x, _y, island) = &t.island;
                 Some(island.typ).map(|x| format!("{x}"))
             }
             ConstraintType::IslandTowns => {
-                let (_x, _y, island) = t.island;
+                let (_x, _y, island) = &t.island;
                 Some(island.towns).map(|x| format!("{x}"))
             }
             ConstraintType::IslandResMore => {
-                let (_x, _y, island) = t.island;
-                Some(island.ressource_plus).map(|x| format!("{x}"))
+                let (_x, _y, island) = &t.island;
+                Some(island.ressource_plus.clone())
             }
             ConstraintType::IslandResLess => {
-                let (_x, _y, island) = t.island;
-                Some(island.ressource_minus).map(|x| format!("{x}"))
+                let (_x, _y, island) = &t.island;
+                Some(island.ressource_minus.clone())
             }
         };
 
