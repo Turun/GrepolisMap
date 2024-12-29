@@ -7,7 +7,9 @@ use crate::{
     message::{MessageToModel, Progress},
     storage,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use arboard::Clipboard;
+#[cfg(not(target_arch = "wasm32"))]
 use native_dialog::FileDialog;
 use rust_i18n::t;
 use std::collections::BTreeMap;
@@ -24,6 +26,7 @@ impl View {
         egui::TopBottomPanel::top("menu bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 //////////////////////////////////////////////////////////////////////////////////
+                #[cfg(not(target_arch="wasm32"))]
                 ui.menu_button(t!("menu.open.title"), |ui| {
                     let mut clicked_path = None;
                     for (server, saved_dbs) in &self.ui_data.saved_db {
@@ -46,6 +49,7 @@ impl View {
                 });
 
                 //////////////////////////////////////////////////////////////////////////////////
+                #[cfg(not(target_arch="wasm32"))]
                 ui.menu_button(t!("menu.delete.title"), |ui| {
                     ui.menu_button(t!("menu.delete.all"), |ui| {
                         if ui.button(t!("menu.delete.confirm")).clicked() {
@@ -138,6 +142,7 @@ impl View {
                 });
 
                 //////////////////////////////////////////////////////////////////////////////////
+                #[cfg(not(target_arch="wasm32"))]
                 ui.menu_button(t!("menu.import.title"), |ui| {
                     if ui.button(t!("menu.import.from_clipboard")).clicked() {
                         match Clipboard::new() {
@@ -194,6 +199,7 @@ impl View {
                 });
 
                 //////////////////////////////////////////////////////////////////////////////////
+                #[cfg(not(target_arch="wasm32"))]
                 ui.menu_button(t!("menu.export.title"), |ui| {
                     if ui.button(t!("menu.export.to_clipboard")).clicked() {
                         match Clipboard::new() {
