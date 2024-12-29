@@ -79,7 +79,7 @@ impl View {
 
         // load saved app data from disk
         if let Some(storage) = cc.storage {
-            re.ui_data = if let Some(text) = storage.get_string(eframe::APP_KEY) {
+            re.ui_data = if let Some(text) = storage.get_string(crate::APP_KEY) {
                 // println!("{}", text);
                 let _result = telemetry_tx.send(MessageToServer::StoredConfig(text.clone()));
                 serde_yaml::from_str(&text).unwrap_or_else(|err| {
@@ -135,7 +135,7 @@ impl View {
 
     fn reset_saved_preferences(frame: &mut eframe::Frame) {
         if let Some(storage) = frame.storage_mut() {
-            storage.set_string(eframe::APP_KEY, String::new());
+            storage.set_string(crate::APP_KEY, String::new());
             storage.flush();
         }
     }
@@ -412,7 +412,7 @@ impl eframe::App for View {
         let serde_result = serde_yaml::to_string(&self.ui_data);
         match serde_result {
             Ok(res) => {
-                storage.set_string(eframe::APP_KEY, res);
+                storage.set_string(crate::APP_KEY, res);
                 storage.flush();
             }
             Err(err) => {
