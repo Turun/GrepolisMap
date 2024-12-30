@@ -212,83 +212,6 @@ impl ToString for ConstraintType {
     }
 }
 
-impl ConstraintType {
-    pub fn table(self) -> String {
-        match self {
-            ConstraintType::PlayerName
-            | ConstraintType::PlayerID
-            | ConstraintType::PlayerPoints
-            | ConstraintType::PlayerRank
-            | ConstraintType::PlayerTowns => String::from("players"),
-            ConstraintType::AllianceName
-            | ConstraintType::AlliancePoints
-            | ConstraintType::AllianceTowns
-            | ConstraintType::AllianceMembers
-            | ConstraintType::AllianceRank => String::from("alliances"),
-            ConstraintType::TownName | ConstraintType::TownPoints | ConstraintType::TownID => {
-                String::from("towns")
-            }
-            ConstraintType::IslandID
-            | ConstraintType::IslandX
-            | ConstraintType::IslandY
-            | ConstraintType::IslandType
-            | ConstraintType::IslandTowns
-            | ConstraintType::IslandResMore
-            | ConstraintType::IslandResLess => String::from("islands"),
-        }
-    }
-
-    pub fn property(self) -> String {
-        match self {
-            ConstraintType::PlayerID => String::from("player_id"),
-            ConstraintType::PlayerName
-            | ConstraintType::AllianceName
-            | ConstraintType::TownName => String::from("name"),
-            ConstraintType::PlayerPoints
-            | ConstraintType::AlliancePoints
-            | ConstraintType::TownPoints => String::from("points"),
-            ConstraintType::PlayerRank | ConstraintType::AllianceRank => String::from("rank"),
-            ConstraintType::PlayerTowns
-            | ConstraintType::AllianceTowns
-            | ConstraintType::IslandTowns => String::from("towns"),
-            ConstraintType::TownID => String::from("town_id"),
-            ConstraintType::AllianceMembers => String::from("members"),
-            ConstraintType::IslandID => String::from("island_id"),
-            ConstraintType::IslandX => String::from("x"),
-            ConstraintType::IslandY => String::from("y"),
-            ConstraintType::IslandType => String::from("type"),
-            ConstraintType::IslandResMore => String::from("ressource_plus"),
-            ConstraintType::IslandResLess => String::from("ressource_minus"),
-        }
-    }
-
-    pub fn is_string(self) -> bool {
-        match self {
-            ConstraintType::PlayerName
-            | ConstraintType::AllianceName
-            | ConstraintType::TownName
-            | ConstraintType::IslandResMore
-            | ConstraintType::IslandResLess => true,
-
-            ConstraintType::PlayerID
-            | ConstraintType::PlayerPoints
-            | ConstraintType::PlayerRank
-            | ConstraintType::PlayerTowns
-            | ConstraintType::AlliancePoints
-            | ConstraintType::AllianceTowns
-            | ConstraintType::AllianceMembers
-            | ConstraintType::AllianceRank
-            | ConstraintType::TownID
-            | ConstraintType::TownPoints
-            | ConstraintType::IslandID
-            | ConstraintType::IslandX
-            | ConstraintType::IslandY
-            | ConstraintType::IslandType
-            | ConstraintType::IslandTowns => false,
-        }
-    }
-}
-
 #[derive(
     Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord,
 )]
@@ -314,17 +237,6 @@ impl Comparator {
             Comparator::NotInSelection => {
                 todo!()
             }
-        }
-    }
-
-    pub fn as_sql(self) -> String {
-        match self {
-            Comparator::LessThan => "<=".to_string(),
-            Comparator::Equal => "=".to_string(),
-            Comparator::GreaterThan => ">=".to_string(),
-            Comparator::NotEqual => "<>".to_string(),
-            Comparator::InSelection => "IN".to_string(),
-            Comparator::NotInSelection => "NOT IN".to_string(),
         }
     }
 }
