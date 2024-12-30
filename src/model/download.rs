@@ -2,7 +2,7 @@ use super::database::{Alliance, BackendTown, DataTable, Island, Offset, Player};
 use super::offset_data;
 use crate::message::{MessageToView, Progress};
 use anyhow::Context;
-use reqwest;
+use reqwest; // TODO: replace this with ehttp to get wasm and native to work with the same code. Since that works with callbacks we need to have the network code fill Arc<Mutex<Some(String)>> and have further processing wait in a while arc.lock().isNone() {sleep(1ms)}
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;

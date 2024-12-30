@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -7,6 +8,7 @@ use crate::emptyselection::EmptyTownSelection;
 use crate::model::ConstraintType;
 use crate::town::Town;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Offset {
     pub typ: u8,
     pub x: u16,
@@ -14,6 +16,7 @@ pub struct Offset {
     pub slot_number: u8,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Island {
     pub id: u32,
     pub x: u16,
@@ -24,6 +27,7 @@ pub struct Island {
     pub ressource_minus: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Alliance {
     pub id: u32,
     pub name: String,
@@ -33,6 +37,7 @@ pub struct Alliance {
     pub rank: u16,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Player {
     pub id: u32,
     pub name: String,
@@ -44,6 +49,7 @@ pub struct Player {
 
 // TODO: Merge BackendTown and Town as it is used for the frontend into one struct
 
+#[derive(Debug, Clone)]
 pub struct BackendTown {
     pub id: u32,
     pub name: String,
@@ -53,6 +59,17 @@ pub struct BackendTown {
     pub offset: (u8, Rc<Offset>), // link town.slot_number = offset.slot_number && offset.type == island.type
     pub actual_x: f32,
     pub actual_y: f32, // computed from the linked island and offset
+}
+impl PartialEq for BackendTown {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+impl Eq for BackendTown {}
+impl std::hash::Hash for BackendTown {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
 
 impl From<&BackendTown> for Town {
@@ -146,29 +163,76 @@ impl DataTable {
             return Ok(Vec::new());
         }
 
-        Ok(self
-            .towns
-            .iter()
-            .filter(|t| match join_mode {
-                "AND" => constraints
-                    .iter()
-                    .all(|c| c.matches(&&***t, all_selections)),
-                "OR" => constraints
-                    .iter()
-                    .any(|c| c.matches(&&***t, all_selections)),
-                _ => {
-                    unreachable!()
-                }
-            })
-            .cloned()
-            .collect())
+        // TODO: we should build this selection one level higher in the code, not here. But for now it's a quick and easy solution
+        let mut selection = EmptyTownSelection::default();
+        selection.constraints = constraints.to_vec();
+        selection.constraint_join_mode = match join_mode {
+            "AND" => crate::selection::AndOr::And,
+            "OR" => crate::selection::AndOr::Or,
+            _ => unreachable!(),
+        };
+
+        let mut re = super::database::matching_towns_for_selection(
+            HashSet::from_iter(self.towns.clone().into_iter()),
+            &selection,
+            all_selections,
+        )
+        .into_iter()
+        .collect();
+
+        return Ok(re);
     }
+}
+
+pub fn matching_towns_for_selection(
+    towns: HashSet<Rc<BackendTown>>,
+    selection: &EmptyTownSelection,
+    all_selections: &[EmptyTownSelection],
+) -> HashSet<Rc<BackendTown>> {
+    // short circuit useless selections.
+    // TODO: same as below, we should do a proper check for invalid input
+    if selection.constraints.iter().all(|c| c.value.is_empty()) {
+        return HashSet::new();
+    }
+
+    let mut local_towns = match selection.constraint_join_mode {
+        crate::selection::AndOr::And => towns.clone(), // for and we need to start with the full set and widdle it down
+        crate::selection::AndOr::Or => HashSet::new(), // for or we need to start with nothing and build it up gradually
+    };
+    for constraint in &selection.constraints {
+        // skip empty inputs
+        // TODO: this should really check for faulty input in general. That way we would handle
+        //       mistyped selection names, non existant usernames, townnames, ally names, etc.
+        //       Ideally we do it in the frontend as well and highlight faulty input in orange
+        if constraint.value.is_empty() {
+            continue;
+        }
+
+        // we need to start from all towns again.
+        // (TODO(eventually): for AND joined selections we could shortcut quite some dataprocessing
+        // by reusing local_towns, but for OR joining this is not valid (reusing is an implicit
+        // AND join))
+        let mut these_towns = towns.clone();
+        constraint.matching_towns(
+            &mut these_towns,
+            all_selections,
+            selection.constraint_join_mode,
+        );
+
+        match selection.constraint_join_mode {
+            crate::selection::AndOr::And => local_towns.retain(|t| these_towns.contains(t)),
+            crate::selection::AndOr::Or => local_towns.extend(these_towns.into_iter()),
+        }
+    }
+
+    return local_towns;
 }
 
 pub fn get_names_for_constraint_type_in_town_list(
     towns: &[Rc<BackendTown>],
     constraint_type: ConstraintType,
 ) -> anyhow::Result<Vec<String>> {
+    // TODO: this should really be sorted by value. for now we sort by resulting string, but we really should pull the collection and sorting into each match branch
     let mut re = HashSet::new();
     for t in towns {
         let opt_value: Option<String> = match constraint_type {
@@ -262,6 +326,8 @@ pub fn get_names_for_constraint_type_in_town_list(
             let _duplicate = re.insert(value);
         }
     }
+    let mut re = re.into_iter().collect::<Vec<_>>();
+    re.sort();
 
-    return Ok(re.into_iter().collect());
+    return Ok(re);
 }
