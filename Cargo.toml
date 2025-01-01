@@ -26,6 +26,7 @@ rust-i18n = "2.2.1"
 getrandom = { version = "0.2.15", features = ["js"] }  # enable js feature in indirect "rand" dependency 
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.70"           # to access the DOM (to hide the loading text)
+wasm-bindgen = "0.2.99"
 log = "0.4"
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]

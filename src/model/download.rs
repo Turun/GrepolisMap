@@ -1,35 +1,80 @@
 use super::database::{Alliance, BackendTown, DataTable, Island, Offset, Player};
 use super::offset_data;
 use crate::message::{MessageToView, Progress};
+use anyhow::anyhow;
 use anyhow::Context;
-use reqwest; // TODO: replace this with ehttp to get wasm and native to work with the same code. Since that works with callbacks we need to have the network code fill Arc<Mutex<Some(String)>> and have further processing wait in a while arc.lock().isNone() {sleep(1ms)}
+use reqwest;
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::mpsc;
 
-fn download_generic<U>(
-    client: &reqwest::blocking::Client,
-    url: U,
-) -> std::result::Result<String, reqwest::Error>
+fn download_generic<U>(url: U) -> anyhow::Result<String>
 where
-    U: reqwest::IntoUrl + std::fmt::Display,
+    U: reqwest::IntoUrl + std::fmt::Display + 'static,
 {
-    let url_text = format!("{url}");
-    let result = client.get(url).send()?;
-    println!("Got status {} for url {}", result.status(), url_text);
-    let text = result.text()?;
+    #[cfg(target_arch = "wasm32")]
+    {
+        let client = reqwest::Client::builder()
+            .user_agent("Rust Grepolis Map - Turun")
+            // gzip/deflate not possible, but also not required, from what I can tell: https://github.com/seanmonstar/reqwest/issues/2073#issuecomment-1876919799
+            // on the web the browser will handle compression and decompression, so requests does not have to do that
+            .build()
+            .unwrap();
+        let (send, receive) = std::sync::mpsc::channel::<anyhow::Result<String>>();
 
-    Ok(text)
-}
+        let url_text_future = format!("{url}");
+        let url_text_thread = format!("{url}");
+        let fut = async move {
+            let res_result = client.get(url).send().await;
+            if let Err(err) = res_result {
+                let _ = send.send(Err(anyhow!(
+                    "client.get({url_text_future}).send().await failed with {err:?}"
+                )));
+                return;
+            }
+            let result = res_result.unwrap();
+            println!("Got status {} for url {}", result.status(), url_text_future);
+            let res_text = result.text().await;
+            if let Err(err) = res_text {
+                let _ = send.send(Err(anyhow!("result.text().await failed with {err:?}")));
+                return;
+            }
+            let text = res_text.unwrap();
 
-fn make_client() -> reqwest::blocking::Client {
-    reqwest::blocking::Client::builder()
-        .user_agent("Rust Grepolis Map - Turun")
-        .gzip(true)
-        .deflate(true)
-        .build()
-        .unwrap()
+            let _ = send.send(Ok(text));
+        };
+
+        // code inspired by https://github.com/emilk/ehttp/blob/master/ehttp/src/web.rs#L141
+        wasm_bindgen_futures::spawn_local(fut);
+
+        let recv_result = receive.recv();
+        match recv_result {
+            Ok(recv) => {
+                return recv;
+            }
+            Err(err) => {
+                return Err(anyhow!(
+                    "async handling for requesting {url_text_thread} has failed unexpectedly with {err:?}"
+                ));
+            }
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent("Rust Grepolis Map - Turun")
+            .gzip(true)
+            .deflate(true)
+            .build()
+            .unwrap();
+        let url_text = format!("{url}");
+        let result = client.get(url).send()?;
+        println!("Got status {} for url {}", result.status(), url_text);
+        let text = result.text()?;
+
+        Ok(text)
+    }
 }
 
 impl DataTable {
@@ -43,43 +88,33 @@ impl DataTable {
         sender: &mpsc::Sender<MessageToView>,
         ctx: &egui::Context,
     ) -> anyhow::Result<Self> {
-        let reqwest_client = make_client();
-
         if let Some(path) = filename {
             // TODO: load from file and return immediately
         };
 
-        let thread_client = reqwest_client.clone();
         let thread_server_id = String::from(server_id);
         let handle_data_players = std::thread::spawn(move || {
-            download_generic(
-                &thread_client,
-                format!("https://{thread_server_id}.grepolis.com/data/players.txt"),
-            )
+            download_generic(format!(
+                "https://{thread_server_id}.grepolis.com/data/players.txt"
+            ))
         });
-        let thread_client = reqwest_client.clone();
         let thread_server_id = String::from(server_id);
         let handle_data_alliances = std::thread::spawn(move || {
-            download_generic(
-                &thread_client,
-                format!("https://{thread_server_id}.grepolis.com/data/alliances.txt"),
-            )
+            download_generic(format!(
+                "https://{thread_server_id}.grepolis.com/data/alliances.txt"
+            ))
         });
-        let thread_client = reqwest_client.clone();
         let thread_server_id = String::from(server_id);
         let handle_data_towns = std::thread::spawn(move || {
-            download_generic(
-                &thread_client,
-                format!("https://{thread_server_id}.grepolis.com/data/towns.txt"),
-            )
+            download_generic(format!(
+                "https://{thread_server_id}.grepolis.com/data/towns.txt"
+            ))
         });
-        let thread_client = reqwest_client;
         let thread_server_id = String::from(server_id);
         let handle_data_islands = std::thread::spawn(move || {
-            download_generic(
-                &thread_client,
-                format!("https://{thread_server_id}.grepolis.com/data/islands.txt"),
-            )
+            download_generic(format!(
+                "https://{thread_server_id}.grepolis.com/data/islands.txt"
+            ))
         });
 
         sender

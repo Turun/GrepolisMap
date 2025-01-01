@@ -3816,6 +3816,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "time",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
 ]

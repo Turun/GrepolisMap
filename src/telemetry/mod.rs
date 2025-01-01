@@ -3,10 +3,19 @@ use std::sync::mpsc;
 
 use crate::message::{MessageToServer, MessageToView};
 
+#[cfg(not(target_arch = "wasm32"))]
 static SERVER_POST_LOAD_SERVER: &str = "https://gmap.turun.de/v1/load_server";
+#[cfg(not(target_arch = "wasm32"))]
 static SERVER_POST_STORED_CONFIG: &str = "https://gmap.turun.de/v1/stored_config";
+#[cfg(not(target_arch = "wasm32"))]
 static SERVER_GET_VERSION: &str = "https://gmap.turun.de/latest_version";
 
+#[cfg(target_arch = "wasm32")]
+// on wasm we would have to rewrite to async reqwest clients, just like we had to do in
+// download.rs. So I'll just skip it. latest version is useless on the webpage anyway
+pub fn get_latest_version(_view_tx: &mpsc::Sender<MessageToView>) {}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// check on the server what the latest version is.
 pub fn get_latest_version(view_tx: &mpsc::Sender<MessageToView>) {
     let user_version = env!("CARGO_PKG_VERSION");
@@ -51,6 +60,7 @@ pub fn get_latest_version(view_tx: &mpsc::Sender<MessageToView>) {
     ));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn channel_processor(rx: mpsc::Receiver<MessageToServer>) {
     let client = reqwest::blocking::Client::new();
     for msg in rx {
@@ -61,3 +71,8 @@ pub fn channel_processor(rx: mpsc::Receiver<MessageToServer>) {
         let _result = client.post(url).body(body).send();
     }
 }
+
+#[cfg(target_arch = "wasm32")]
+// on wasm we would have to rewrite to async reqwest clients, just like we had to do in
+// download.rs. So I'll just skip it. Load server will have to pass through our server anyway
+pub fn channel_processor(_rx: mpsc::Receiver<MessageToServer>) {}
