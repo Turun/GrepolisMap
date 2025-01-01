@@ -253,3 +253,46 @@ impl ToString for Comparator {
         }
     }
 }
+
+pub enum ConstraintTypeType {
+    StringLike,
+    Number,
+    IslandRessource,
+    Selection,
+}
+
+impl From<&EmptyConstraint> for ConstraintTypeType {
+    fn from(value: &EmptyConstraint) -> Self {
+        match value.comparator {
+            Comparator::LessThan
+            | Comparator::Equal
+            | Comparator::GreaterThan
+            | Comparator::NotEqual => match value.constraint_type {
+                ConstraintType::PlayerTowns
+                | ConstraintType::PlayerID
+                | ConstraintType::AlliancePoints
+                | ConstraintType::PlayerRank
+                | ConstraintType::TownPoints
+                | ConstraintType::IslandID
+                | ConstraintType::IslandX
+                | ConstraintType::IslandY
+                | ConstraintType::IslandType
+                | ConstraintType::IslandTowns
+                | ConstraintType::AllianceTowns
+                | ConstraintType::AllianceMembers
+                | ConstraintType::AllianceRank
+                | ConstraintType::TownID
+                | ConstraintType::PlayerPoints => Self::Number,
+
+                ConstraintType::AllianceName
+                | ConstraintType::TownName
+                | ConstraintType::PlayerName => Self::StringLike,
+
+                ConstraintType::IslandResMore | ConstraintType::IslandResLess => {
+                    Self::IslandRessource
+                }
+            },
+            Comparator::InSelection | Comparator::NotInSelection => return Self::Selection,
+        }
+    }
+}

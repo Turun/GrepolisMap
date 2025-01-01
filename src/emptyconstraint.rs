@@ -1,5 +1,5 @@
 use crate::{
-    constraint::{Comparator, Constraint, ConstraintType},
+    constraint::{Comparator, Constraint, ConstraintType, ConstraintTypeType},
     emptyselection::EmptyTownSelection,
     model::database::{self, BackendTown},
     selection::AndOr,
@@ -45,6 +45,27 @@ impl EmptyConstraint {
         }
     }
 
+    /// checks if the constraint has input that can be considered "valid". That means that number
+    ///constraints can parse their userinput as numbers, in/notin constraints have input that is a
+    ///name of another selection and for ressource constraints the strings match exactly to one of
+    ///the options (ignoring case). For other string like constraints we always return true.
+    pub fn has_valid_input(&self, all_selections: &[EmptyTownSelection]) -> bool {
+        // TODO: do this check in the frontend and highlight invalid input
+        let constraint_type_type: ConstraintTypeType = self.into();
+        match constraint_type_type {
+            ConstraintTypeType::StringLike => true,
+            ConstraintTypeType::Number => self.value.parse::<f64>().is_ok(),
+            ConstraintTypeType::IslandRessource => {
+                let value_lower_case = self.value.to_lowercase();
+                match value_lower_case.as_str() {
+                    "iron" | "stone" | "wood" => true,
+                    _ => false,
+                }
+            }
+            ConstraintTypeType::Selection => all_selections.iter().any(|s| s.name == self.value),
+        }
+    }
+
     /// given a set of towns, modify said set to only include towns for which the constraint matches.
     pub fn matching_towns(
         &self,
@@ -60,6 +81,8 @@ impl EmptyConstraint {
             | Comparator::NotEqual => match self.constraint_type {
                 ConstraintType::PlayerID => {
                     towns.retain(|t| {
+                        // TODO: think about this some more. We probably want the full 4 case match statement for player and input parsing.
+                        // Also, we may want to do a join mode distinction for the failure case
                         if let Some(id) = t.player.as_ref().map(|(id, _)| id) {
                             if let Some(value) = value_f64 {
                                 self.comparator.compare(*id as f64, value)

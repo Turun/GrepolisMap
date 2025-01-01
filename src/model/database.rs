@@ -6,6 +6,7 @@ use std::rc::Rc;
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::model::ConstraintType;
+use crate::selection::AndOr;
 use crate::town::Town;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -130,8 +131,15 @@ impl DataTable {
             return self.get_names_for_constraint_type(constraint_type);
         }
 
-        let towns =
-            self.get_backendtowns_for_constraints(constraints, join_mode, all_selections)?;
+        let mut selection = EmptyTownSelection::default();
+        selection.constraints = constraints.to_vec();
+        selection.constraint_join_mode = match join_mode {
+            "AND" => crate::selection::AndOr::And,
+            "OR" => crate::selection::AndOr::Or,
+            _ => unreachable!(),
+        };
+
+        let towns = self.get_backendtowns_for_constraints(&selection, all_selections)?;
         return get_names_for_constraint_type_in_town_list(&towns, constraint_type);
     }
 
@@ -145,25 +153,6 @@ impl DataTable {
             return Ok(Vec::new());
         }
 
-        return Ok(self
-            .get_backendtowns_for_constraints(constraints, join_mode, all_selections)?
-            .iter()
-            .map(|bt| &**bt)
-            .map(|bt| bt.into())
-            .collect());
-    }
-
-    pub fn get_backendtowns_for_constraints(
-        &self,
-        constraints: &[EmptyConstraint],
-        join_mode: &str,
-        all_selections: &[EmptyTownSelection],
-    ) -> anyhow::Result<Vec<Rc<BackendTown>>> {
-        if constraints.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        // TODO: we should build this selection one level higher in the code, not here. But for now it's a quick and easy solution
         let mut selection = EmptyTownSelection::default();
         selection.constraints = constraints.to_vec();
         selection.constraint_join_mode = match join_mode {
@@ -172,7 +161,24 @@ impl DataTable {
             _ => unreachable!(),
         };
 
-        let mut re = super::database::matching_towns_for_selection(
+        return Ok(self
+            .get_backendtowns_for_constraints(&selection, all_selections)?
+            .iter()
+            .map(|bt| &**bt)
+            .map(|bt| bt.into())
+            .collect());
+    }
+
+    pub fn get_backendtowns_for_constraints(
+        &self,
+        selection: &EmptyTownSelection,
+        all_selections: &[EmptyTownSelection],
+    ) -> anyhow::Result<Vec<Rc<BackendTown>>> {
+        if selection.constraints.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let re = super::database::matching_towns_for_selection(
             HashSet::from_iter(self.towns.clone().into_iter()),
             &selection,
             all_selections,
@@ -190,38 +196,49 @@ pub fn matching_towns_for_selection(
     all_selections: &[EmptyTownSelection],
 ) -> HashSet<Rc<BackendTown>> {
     // short circuit useless selections.
-    // TODO: same as below, we should do a proper check for invalid input
-    if selection.constraints.iter().all(|c| c.value.is_empty()) {
+    // useless selection in this case means that for all constraints where a value is provided by the user the input must be valid
+    if !selection
+        .constraints
+        .iter()
+        .filter(|c| !c.value.is_empty())
+        .all(|c| c.has_valid_input(all_selections))
+    {
         return HashSet::new();
     }
 
     let mut local_towns = match selection.constraint_join_mode {
-        crate::selection::AndOr::And => towns.clone(), // for and we need to start with the full set and widdle it down
-        crate::selection::AndOr::Or => HashSet::new(), // for or we need to start with nothing and build it up gradually
+        AndOr::And => towns.clone(), // for and we need to start with the full set and widdle it down
+        AndOr::Or => HashSet::new(), // for or we need to start with nothing and build it up gradually
     };
-    for constraint in &selection.constraints {
-        // skip empty inputs
-        // TODO: this should really check for faulty input in general. That way we would handle
-        //       mistyped selection names, non existant usernames, townnames, ally names, etc.
-        //       Ideally we do it in the frontend as well and highlight faulty input in orange
-        if constraint.value.is_empty() {
-            continue;
-        }
 
-        // we need to start from all towns again.
-        // (TODO(eventually): for AND joined selections we could shortcut quite some dataprocessing
-        // by reusing local_towns, but for OR joining this is not valid (reusing is an implicit
-        // AND join))
-        let mut these_towns = towns.clone();
-        constraint.matching_towns(
-            &mut these_towns,
-            all_selections,
-            selection.constraint_join_mode,
-        );
-
+    // for all valid constraints
+    for constraint in selection
+        .constraints
+        .iter()
+        .filter(|c| c.has_valid_input(all_selections))
+    {
+        // add/remove towns to/from the inital list based on if they match the constraint or not
         match selection.constraint_join_mode {
-            crate::selection::AndOr::And => local_towns.retain(|t| these_towns.contains(t)),
-            crate::selection::AndOr::Or => local_towns.extend(these_towns.into_iter()),
+            AndOr::And => {
+                // shortcut dataprocessing. AND join means that we can never reintroduce towns that were already excluded by another constraint
+                constraint.matching_towns(
+                    &mut local_towns,
+                    all_selections,
+                    selection.constraint_join_mode,
+                );
+            }
+            AndOr::Or => {
+                // for OR joining we need to do the full list with every constraint
+                let mut these_towns = towns.clone();
+
+                constraint.matching_towns(
+                    &mut these_towns,
+                    all_selections,
+                    selection.constraint_join_mode,
+                );
+
+                local_towns.extend(these_towns.into_iter());
+            }
         }
     }
 
