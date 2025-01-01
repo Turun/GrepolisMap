@@ -101,11 +101,11 @@ impl Model {
             Model::Loaded {
                 db, cache_towns, ..
             } => {
-                let mut cache_selection = selection.clone();
-                cache_selection.constraints = constraints.to_vec();
+                let mut this_selection = selection.clone();
+                this_selection.constraints = constraints.to_vec();
 
                 let referenced_selections =
-                    cache_selection.all_referenced_selections(all_selections)?;
+                    this_selection.all_referenced_selections(all_selections)?;
 
                 let key = (
                     constraints.to_vec(),
@@ -119,11 +119,9 @@ impl Model {
                         tuple.1.clone()
                     }
                     Entry::Vacant(entry) => {
-                        let value = Arc::new(db.get_towns_for_constraints(
-                            constraints,
-                            &selection.constraint_join_mode.as_sql(),
-                            all_selections,
-                        )?);
+                        let value = Arc::new(
+                            db.get_towns_for_constraints(&this_selection, all_selections)?,
+                        );
                         entry.insert((1.0, value)).1.clone()
                     }
                 };
@@ -149,11 +147,11 @@ impl Model {
             Model::Loaded {
                 db, cache_strings, ..
             } => {
-                let mut cache_selection = selection.clone();
-                cache_selection.constraints = constraints.to_vec();
+                let mut this_selection = selection.clone();
+                this_selection.constraints = constraints.to_vec();
 
                 let referenced_selections =
-                    cache_selection.all_referenced_selections(all_selections)?;
+                    this_selection.all_referenced_selections(all_selections)?;
 
                 let key = (
                     constraint_type,
@@ -171,8 +169,7 @@ impl Model {
                         let value = Arc::new(match selection.constraint_join_mode {
                             AndOr::And => db.get_names_for_constraint_type_in_constraints(
                                 constraint_type,
-                                constraints,
-                                &selection.constraint_join_mode.as_sql(),
+                                &this_selection,
                                 all_selections,
                             )?,
                             AndOr::Or => {

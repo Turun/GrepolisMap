@@ -123,21 +123,12 @@ impl DataTable {
     pub fn get_names_for_constraint_type_in_constraints(
         &self,
         constraint_type: ConstraintType,
-        constraints: &[EmptyConstraint],
-        join_mode: &str,
+        selection: &EmptyTownSelection,
         all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Vec<String>> {
-        if constraints.is_empty() {
+        if selection.constraints.is_empty() {
             return self.get_names_for_constraint_type(constraint_type);
         }
-
-        let mut selection = EmptyTownSelection::default();
-        selection.constraints = constraints.to_vec();
-        selection.constraint_join_mode = match join_mode {
-            "AND" => crate::selection::AndOr::And,
-            "OR" => crate::selection::AndOr::Or,
-            _ => unreachable!(),
-        };
 
         let towns = self.get_backendtowns_for_constraints(&selection, all_selections)?;
         return get_names_for_constraint_type_in_town_list(&towns, constraint_type);
@@ -145,24 +136,15 @@ impl DataTable {
 
     pub fn get_towns_for_constraints(
         &self,
-        constraints: &[EmptyConstraint],
-        join_mode: &str,
+        selection: &EmptyTownSelection,
         all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Vec<Town>> {
-        if constraints.is_empty() {
+        if selection.constraints.is_empty() {
             return Ok(Vec::new());
         }
 
-        let mut selection = EmptyTownSelection::default();
-        selection.constraints = constraints.to_vec();
-        selection.constraint_join_mode = match join_mode {
-            "AND" => crate::selection::AndOr::And,
-            "OR" => crate::selection::AndOr::Or,
-            _ => unreachable!(),
-        };
-
         return Ok(self
-            .get_backendtowns_for_constraints(&selection, all_selections)?
+            .get_backendtowns_for_constraints(selection, all_selections)?
             .iter()
             .map(|bt| &**bt)
             .map(|bt| bt.into())
