@@ -117,7 +117,7 @@ impl Presenter {
                     spawned_threads.push(handle);
                 }
                 MessageToModel::LoadDataFromFile(path, ctx) => {
-                    unimplemented!()
+                    unimplemented!("we had this in the SQL version, but it's still a TODO for the rust only version");
                     // let db_result = Database::load_from_file(&path);
                     // match db_result {
                     //     Ok(db) => {

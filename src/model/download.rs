@@ -92,6 +92,8 @@ impl DataTable {
             // TODO: load from file and return immediately
         };
 
+        // TODO: change the server url when compiling for wasm, since grepolis does not have cors enabled
+
         let thread_server_id = String::from(server_id);
         let handle_data_players = std::thread::spawn(move || {
             download_generic(format!(

@@ -232,10 +232,10 @@ impl Comparator {
             Comparator::GreaterThan => a >= b,
             Comparator::NotEqual => a != b,
             Comparator::InSelection => {
-                todo!() // TODO: we either have to handle the case here or make sure Self::compare is never called for In/NotIn comparators
+                unimplemented!("This case is never supposed to be reached. The code should handle in/notin comparators one level higher");
             }
             Comparator::NotInSelection => {
-                todo!()
+                unimplemented!("This case is never supposed to be reached. The code should handle in/notin comparators one level higher");
             }
         }
     }
