@@ -64,7 +64,9 @@ impl View {
         let mut fonts = egui::FontDefinitions::default();
         fonts.font_data.insert(
             String::from("Custom Font"),
-            FontData::from_static(include_bytes!("../../NotoSansJP-Regular.ttf")),
+            Arc::new(FontData::from_static(include_bytes!(
+                "../../NotoSansJP-Regular.ttf"
+            ))),
         );
         fonts
             .families
