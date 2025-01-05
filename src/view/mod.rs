@@ -361,12 +361,6 @@ impl eframe::App for View {
         // enable screen reader support on the web
         ctx.options_mut(|o| o.screen_reader = true);
 
-        // allow the user to zoom in and out
-        // https://docs.rs/egui/latest/egui/gui_zoom/fn.zoom_with_keyboard_shortcuts.html
-        if !frame.is_web() {
-            egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
-        }
-
         // make sure we process messages from the backend every once in a while
         ctx.request_repaint_after(Duration::from_millis(500));
 
