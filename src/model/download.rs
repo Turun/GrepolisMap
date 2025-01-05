@@ -1,6 +1,7 @@
 use super::database::{Alliance, BackendTown, DataTable, Island, Offset, Player};
 use super::offset_data;
 use crate::message::{MessageToView, Progress};
+#[cfg(target_arch = "wasm32")]
 use anyhow::anyhow;
 use anyhow::Context;
 use reqwest;
@@ -8,6 +9,18 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::mpsc;
+
+// if wasm: due to cors we need to pass it through our server. http, because I didn't get wildcard certs working yet
+// if desktop version: we can contact grelpolis servers directly
+
+#[cfg(not(target_arch = "wasm32"))]
+const DATA_SERVER_URL: &str = "grepolis.com";
+#[cfg(target_arch = "wasm32")]
+const DATA_SERVER_URL: &str = "reflector.gmap.turun.de";
+#[cfg(not(target_arch = "wasm32"))]
+const DATA_SERVER_PROTOCOL: &str = "https";
+#[cfg(target_arch = "wasm32")]
+const DATA_SERVER_PROTOCOL: &str = "http";
 
 fn download_generic<U>(url: U) -> anyhow::Result<String>
 where
@@ -92,30 +105,28 @@ impl DataTable {
             // TODO: load from file and return immediately
         };
 
-        // TODO: change the server url when compiling for wasm, since grepolis does not have cors enabled
-
         let thread_server_id = String::from(server_id);
         let handle_data_players = std::thread::spawn(move || {
             download_generic(format!(
-                "https://{thread_server_id}.grepolis.com/data/players.txt"
+                "{DATA_SERVER_PROTOCOL}://{thread_server_id}.{DATA_SERVER_URL}/data/players.txt"
             ))
         });
         let thread_server_id = String::from(server_id);
         let handle_data_alliances = std::thread::spawn(move || {
             download_generic(format!(
-                "https://{thread_server_id}.grepolis.com/data/alliances.txt"
+                "{DATA_SERVER_PROTOCOL}://{thread_server_id}.{DATA_SERVER_URL}/data/alliances.txt"
             ))
         });
         let thread_server_id = String::from(server_id);
         let handle_data_towns = std::thread::spawn(move || {
             download_generic(format!(
-                "https://{thread_server_id}.grepolis.com/data/towns.txt"
+                "{DATA_SERVER_PROTOCOL}://{thread_server_id}.{DATA_SERVER_URL}/data/towns.txt"
             ))
         });
         let thread_server_id = String::from(server_id);
         let handle_data_islands = std::thread::spawn(move || {
             download_generic(format!(
-                "https://{thread_server_id}.grepolis.com/data/islands.txt"
+                "{DATA_SERVER_PROTOCOL}://{thread_server_id}.{DATA_SERVER_URL}/data/islands.txt"
             ))
         });
 
