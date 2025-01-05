@@ -41,7 +41,8 @@ impl View {
                         }
                     };
 
-                    let scroll_delta = ctx.input(|input| input.scroll_delta.y);
+                    // NOTE: since egui 0.26 we have smooth scrolling. may want to use that here. very much optional though
+                    let scroll_delta = ctx.input(|input| input.raw_scroll_delta.y);
                     if scroll_delta > 0.0 {
                         canvas_data.zoom *= 1.2;
                     } else if scroll_delta < 0.0 {
