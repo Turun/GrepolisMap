@@ -334,13 +334,13 @@ impl View {
                     Progress::Alliances => {
                         ui.add(ProgressBar::new(0.4).text(format!("{progress:?}")));
                     }
-                    Progress::Players => {
+                    Progress::Islands => {
                         ui.add(ProgressBar::new(0.6).text(format!("{progress:?}")));
                     }
-                    Progress::Towns => {
+                    Progress::Players => {
                         ui.add(ProgressBar::new(0.8).text(format!("{progress:?}")));
                     }
-                    Progress::Islands => {
+                    Progress::Towns => {
                         ui.add(ProgressBar::new(1.0).text(format!("{progress:?}")));
                     }
                 }

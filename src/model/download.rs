@@ -158,7 +158,7 @@ impl DataTable {
         let islands = Self::parse_islands(data_islands)?;
         sender
             .send(MessageToView::Loading(Progress::Islands))
-            .context("Failed to send progressupdate 3 to view")?;
+            .context("Failed to send progressupdate 4 to view")?;
         ctx.request_repaint();
 
         let data_players = handle_data_players
@@ -168,7 +168,7 @@ impl DataTable {
         let players = Self::parse_players(data_players, &alliances)?;
         sender
             .send(MessageToView::Loading(Progress::Players))
-            .context("Failed to send progressupdate 3 to view")?;
+            .context("Failed to send progressupdate 5 to view")?;
         ctx.request_repaint();
 
         let data_towns = handle_data_towns
@@ -178,7 +178,7 @@ impl DataTable {
         let towns = Self::parse_towns(data_towns, &players, &islands, &offsets)?;
         sender
             .send(MessageToView::Loading(Progress::Towns))
-            .context("Failed to send progressupdate 3 to view")?;
+            .context("Failed to send progressupdate 6 to view")?;
         ctx.request_repaint();
 
         let towns = towns.into_values().collect();
