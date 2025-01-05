@@ -84,7 +84,7 @@ impl Widget for SelectableLabel {
                 );
             }
 
-            text.paint_with_visuals(ui.painter(), text_pos, &visuals);
+            ui.painter().galley(text_pos, text, visuals.text_color());
         }
 
         response

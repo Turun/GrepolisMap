@@ -113,7 +113,8 @@ impl<'a> Widget for DropDownBox<'a> {
                         .column(Column::remainder())
                         .min_scrolled_height(0.0);
                     table.body(|body| {
-                        body.rows(text_height, combined.len(), |row_index, mut row| {
+                        body.rows(text_height, combined.len(), |mut row| {
+                            let row_index = row.index();
                             row.col(|ui| {
                                 let (text, layoutjob) = combined[row_index].clone();
                                 let label = SelectableLabel::new(false, layoutjob).ui(ui);

@@ -203,7 +203,7 @@ impl View {
         let native_options = eframe::NativeOptions {
             // defaults to window title, but we include the version in the window title. Since
             // it should stay the same across version changes we give it a fixed value here.
-            app_id: Some("Turun Map".to_owned()),
+            viewport: egui::ViewportBuilder::default().with_app_id("Turun Map"),
             ..eframe::NativeOptions::default()
         };
         let version = env!("CARGO_PKG_VERSION");
