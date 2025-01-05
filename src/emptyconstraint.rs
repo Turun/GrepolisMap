@@ -53,7 +53,7 @@ impl EmptyConstraint {
         // TODO: do this check in the frontend and highlight invalid input
         let constraint_type_type: ConstraintTypeType = self.into();
         match constraint_type_type {
-            ConstraintTypeType::StringLike => true,
+            ConstraintTypeType::StringLike => self.value.len() > 0,
             ConstraintTypeType::Number => self.value.parse::<f64>().is_ok(),
             ConstraintTypeType::IslandRessource => {
                 let value_lower_case = self.value.to_lowercase();
@@ -87,7 +87,17 @@ impl EmptyConstraint {
             return;
         }
 
-        let value_f64: f64 = self.value.parse().expect("we ran EmptyConstraint::has_valid_input just before this. So unwrap _must_ be fine here!");
+        let constraint_type_type: ConstraintTypeType = self.into();
+        let value_f64: f64 =        match constraint_type_type {
+            ConstraintTypeType::Number => {
+                        self.value.parse().expect("we ran EmptyConstraint::has_valid_input just before this. So unwrap _must_ be fine here!")
+            },
+            ConstraintTypeType::StringLike |
+            ConstraintTypeType::IslandRessource |
+            ConstraintTypeType::Selection => {
+                0f64 // should not matter at all
+            }
+        };
         match self.comparator {
             Comparator::LessThan
             | Comparator::Equal
@@ -95,12 +105,20 @@ impl EmptyConstraint {
             | Comparator::NotEqual => match self.constraint_type {
                 ConstraintType::PlayerID => {
                     towns.retain(|t| {
-                        // TODO: think about this some more. We probably want the full 4 case match statement for player and input parsing.
-                        // Also, we may want to do a join mode distinction for the failure case
                         if let Some(id) = t.player.as_ref().map(|(id, _)| id) {
                             self.comparator.compare(*id as f64, value_f64)
                         } else {
-                            false
+                            // Use empty player ID as a sentinel for ghost towns.
+                            // TODO: make it so that the empty selection filtering in the presenter
+                            //   does not block the usage of this. At the moment this selection is
+                            //   impossible, because the constraint is filtered from being passed to
+                            //   database. Or maybe we have some more bogus self.value.is_empty() in
+                            //   database.rs as well.
+                            if self.value.is_empty() {
+                                true
+                            } else {
+                                false
+                            }
                         }
                     });
                 }

@@ -3,7 +3,6 @@ use std::hash::Hash;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::model::ConstraintType;
 use crate::selection::AndOr;
