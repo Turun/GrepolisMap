@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::hash::Hash;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -60,12 +60,12 @@ pub struct BackendTown {
     pub actual_x: f32,
     pub actual_y: f32, // computed from the linked island and offset
 }
+impl Eq for BackendTown {}
 impl PartialEq for BackendTown {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
-impl Eq for BackendTown {}
 impl std::hash::Hash for BackendTown {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
@@ -230,102 +230,206 @@ pub fn get_names_for_constraint_type_in_town_list(
     towns: &[Rc<BackendTown>],
     constraint_type: ConstraintType,
 ) -> anyhow::Result<Vec<String>> {
-    // TODO: this should really be sorted by value. for now we sort by resulting string, but we really should pull the collection and sorting into each match branch
-    let mut re = HashSet::new();
-    for t in towns {
-        let opt_value: Option<String> = match constraint_type {
-            ConstraintType::PlayerID => t.player.as_ref().map(|(id, _)| id).map(|x| format!("{x}")),
-            ConstraintType::PlayerName => {
-                t.player.as_ref().map(|(_id, player)| player.name.clone())
-            }
-            ConstraintType::PlayerPoints => t
-                .player
-                .as_ref()
-                .map(|(_id, player)| player.points)
-                .map(|x| format!("{x}")),
-            ConstraintType::PlayerRank => t
-                .player
-                .as_ref()
-                .map(|(_id, player)| player.rank)
-                .map(|x| format!("{x}")),
-            ConstraintType::PlayerTowns => t
-                .player
-                .as_ref()
-                .map(|(_id, player)| player.towns)
-                .map(|x| format!("{x}")),
-            ConstraintType::AllianceName => t
-                .player
-                .as_ref()
-                .map(|(_id, player)| player.alliance.clone())
-                .flatten()
-                .map(|(_id, alliance)| alliance.name.clone()),
-            ConstraintType::AlliancePoints => t
-                .player
-                .as_ref()
-                .map(|(_id, player)| player.alliance.clone())
-                .flatten()
-                .map(|(_id, alliance)| alliance.points)
-                .map(|x| format!("{x}")),
-            ConstraintType::AllianceTowns => t
-                .player
-                .as_ref()
-                .map(|(_id, player)| player.alliance.clone())
-                .flatten()
-                .map(|(_id, alliance)| alliance.towns)
-                .map(|x| format!("{x}")),
-            ConstraintType::AllianceMembers => t
-                .player
-                .as_ref()
-                .map(|(_id, player)| player.alliance.clone())
-                .flatten()
-                .map(|(_id, alliance)| alliance.members)
-                .map(|x| format!("{x}")),
-            ConstraintType::AllianceRank => t
-                .player
-                .as_ref()
-                .map(|(_id, player)| player.alliance.clone())
-                .flatten()
-                .map(|(_id, alliance)| alliance.rank)
-                .map(|x| format!("{x}")),
-            ConstraintType::TownID => Some(t.id).map(|x| format!("{x}")),
-            ConstraintType::TownName => Some(t.name.clone()),
-            ConstraintType::TownPoints => Some(t.id).map(|x| format!("{x}")),
-            ConstraintType::IslandID => {
-                let (_x, _y, island) = &t.island;
-                Some(island.id).map(|x| format!("{x}"))
-            }
-            ConstraintType::IslandX => {
-                let (x, _y, _island) = &t.island;
-                Some(x).map(|x| format!("{x}"))
-            }
-            ConstraintType::IslandY => {
-                let (_x, y, _island) = &t.island;
-                Some(y).map(|x| format!("{x}"))
-            }
-            ConstraintType::IslandType => {
-                let (_x, _y, island) = &t.island;
-                Some(island.typ).map(|x| format!("{x}"))
-            }
-            ConstraintType::IslandTowns => {
-                let (_x, _y, island) = &t.island;
-                Some(island.towns).map(|x| format!("{x}"))
-            }
-            ConstraintType::IslandResMore => {
-                let (_x, _y, island) = &t.island;
-                Some(island.ressource_plus.clone())
-            }
-            ConstraintType::IslandResLess => {
-                let (_x, _y, island) = &t.island;
-                Some(island.ressource_minus.clone())
-            }
-        };
+    // TODO: we can probably improve the code by moving from collect into vector > sort > dedup into something hashset based (BTreeSet)
 
-        if let Some(value) = opt_value {
-            let _duplicate = re.insert(value);
+    let re = match constraint_type {
+        ConstraintType::PlayerID => {
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .map(|(id, _player)| id)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
         }
-    }
-    let mut re = re.into_iter().collect::<Vec<_>>();
-    re.sort();
+        ConstraintType::PlayerName => {
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .map(|(_id, player)| player.name.clone())
+                .collect::<Vec<_>>();
+            values.sort_unstable_by_key(|k| k.to_lowercase());
+            values.dedup();
+            values
+        }
+        ConstraintType::PlayerPoints => {
+            // todo
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .map(|(_id, player)| player.points)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::PlayerRank => {
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .map(|(_id, player)| player.rank)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::PlayerTowns => {
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .map(|(_id, player)| player.towns)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::AllianceName => {
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .filter_map(|(_id, player)| player.alliance.as_ref())
+                .map(|(_id, ally)| ally.name.clone())
+                .collect::<Vec<_>>();
+            values.sort_unstable_by_key(|k| k.to_lowercase());
+            values.dedup();
+            values
+        }
+        ConstraintType::AlliancePoints => {
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .filter_map(|(_id, player)| player.alliance.as_ref())
+                .map(|(_id, ally)| ally.points)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::AllianceTowns => {
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .filter_map(|(_id, player)| player.alliance.as_ref())
+                .map(|(_id, ally)| ally.towns)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::AllianceMembers => {
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .filter_map(|(_id, player)| player.alliance.as_ref())
+                .map(|(_id, ally)| ally.members)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::AllianceRank => {
+            let mut values = towns
+                .iter()
+                .filter_map(|t| t.player.as_ref())
+                .filter_map(|(_id, player)| player.alliance.as_ref())
+                .map(|(_id, ally)| ally.rank)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::TownID => {
+            let mut values = towns.iter().map(|t| t.id).collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::TownName => {
+            let mut values = towns.iter().map(|t| t.name.clone()).collect::<Vec<_>>();
+            values.sort_unstable_by_key(|s| s.to_lowercase());
+            values.dedup();
+            values
+        }
+        ConstraintType::TownPoints => {
+            let mut values = towns.iter().map(|t| t.points).collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::IslandID => {
+            let mut values = towns
+                .iter()
+                .map(|t| t.island.clone())
+                .map(|(_x, _y, island)| island.id)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::IslandX => {
+            let mut values = towns
+                .iter()
+                .map(|t| t.island.clone())
+                .map(|(x, _y, _island)| x)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::IslandY => {
+            let mut values = towns
+                .iter()
+                .map(|t| t.island.clone())
+                .map(|(_x, y, _island)| y)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::IslandType => {
+            let mut values = towns
+                .iter()
+                .map(|t| t.island.clone())
+                .map(|(_x, _y, island)| island.typ)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::IslandTowns => {
+            let mut values = towns
+                .iter()
+                .map(|t| t.island.clone())
+                .map(|(_x, _y, island)| island.towns)
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values.dedup();
+            values.iter().map(|x| format!("{x}")).collect::<Vec<_>>()
+        }
+        ConstraintType::IslandResMore => {
+            // todo
+            let mut values = towns
+                .iter()
+                .map(|t| t.island.clone())
+                .map(|(_x, _y, island)| island.ressource_plus.clone())
+                .collect::<Vec<_>>();
+            values.sort_unstable_by_key(|s| s.to_lowercase());
+            values.dedup();
+            values
+        }
+        ConstraintType::IslandResLess => {
+            // todo
+            let mut values = towns
+                .iter()
+                .map(|t| t.island.clone())
+                .map(|(_x, _y, island)| island.ressource_minus.clone())
+                .collect::<Vec<_>>();
+            values.sort_unstable_by_key(|s| s.to_lowercase());
+            values.dedup();
+            values
+        }
+    };
 
     return Ok(re);
 }

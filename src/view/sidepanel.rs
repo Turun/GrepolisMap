@@ -73,11 +73,13 @@ impl View {
                             }
                         };
 
+                        // refresh the selection that is currently being edited with the caveat that some constraints are currently being edited and we should maybe not change their drop down values
                         selection.refresh_self(
                             &self.channel_presenter_tx,
                             edited_constraints,
                             &all_selections,
                         );
+                        // and refresh all selections that depend on the currently edited one completely
                         let dependents = selection.get_dependents(&all_selections);
                         // all_dependent_selections.extend(dependents);
                         for dependent_selection in dependents {

@@ -29,8 +29,8 @@ use view::View;
 use crate::presenter::Presenter;
 
 // before we had the default from eframe, "app"
-const APP_KEY: &str = "TESTING";
-// const APP_KEY: &str = eframe::APP_KEY;
+// const APP_KEY: &str = "TESTING";
+const APP_KEY: &str = eframe::APP_KEY;
 
 fn main() {
     let (tx_to_model, model_rx) = mpsc::channel::<MessageToModel>();
