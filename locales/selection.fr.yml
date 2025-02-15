@@ -1,0 +1,36 @@
+selection:
+  hidden: "Caché"
+  town_count: "%{count} Villes"
+
+  player_id: "ID du joueur"
+  player_name: "Nom du joueur"
+
+  constraint:
+    player_id: "ID du joueur"
+    player_name: "Nom du joueur"
+    player_points: "Points du joueur"
+    player_rank: "Rang du joueur"
+    player_towns: "Villes du joueur"
+    alliance_name: "Nom de l'alliance"
+    alliance_points: "Points de l'alliance"
+    alliance_towns: "Villes de l'alliance"
+    alliance_members: "Membres de l'alliance"
+    alliance_rank: "Rang de l'alliance"
+    town_id: "ID de la ville"
+    town_name: "Nom de la ville"
+    town_points: "Points de la ville"
+    island_id: "ID de l'île"
+    island_x: "X de l'île"
+    island_y: "Y de l'île"
+    island_type: "Type de l'île"
+    island_towns: "Villes de l'île"
+    island_resmore: "Ressources supplémentaires de l'île"
+    island_resless: "Ressources réduites de l'île"
+
+  comparator:
+    in: "dans"
+    not_in: "pas dans"
+
+  and_or:
+    and: "et"
+    or: "ou"

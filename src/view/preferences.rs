@@ -51,6 +51,7 @@ pub enum Language {
     #[default]
     EN,
     DE,
+    FR,
 }
 
 impl Language {
@@ -58,6 +59,7 @@ impl Language {
         rust_i18n::set_locale(match self {
             Language::EN => "en",
             Language::DE => "de",
+            Language::FR => "fr",
         });
     }
 }
@@ -68,6 +70,7 @@ impl ToString for Language {
         match self {
             Language::EN => "EN".to_string(),
             Language::DE => "DE".to_string(),
+            Language::FR => "FR".to_string(),
         }
     }
 }

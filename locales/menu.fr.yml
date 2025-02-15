@@ -1,0 +1,39 @@
+_version: 1
+
+menu:
+  open:
+    title: "Ouvrir les données sauvegardées"
+  delete:
+    title: "Supprimer les données sauvegardées"
+    all: "Tout supprimer"
+    confirm: "Oui, supprimer toutes les données sauvegardées"
+
+  preferences:
+    title: "Préférences"
+    darkmode: "Mode sombre"
+    follow_system_theme: "Suivre le thème du système (Redémarrage requis)"
+    lightmode: "Mode clair"
+
+    no_cache: "Aucun cache"
+    normal_cache: "Cache normal"
+    large_cache: "Cache large"
+
+    reset: "Réinitialiser les préférences"
+
+  import:
+    title: "Importer les sélections"
+    from_clipboard: "Depuis le presse-papiers"
+    from_file: "Depuis le fichier(s)"
+
+  export:
+    title: "Exporter les sélections"
+    to_clipboard: "Vers le presse-papiers"
+    to_file: "Vers le fichier"
+    
+  update_notice:
+    title: "Nouvelle version disponible"
+    content: "Votre version : %{user_version} -> Dernière version : %{server_version}\n\
+      %{message}\n\
+      Vous pouvez obtenir la dernière version ici :\n\
+      https://github.com/Turun/GrepolisMap/releases/latest\n\
+      Pour des questions, un feedback ou pour un rapports de bugs, ouvrez une issue sur Github : https://github.com/Turun/GrepolisMap/issues"
