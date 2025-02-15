@@ -1,0 +1,13 @@
+sidepanel:
+  header:
+    server_id: "ID du serveur"
+    load_data: "Charger les données pour ce serveur"
+    open_recent: "Ouvrir le fichier le plus récent : %{server_id} : %{db}"
+  loading:
+    db_crashed: "La base de données a planté. Veuillez recharger les données."
+  town_stats:
+    total: "Total des villes : %{count}"
+    ghosts: "Villes fantômes : %{count}"
+  town_toggle:
+    all: "Toutes les villes :"
+    ghosts: "Villes fantômes :"
