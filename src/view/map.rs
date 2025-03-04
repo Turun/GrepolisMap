@@ -162,6 +162,14 @@ impl View {
                 // POPUP WITH TOWN INFORMATION
                 if canvas_data.zoom > 10.0 {
                     let optional_mouse_position = response.hover_pos();
+                    // TODO: This is broken with the jump from egui 0.26 to egui 0.28. The hover ui now apparently
+                    // remembers the smallest width it ever had and will never go above that width. Since we have short
+                    // and long hover texts this causes unnecessary and ugly wrapping. Need to fix it. egui downgrade
+                    // would be an option. Or we use another on_hover method (e.g. one that always shows text) (didn't
+                    // test yet if this would fix the issue). Or we can somehow tell the hover ui to use all the space
+                    // it needs even after it was small once.
+                    // Also, it now has a delay for showing up. The cursor needs to be still for like a second before
+                    // the hover text is activated.
                     response = response.on_hover_ui_at_pointer(|ui| {
                         let position = if let Some(mouse_position) = optional_mouse_position {
                             canvas_data

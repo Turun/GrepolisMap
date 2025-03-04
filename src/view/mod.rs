@@ -121,37 +121,6 @@ impl View {
         tx: mpsc::Sender<MessageToModel>,
         telemetry_tx: mpsc::Sender<MessageToServer>,
     ) {
-        // let native_options = eframe::NativeOptions {
-        //     // defaults to window title, but we include the version in the window title. Since
-        //     // it should stay the same across version changes we give it a fixed value here.
-        //     app_id: Some("Turun Map".to_owned()),
-        //     ..eframe::NativeOptions::default()
-        // };
-        // let version = env!("CARGO_PKG_VERSION");
-        // eframe::run_native(
-        //     &format!("Turun Map {version}"),
-        //     native_options,
-        //     Box::new(|cc| Box::new(View::setup(cc, rx, tx, telemetry_tx))),
-        // )
-        // .expect("Eframe failed!");
-
-        /////////////// template for egui version 0.22
-        // eframe::WebLogger::init(log::LevelFilter::Debug).ok();
-
-        // let web_options = eframe::WebOptions::default();
-
-        // wasm_bindgen_futures::spawn_local(async {
-        //     eframe::WebRunner::new()
-        //         .start(
-        //             "the_canvas_id", // hardcode it
-        //             web_options,
-        //             Box::new(|cc| Ok(Box::new(View::setup(cc, rx, tx, telemetry_tx)))),
-        //         )
-        //         .await
-        //         .expect("failed to start eframe");
-        // });
-
-        ////////////////// template for egui version 30
         use eframe::wasm_bindgen::JsCast as _;
 
         // Redirect `log` message to `console.log` and friends:
@@ -373,6 +342,7 @@ impl eframe::App for View {
                 MessageToView::VersionInfo(server_version, message) => {
                     // TODO preferences -> disable telemetry
                     #[cfg(not(target_arch = "wasm32"))]
+                    // not on wasm, because this code block uses native_dialog
                     {
                         let this_version = env!("CARGO_PKG_VERSION");
                         let _handle = thread::spawn(move || {

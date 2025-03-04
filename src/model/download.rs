@@ -101,6 +101,8 @@ impl DataTable {
         sender: &mpsc::Sender<MessageToView>,
         ctx: &egui::Context,
     ) -> anyhow::Result<Self> {
+        // TODO: we need to massively improve the way we handle errors here. Crashing the entire backend if one line in
+        // one input file is unexpected is not a good solution. We need more fine grained error handling.
         if let Some(path) = filename {
             // TODO: load from file and return immediately
         };
