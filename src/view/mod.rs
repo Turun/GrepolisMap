@@ -378,10 +378,11 @@ impl eframe::App for View {
                 MessageToView::Loading(progress) => {
                     self.ui_state = State::Uninitialized(progress);
                 }
-                MessageToView::BackendCrashed(_err) => {
+                MessageToView::BackendCrashed(err) => {
                     // technically we don't need to remove the displayed stuff yet. The data that
                     // is already loaded can persist. It's just that the user can't fetch any new data
                     // from the backend, so a warning about that should be fine.
+                    eprintln!("Backend Crashed with the following error:\n{err:?}");
                     self.ui_state = State::Uninitialized(Progress::BackendCrashed);
                 }
                 MessageToView::FoundSavedDatabases(list_of_paths) => {
