@@ -65,10 +65,11 @@ jobs:
 
     - name: Compile ${{ matrix.target }}
       id: compile
-      uses: rust-build/rust-build.action@v1.4.3
+      uses: rust-build/rust-build.action@v1.4.5
       # env:
       #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
+        TOOLCHAIN_VERSION: 1.83.0
         RUSTTARGET: ${{ matrix.target }}
         ARCHIVE_TYPES: ${{ matrix.archive }}
         ARCHIVE_NAME: TurunMap-${{ needs.create-release.outputs.version }}.${{ matrix.archive }}
