@@ -162,8 +162,13 @@ impl Database {
             .query([])
             .context("Failed to get towns from the database (perform query)")?
             .mapped(Town::from)
-            .collect::<std::result::Result<Vec<Town>, rusqlite::Error>>()
-            .context("Failed to create a town from row")?;
+            .inspect(|res_t| {
+                if let Err(err) = res_t {
+                    eprintln!("{err:?}")
+                }
+            })
+            .filter_map(|res_t| res_t.ok())
+            .collect();
 
         Ok(rows)
     }
@@ -175,8 +180,13 @@ impl Database {
             .query([])
             .context("Failed to get ghost towns from the database (perform query)")?
             .mapped(Town::from)
-            .collect::<std::result::Result<Vec<Town>, rusqlite::Error>>()
-            .context("Failed to create a town from row")?;
+            .inspect(|res_t| {
+                if let Err(err) = res_t {
+                    eprintln!("{err:?}")
+                }
+            })
+            .filter_map(|res_t| res_t.ok())
+            .collect();
 
         Ok(rows)
     }
@@ -278,8 +288,13 @@ impl Database {
         let rows = statement
             .raw_query()
             .mapped(Town::from)
-            .collect::<std::result::Result<Vec<Town>, rusqlite::Error>>()
-            .context("Failed to create a town from row")?;
+            .inspect(|res_t| {
+                if let Err(err) = res_t {
+                    eprintln!("{err:?}")
+                }
+            })
+            .filter_map(|res_t| res_t.ok())
+            .collect();
 
         Ok(rows)
     }
