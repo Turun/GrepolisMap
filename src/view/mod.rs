@@ -233,10 +233,13 @@ impl View {
                 self.ui_server_input(ui, ctx);
                 match progress {
                     Progress::None => {}
-                    Progress::BackendCrashed => {
+                    Progress::BackendCrashed(stringified_reason) => {
                         ui.label(
-                            RichText::new(t!("sidepanel.loading.db_crashed"))
-                                .color(ui.style().visuals.warn_fg_color),
+                            RichText::new(t!(
+                                "sidepanel.loading.db_crashed",
+                                reason = stringified_reason
+                            ))
+                            .color(ui.style().visuals.warn_fg_color),
                         );
                     }
                     Progress::Started => {
@@ -383,7 +386,8 @@ impl eframe::App for View {
                     // is already loaded can persist. It's just that the user can't fetch any new data
                     // from the backend, so a warning about that should be fine.
                     eprintln!("Backend Crashed with the following error:\n{err:?}");
-                    self.ui_state = State::Uninitialized(Progress::BackendCrashed);
+                    self.ui_state =
+                        State::Uninitialized(Progress::BackendCrashed(format!("{err:?}")));
                 }
                 MessageToView::FoundSavedDatabases(list_of_paths) => {
                     self.ui_data.saved_db = list_of_paths;

@@ -4,7 +4,7 @@ sidepanel:
     load_data: "Daten für diesen Server laden"
     open_recent: "Zuletzt geladene Datei öffnen: %{server_id}: %{db}"
   loading:
-    db_crashed: "Die Datenbank ist abgestürzt. Bitte die Daten nochmal laden."
+    db_crashed: "Die Datenbank ist abgestürzt. Bitte die Daten nochmal laden. Die Fehlermeldung ist:\n%{reason}"
   town_stats:
     total: "Sädte gesamt: %{count}"
     ghosts: "Geisterstädte: %{count}"

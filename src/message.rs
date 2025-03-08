@@ -131,10 +131,10 @@ impl fmt::Display for MessageToModel {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Progress {
     None,
-    BackendCrashed,
+    BackendCrashed(String),
     Started,
     IslandOffsets,
     Alliances,

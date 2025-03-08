@@ -4,7 +4,7 @@ sidepanel:
     load_data: "Charger les données pour ce serveur"
     open_recent: "Ouvrir le fichier le plus récent : %{server_id} : %{db}"
   loading:
-    db_crashed: "La base de données a planté. Veuillez recharger les données."
+    db_crashed: "La base de données a planté. Veuillez recharger les données. Le message d'erreur est :\n%{reason}"
   town_stats:
     total: "Total des villes : %{count}"
     ghosts: "Villes fantômes : %{count}"

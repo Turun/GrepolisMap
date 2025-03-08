@@ -4,7 +4,7 @@ sidepanel:
     load_data: "Load data for this server"
     open_recent: "Open most recent file: %{server_id}: %{db}"
   loading:
-    db_crashed: "The database crashed. Please load the data again."
+    db_crashed: "The database crashed. Please load the data again. The error message is:\n%{reason}"
   town_stats:
     total: "Total Towns: %{count}"
     ghosts: "Ghost Towns: %{count}"
