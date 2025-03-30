@@ -131,7 +131,7 @@ impl View {
                 .start(
                     "the_canvas_id", // hardcode it
                     web_options,
-                    Box::new(|cc| Ok(Box::new(View::setup(cc, rx, tx, telemetry_tx)))),
+                    Box::new(|cc| Box::new(View::setup(cc, rx, tx, telemetry_tx))),
                 )
                 .await
                 .expect("failed to start eframe");
@@ -198,7 +198,7 @@ impl View {
         eframe::run_native(
             &format!("Turun Map {version}"),
             native_options,
-            Box::new(|cc| Ok(Box::new(View::setup(cc, rx, tx, telemetry_tx)))),
+            Box::new(|cc| Box::new(View::setup(cc, rx, tx, telemetry_tx))),
         )
         .expect("Eframe failed!");
     }
