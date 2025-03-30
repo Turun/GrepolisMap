@@ -74,11 +74,10 @@ impl View {
                         };
 
                         // refresh the selection that is currently being edited with the caveat that some constraints are currently being edited and we should maybe not change their drop down values
-                        selection.refresh_self(
-                            &self.channel_presenter_tx,
-                            edited_constraints,
-                            &all_selections,
-                        );
+                        let msg = selection.refresh_self(edited_constraints, &all_selections);
+                        if let Some(msg) = msg {
+                            self.messages_to_presenter.push(msg);
+                        }
                         // and refresh all selections that depend on the currently edited one completely
                         let dependents = selection.get_dependents(&all_selections);
                         // all_dependent_selections.extend(dependents);
@@ -91,11 +90,10 @@ impl View {
                                     mutable_selection.name == dependent_selection.name
                                 })
                                 .expect("This Should not happen");
-                            selection.refresh_self(
-                                &self.channel_presenter_tx,
-                                HashSet::new(),
-                                &all_selections,
-                            );
+                            let msg = selection.refresh_self(HashSet::new(), &all_selections);
+                            if let Some(msg) = msg {
+                                self.messages_to_presenter.push(msg);
+                            }
                         }
                     }
 

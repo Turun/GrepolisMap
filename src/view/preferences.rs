@@ -19,7 +19,7 @@ pub enum AutoDeletePref {
     Eternity,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum CacheSize {
     None,
     #[default]

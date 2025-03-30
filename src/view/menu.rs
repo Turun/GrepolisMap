@@ -41,9 +41,7 @@ impl View {
                     }
                     if let Some(saved_db) = clicked_path {
                         self.reload_server();
-                        self.channel_presenter_tx
-                            .send(MessageToModel::LoadDataFromFile(saved_db.path, ctx.clone()))
-                            .expect("Failed to send message to Model");
+                        self.messages_to_presenter.push(MessageToModel::LoadDataFromFile(saved_db.path, ctx.clone()));
                         self.ui_state = State::Uninitialized(Progress::None);
                     }
                 });
@@ -100,23 +98,17 @@ impl View {
 
                     if ui.button(t!("menu.preferences.no_cache")).clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::None;
-                        self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(CacheSize::None))
-                            .expect("Failed to send MaxCacheSize message to backend");
+                        self.messages_to_presenter.push(MessageToModel::MaxCacheSize(CacheSize::None));
                         ui.close_menu();
                     }
                     if ui.button(t!("menu.preferences.normal_cache")).clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::Normal;
-                        self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(CacheSize::Normal))
-                            .expect("Failed to send MaxCacheSize message to backend");
+                        self.messages_to_presenter.push(MessageToModel::MaxCacheSize(CacheSize::Normal));
                         ui.close_menu();
                     }
                     if ui.button(t!("menu.preferences.large_cache")).clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::Large;
-                        self.channel_presenter_tx
-                            .send(MessageToModel::MaxCacheSize(CacheSize::Large))
-                            .expect("Failed to send MaxCacheSize message to backend");
+                        self.messages_to_presenter.push(MessageToModel::MaxCacheSize(CacheSize::Large));
                         ui.close_menu();
                     }
 

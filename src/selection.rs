@@ -167,10 +167,9 @@ impl TownSelection {
     /// ask the backend to refresh this selection. Dependent selections must be refeshed independently
     pub fn refresh_self(
         &mut self,
-        channel_tx: &mpsc::Sender<MessageToModel>,
         keep_ddv: HashSet<EmptyConstraint>,
         all_selections: &[EmptyTownSelection],
-    ) {
+    ) -> Option<MessageToModel> {
         // Check if there is a cycle. If so, do not send to the backend
         // TODO inform the user of this!
         let referenced_selections = self
@@ -178,7 +177,7 @@ impl TownSelection {
             .all_referenced_selections(all_selections);
         if let Err(err) = referenced_selections {
             eprintln!("abort refresh: {err}");
-            return;
+            return None;
         }
 
         // this check introduces a bug! If this check is commented in all
@@ -198,16 +197,11 @@ impl TownSelection {
             constraint.drop_down_values = None;
         }
 
-        channel_tx
-            .send(MessageToModel::FetchTowns(
-                self.partial_clone(),
-                keep_ddv,
-                all_selections.to_vec(),
-            ))
-            .expect(&format!(
-                "Failed to send Message to Model for Selection {}",
-                self.partial_clone()
-            ));
+        return Some(MessageToModel::FetchTowns(
+            self.partial_clone(),
+            keep_ddv,
+            all_selections.to_vec(),
+        ));
         // }
     }
 

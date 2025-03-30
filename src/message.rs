@@ -21,7 +21,7 @@ pub enum MessageToServer {
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MessageToView {
     Loading(Progress),
     GotServer,
@@ -29,7 +29,7 @@ pub enum MessageToView {
     GhostTowns(Arc<Vec<Town>>),
     TownListForSelection(EmptyTownSelection, Arc<Vec<Town>>),
     ValueListForConstraint(EmptyConstraint, EmptyTownSelection, Arc<Vec<String>>),
-    BackendCrashed(anyhow::Error),
+    BackendCrashed(String),
     FoundSavedDatabases(BTreeMap<String, Vec<SavedDB>>),
     RemovedDatabases(Vec<SavedDB>),
 
@@ -85,6 +85,7 @@ impl fmt::Display for MessageToView {
 }
 
 #[allow(clippy::module_name_repetitions)]
+#[derive(Debug, Clone)]
 pub enum MessageToModel {
     SetServer(Server, egui::Context),
     FetchAll,
@@ -144,7 +145,7 @@ pub enum Progress {
     Islands,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Server {
     pub id: String,
 }

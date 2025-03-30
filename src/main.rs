@@ -33,38 +33,5 @@ use crate::presenter::Presenter;
 const APP_KEY: &str = eframe::APP_KEY;
 
 fn main() {
-    let (tx_to_model, model_rx) = mpsc::channel::<MessageToModel>();
-    let (tx_to_view, view_rx) = mpsc::channel::<MessageToView>();
-    let (tx_to_telemetry, telemetry_rx) = mpsc::channel::<MessageToServer>();
-
-    // use std::time::Duration;
-    // let test_tx_to_view = tx_to_view.clone();
-    // let _handle_test = thread::spawn(move || {
-    //     thread::sleep(Duration::from_secs(1));
-    //     let _result = test_tx_to_view.send(MessageToView::VersionInfo(
-    //         "1.2.9".to_owned(),
-    //         "This is a test message\n".to_owned(),
-    //     ));
-    // });
-
-    let presenter_tx_to_view = tx_to_view.clone();
-    let presenter_tx_to_telemetry = tx_to_telemetry.clone();
-    let handle_presenter = thread::spawn(move || {
-        let mut p = Presenter::new(model_rx, presenter_tx_to_view, presenter_tx_to_telemetry);
-        p.start();
-    });
-
-    let telemetry_tx_to_view = tx_to_view;
-    let handle_telemetry = thread::spawn(move || {
-        telemetry::get_latest_version(&telemetry_tx_to_view);
-        telemetry::channel_processor(telemetry_rx);
-    });
-
-    View::new_and_start(view_rx, tx_to_model, tx_to_telemetry);
-    handle_presenter
-        .join()
-        .expect("Failed to join view/presenter handle");
-    handle_telemetry
-        .join()
-        .expect("Failed to join view/telemetry handle");
+    View::new_and_start();
 }

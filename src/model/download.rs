@@ -95,10 +95,10 @@ impl DataTable {
         todo!();
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn create_for_world(
         server_id: &str,
         filename: Option<&Path>,
-        sender: &mpsc::Sender<MessageToView>,
         ctx: &egui::Context,
     ) -> anyhow::Result<Self> {
         // TODO: we need to massively improve the way we handle errors here. Crashing the entire backend if one line in
@@ -132,56 +132,124 @@ impl DataTable {
             ))
         });
 
-        sender
-            .send(MessageToView::Loading(Progress::Started))
-            .context("Failed to send progressupdate 1 to view")?;
-        ctx.request_repaint();
+        // sender
+        //     .send(MessageToView::Loading(Progress::Started))
+        //     .context("Failed to send progressupdate 1 to view")?;
+        // ctx.request_repaint();
 
         let offsets = Self::make_offsets();
-        sender
-            .send(MessageToView::Loading(Progress::IslandOffsets))
-            .context("Failed to send progressupdate 2 to view")?;
-        ctx.request_repaint();
+        // sender
+        //     .send(MessageToView::Loading(Progress::IslandOffsets))
+        //     .context("Failed to send progressupdate 2 to view")?;
+        // ctx.request_repaint();
 
         let data_alliances = handle_data_alliances
             .join()
             .expect("Failed to join AllianceData fetching thread")
             .context("Failed to download alliance data")?;
         let alliances = Self::parse_alliances(data_alliances)?;
-        sender
-            .send(MessageToView::Loading(Progress::Alliances))
-            .context("Failed to send progressupdate 3 to view")?;
-        ctx.request_repaint();
+        // sender
+        //     .send(MessageToView::Loading(Progress::Alliances))
+        //     .context("Failed to send progressupdate 3 to view")?;
+        // ctx.request_repaint();
 
         let data_islands = handle_data_islands
             .join()
             .expect("Failed to join islandData fetching thread")
             .context("Failed to download island data")?;
         let islands = Self::parse_islands(data_islands)?;
-        sender
-            .send(MessageToView::Loading(Progress::Islands))
-            .context("Failed to send progressupdate 4 to view")?;
-        ctx.request_repaint();
+        // sender
+        //     .send(MessageToView::Loading(Progress::Islands))
+        //     .context("Failed to send progressupdate 4 to view")?;
+        // ctx.request_repaint();
 
         let data_players = handle_data_players
             .join()
             .expect("Failed to join PlayerData fetching thread")
             .context("Failed to download player data")?;
         let players = Self::parse_players(data_players, &alliances)?;
-        sender
-            .send(MessageToView::Loading(Progress::Players))
-            .context("Failed to send progressupdate 5 to view")?;
-        ctx.request_repaint();
+        // sender
+        //     .send(MessageToView::Loading(Progress::Players))
+        //     .context("Failed to send progressupdate 5 to view")?;
+        // ctx.request_repaint();
 
         let data_towns = handle_data_towns
             .join()
             .expect("Failed to join TownData fetching thread")
             .context("Failed to download town data")?;
         let towns = Self::parse_towns(data_towns, &players, &islands, &offsets)?;
-        sender
-            .send(MessageToView::Loading(Progress::Towns))
-            .context("Failed to send progressupdate 6 to view")?;
-        ctx.request_repaint();
+        // sender
+        //     .send(MessageToView::Loading(Progress::Towns))
+        //     .context("Failed to send progressupdate 6 to view")?;
+        // ctx.request_repaint();
+
+        let towns = towns.into_values().collect();
+        Ok(Self { towns })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn create_for_world(
+        server_id: &str,
+        filename: Option<&Path>,
+        ctx: &egui::Context,
+    ) -> anyhow::Result<Self> {
+        // TODO: we need to massively improve the way we handle errors here. Crashing the entire backend if one line in
+        // one input file is unexpected is not a good solution. We need more fine grained error handling.
+        if let Some(path) = filename {
+            // TODO: load from file and return immediately
+        };
+
+        let data_players = download_generic(format!(
+            "{DATA_SERVER_PROTOCOL}://{server_id}.{DATA_SERVER_URL}/data/players.txt"
+        ))
+        .context("failed to download player data")?;
+        let data_alliances = download_generic(format!(
+            "{DATA_SERVER_PROTOCOL}://{server_id}.{DATA_SERVER_URL}/data/alliances.txt"
+        ))
+        .context("failed to download alliance data")?;
+        let data_towns = download_generic(format!(
+            "{DATA_SERVER_PROTOCOL}://{server_id}.{DATA_SERVER_URL}/data/towns.txt"
+        ))
+        .context("failed to download town data")?;
+        let data_islands = download_generic(format!(
+            "{DATA_SERVER_PROTOCOL}://{server_id}.{DATA_SERVER_URL}/data/islands.txt"
+        ))
+        .context("failed to download island data")?;
+
+        // sender
+        //     .send(MessageToView::Loading(Progress::Started))
+        //     .context("Failed to send progressupdate 1 to view")?;
+        // ctx.request_repaint();
+
+        let offsets = Self::make_offsets();
+        // sender
+        //     .send(MessageToView::Loading(Progress::IslandOffsets))
+        //     .context("Failed to send progressupdate 2 to view")?;
+        // ctx.request_repaint();
+
+        let alliances = Self::parse_alliances(data_alliances)?;
+        // sender
+        //     .send(MessageToView::Loading(Progress::Alliances))
+        //     .context("Failed to send progressupdate 3 to view")?;
+        // ctx.request_repaint();
+
+        let islands = Self::parse_islands(data_islands)?;
+        // sender
+        //     .send(MessageToView::Loading(Progress::Islands))
+        //     .context("Failed to send progressupdate 4 to view")?;
+        // ctx.request_repaint();
+
+        let players = Self::parse_players(data_players, &alliances)?;
+        // sender
+        //     .send(MessageToView::Loading(Progress::Players))
+        //     .context("Failed to send progressupdate 5 to view")?;
+        // ctx.request_repaint();
+
+        let towns = Self::parse_towns(data_towns, &players, &islands, &offsets)?;
+        // sender
+        //     .send(MessageToView::Loading(Progress::Towns))
+        //     .context("Failed to send progressupdate 6 to view")?;
+        // ctx.request_repaint();
 
         let towns = towns.into_values().collect();
         Ok(Self { towns })

@@ -16,26 +16,16 @@ use std::time::Duration;
 /// fails, output to stderr with the message given in `error_channel`. If the given
 /// message result is error, simply output it to stderr.
 fn send_to_view(
-    tx: &mpsc::Sender<MessageToView>,
+    tx: &mut Vec<MessageToView>,
     msg_opt: anyhow::Result<MessageToView>,
-    error_channel: String,
+    _error_channel: String,
 ) {
     match msg_opt {
         Ok(msg) => {
-            let res = tx.send(msg).context(error_channel);
-            if let Err(err) = res {
-                eprintln!("{err:?}");
-            }
+            tx.push(msg);
         }
         Err(err) => {
-            let res = tx
-                .send(MessageToView::BackendCrashed(err))
-                .context(error_channel);
-            if let Err(err) = res {
-                eprintln!(
-                    "We crashed so hard we couldn't even tell the frontend we did! Error: {err:?}"
-                );
-            }
+            tx.push(MessageToView::BackendCrashed(format!("{err}")));
         }
     }
 }
@@ -43,23 +33,13 @@ fn send_to_view(
 pub struct Presenter {
     model: Model,
     max_cache_size: CacheSize,
-    channel_tx: mpsc::Sender<MessageToView>,
-    channel_rx: mpsc::Receiver<MessageToModel>,
-    telemetry_tx: mpsc::Sender<MessageToServer>,
 }
 
 impl Presenter {
-    pub fn new(
-        rx: mpsc::Receiver<MessageToModel>,
-        tx: mpsc::Sender<MessageToView>,
-        telemetry_tx: mpsc::Sender<MessageToServer>,
-    ) -> Self {
+    pub fn new() -> Self {
         Self {
             model: Model::Uninitialized,
             max_cache_size: CacheSize::Normal,
-            channel_tx: tx,
-            channel_rx: rx,
-            telemetry_tx,
         }
     }
 
@@ -95,26 +75,22 @@ impl Presenter {
 
     #[allow(clippy::too_many_lines)] // processing all variants of incoming messages simply needs a lot of lines
     /// Start the service that handles incoming messages, calls the appropriate backend code and sends the resutls to the view
-    pub fn start(&mut self) {
-        let mut spawned_threads = Vec::new();
+    pub fn process_messages(&mut self, messages: &[MessageToModel]) -> Vec<MessageToView> {
+        let mut re = Vec::new();
 
-        for message in &self.channel_rx {
+        for message in messages {
             // println!("Got Message from View to Model: {message}");
             match message {
                 MessageToModel::MaxCacheSize(x) => {
-                    self.max_cache_size = x;
+                    self.max_cache_size = x.clone();
                 }
                 MessageToModel::DiscoverSavedDatabases => {
-                    let thread_tx = self.channel_tx.clone();
-                    let handle = thread::spawn(move || {
-                        let dbs = storage::get_list_of_saved_dbs();
-                        send_to_view(
-                            &thread_tx,
-                            Ok(MessageToView::FoundSavedDatabases(dbs)),
-                            String::from("Failed to send list of saved dbs to View"),
-                        );
-                    });
-                    spawned_threads.push(handle);
+                    let dbs = storage::get_list_of_saved_dbs();
+                    send_to_view(
+                        &mut re,
+                        Ok(MessageToView::FoundSavedDatabases(dbs)),
+                        String::from("Failed to send list of saved dbs to View"),
+                    );
                 }
                 MessageToModel::LoadDataFromFile(path, ctx) => {
                     unimplemented!("we had this in the SQL version, but it's still a TODO for the rust only version");
@@ -144,16 +120,12 @@ impl Presenter {
                     // }
                 }
                 MessageToModel::SetServer(server, ctx) => {
-                    let _result = self
-                        .telemetry_tx
-                        .send(MessageToServer::LoadServer(server.id.clone()));
+                    // let _result = re.
+                    //     .telemetry_tx
+                    //     .send(MessageToServer::LoadServer(server.id.clone()));
                     let db_path = storage::get_new_db_filename(&server.id);
-                    let db_result = DataTable::create_for_world(
-                        &server.id,
-                        db_path.as_deref(),
-                        &self.channel_tx,
-                        &ctx,
-                    );
+                    let db_result =
+                        DataTable::create_for_world(&server.id, db_path.as_deref(), &ctx);
                     // TODO: if the db we just created is identical to a previously saved file we should get rid of one of them.
                     //       optionally this can be done as a background process. We could also leave the just created db alone, no matter what
                     //       and only touch those that had been created in previous runs of the program
@@ -161,12 +133,12 @@ impl Presenter {
                         Ok(db) => {
                             self.model = Model::Loaded {
                                 db,
-                                ctx,
+                                ctx: ctx.clone(),
                                 cache_strings: HashMap::default(),
                                 cache_towns: HashMap::default(),
                             };
                             send_to_view(
-                                &self.channel_tx,
+                                &mut re,
                                 Ok(MessageToView::GotServer),
                                 String::from("Failed to send message 'got server'"),
                             );
@@ -174,8 +146,8 @@ impl Presenter {
                         Err(err) => {
                             self.model = Model::Uninitialized;
                             send_to_view(
-                                &self.channel_tx,
-                                Ok(MessageToView::BackendCrashed(err)),
+                                &mut re,
+                                Ok(MessageToView::BackendCrashed(format!("{err}"))),
                                 String::from("Failed to send crash message to view"),
                             );
 
@@ -190,7 +162,7 @@ impl Presenter {
                     let towns = self.model.get_all_towns();
                     let msg = towns.map(MessageToView::AllTowns);
                     send_to_view(
-                        &self.channel_tx,
+                        &mut re,
                         msg,
                         String::from("Failed to send all town list to view"),
                     );
@@ -199,7 +171,7 @@ impl Presenter {
                     let towns = self.model.get_ghost_towns();
                     let msg = towns.map(MessageToView::GhostTowns);
                     send_to_view(
-                        &self.channel_tx,
+                        &mut re,
                         msg,
                         String::from("Failed to send ghost town list to view"),
                     );
@@ -249,7 +221,7 @@ impl Presenter {
                             MessageToView::ValueListForConstraint(c.clone(), selection.clone(), t)
                         });
                         send_to_view(
-                            &self.channel_tx,
+                            &mut re,
                             msg,
                             String::from("Failed to send town list for currently edited drop down"),
                         );
@@ -264,7 +236,7 @@ impl Presenter {
                     let msg =
                         towns.map(|t| MessageToView::TownListForSelection(selection.clone(), t));
                     send_to_view(
-                        &self.channel_tx,
+                        &mut re,
                         msg,
                         String::from("Failed to send town list to view"),
                     );
@@ -291,7 +263,7 @@ impl Presenter {
                                 )
                             });
                             send_to_view(
-                                &self.channel_tx,
+                                &mut re,
                                 msg,
                                 String::from("Failed to send town list to view"),
                             );
@@ -314,7 +286,7 @@ impl Presenter {
                             MessageToView::ValueListForConstraint(c, selection.clone(), t)
                         });
                         send_to_view(
-                            &self.channel_tx,
+                            &mut re,
                             msg,
                             String::from("Failed to send town list to view"),
                         );
@@ -348,7 +320,7 @@ impl Presenter {
                                 )
                             });
                             send_to_view(
-                                &self.channel_tx,
+                                &mut re,
                                 msg,
                                 String::from("Failed to send town list to view"),
                             );
@@ -365,8 +337,6 @@ impl Presenter {
             self.model.age_cache(self.max_cache_size.value());
         }
 
-        for handle in spawned_threads {
-            handle.join().expect("Failed to join extra backend thread");
-        }
+        return re;
     }
 }

@@ -9,7 +9,9 @@ mod sidepanel;
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToServer, MessageToView, Progress, Server};
+use crate::presenter::Presenter;
 use crate::selection::{SelectionState, TownSelection};
+use crate::telemetry;
 use crate::view::data::Data;
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Ui};
@@ -39,25 +41,24 @@ pub enum State {
 }
 
 pub struct View {
+    presenter: Presenter,
     ui_state: State,
     ui_data: Data,
-    channel_presenter_rx: mpsc::Receiver<MessageToView>,
-    channel_presenter_tx: mpsc::Sender<MessageToModel>,
+    messages_to_presenter: Vec<MessageToModel>,
+    messages_to_view: Vec<MessageToView>,
+    messages_to_server: Vec<MessageToServer>,
 }
 
 impl View {
     #[allow(clippy::needless_pass_by_value)]
-    fn setup(
-        cc: &eframe::CreationContext,
-        rx: mpsc::Receiver<MessageToView>,
-        tx: mpsc::Sender<MessageToModel>,
-        telemetry_tx: mpsc::Sender<MessageToServer>,
-    ) -> Self {
+    fn setup(cc: &eframe::CreationContext) -> Self {
         let mut re = Self {
+            presenter: Presenter::new(),
             ui_state: State::Uninitialized(Progress::None),
             ui_data: Data::default(),
-            channel_presenter_rx: rx,
-            channel_presenter_tx: tx,
+            messages_to_presenter: Vec::new(),
+            messages_to_view: Vec::new(),
+            messages_to_server: Vec::new(),
         };
 
         // include a Unicode font and make it the default
@@ -73,15 +74,14 @@ impl View {
             .push(String::from("Custom Font"));
         cc.egui_ctx.set_fonts(fonts);
 
-        re.channel_presenter_tx
-            .send(MessageToModel::DiscoverSavedDatabases)
-            .expect("Failed to send message to backend: Discover Saved Databases");
+        re.messages_to_presenter
+            .push(MessageToModel::DiscoverSavedDatabases);
 
         // load saved app data from disk
         if let Some(storage) = cc.storage {
             re.ui_data = if let Some(text) = storage.get_string(crate::APP_KEY) {
                 // println!("{}", text);
-                let _result = telemetry_tx.send(MessageToServer::StoredConfig(text.clone()));
+                // let _result = telemetry_tx.send(MessageToServer::StoredConfig(text.clone()));
                 serde_yaml::from_str(&text).unwrap_or_else(|err| {
                     eprintln!("Failed to read saved config as YAML: {err}");
                     Data::default()
@@ -94,11 +94,14 @@ impl View {
             println!("No persistence storage configured");
         }
 
-        re.channel_presenter_tx
-            .send(MessageToModel::MaxCacheSize(
-                re.ui_data.preferences.cache_size,
-            ))
-            .expect("Failed to send message to backend: MaxCacheSize");
+        re.messages_to_presenter.push(MessageToModel::MaxCacheSize(
+            re.ui_data.preferences.cache_size,
+        ));
+
+        let msg = telemetry::get_latest_version(); // TODO
+        if let Some(msg) = msg {
+            re.messages_to_view.push(msg);
+        }
 
         // TODO
         // self.channel_presenter_tx
@@ -114,11 +117,7 @@ impl View {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn new_and_start(
-        rx: mpsc::Receiver<MessageToView>,
-        tx: mpsc::Sender<MessageToModel>,
-        telemetry_tx: mpsc::Sender<MessageToServer>,
-    ) {
+    pub fn new_and_start() {
         use eframe::wasm_bindgen::JsCast as _;
 
         // Redirect `log` message to `console.log` and friends:
@@ -131,7 +130,7 @@ impl View {
                 .start(
                     "the_canvas_id", // hardcode it
                     web_options,
-                    Box::new(|cc| Box::new(View::setup(cc, rx, tx, telemetry_tx))),
+                    Box::new(|cc| Box::new(View::setup(cc))),
                 )
                 .await
                 .expect("failed to start eframe");
@@ -183,11 +182,7 @@ impl View {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_and_start(
-        rx: mpsc::Receiver<MessageToView>,
-        tx: mpsc::Sender<MessageToModel>,
-        telemetry_tx: mpsc::Sender<MessageToServer>,
-    ) {
+    pub fn new_and_start() {
         let native_options = eframe::NativeOptions {
             // defaults to window title, but we include the version in the window title. Since
             // it should stay the same across version changes we give it a fixed value here.
@@ -198,7 +193,7 @@ impl View {
         eframe::run_native(
             &format!("Turun Map {version}"),
             native_options,
-            Box::new(|cc| Box::new(View::setup(cc, rx, tx, telemetry_tx))),
+            Box::new(|cc| Box::new(View::setup(cc))),
         )
         .expect("Eframe failed!");
     }
@@ -265,9 +260,8 @@ impl View {
             {
                 self.ui_data.server_id = server_id;
                 self.reload_server();
-                self.channel_presenter_tx
-                    .send(MessageToModel::LoadDataFromFile(saved_db.path, ctx.clone()))
-                    .expect("Failed to send message to Model");
+                self.messages_to_presenter
+                    .push(MessageToModel::LoadDataFromFile(saved_db.path, ctx.clone()));
                 self.ui_state = State::Uninitialized(Progress::None);
             }
         }
@@ -276,18 +270,15 @@ impl View {
             // change self.ui_data
             self.reload_server();
             // tell the backend to fetch data from the server
-            self.channel_presenter_tx
-                .send(MessageToModel::SetServer(
-                    Server {
-                        id: self.ui_data.server_id.clone(),
-                    },
-                    ctx.clone(),
-                ))
-                .expect("Failed to send the SetServer Message to the backend");
+            self.messages_to_presenter.push(MessageToModel::SetServer(
+                Server {
+                    id: self.ui_data.server_id.clone(),
+                },
+                ctx.clone(),
+            ));
             // refresh our list of available saved databases
-            self.channel_presenter_tx
-                .send(MessageToModel::DiscoverSavedDatabases)
-                .expect("Failed to send Discover Saved Databases to server");
+            self.messages_to_presenter
+                .push(MessageToModel::DiscoverSavedDatabases);
         }
     }
 
@@ -352,8 +343,33 @@ impl eframe::App for View {
         // make sure we process messages from the backend every once in a while
         ctx.request_repaint_after(Duration::from_millis(500));
 
+        if !self.messages_to_presenter.is_empty() {
+            println!("Messages to Presenter:");
+            for msg in &self.messages_to_presenter {
+                println!("    {msg}")
+            }
+        }
+
+        let mut additional_messages_to_view =
+            self.presenter.process_messages(&self.messages_to_presenter);
+        self.messages_to_view
+            .append(&mut additional_messages_to_view);
+        self.messages_to_presenter = Vec::new();
+
+        telemetry::process_messages(&self.messages_to_server);
+        self.messages_to_server = Vec::new();
+
+        if !self.messages_to_view.is_empty() {
+            println!("Messages to View:");
+            for msg in &self.messages_to_view {
+                println!("    {msg}")
+            }
+        }
+
         // process any messages that came in from the backend since the last frame
-        while let Ok(message) = self.channel_presenter_rx.try_recv() {
+        let messages = self.messages_to_view.clone();
+        self.messages_to_view = Vec::new();
+        for message in messages {
             // println!("Got Message from Model to View: {message}");
             match message {
                 MessageToView::VersionInfo(server_version, message) => {
@@ -362,28 +378,22 @@ impl eframe::App for View {
                     // not on wasm, because this code block uses native_dialog
                     {
                         let this_version = env!("CARGO_PKG_VERSION");
-                        let _handle = thread::spawn(move || {
-                            let _result = native_dialog::MessageDialog::new()
-                                .set_title(&t!("menu.update_notice.title"))
-                                .set_text(&t!(
-                                    "menu.update_notice.content",
-                                    user_version = this_version,
-                                    server_version = server_version,
-                                    message = message
-                                ))
-                                .set_type(native_dialog::MessageType::Info)
-                                .show_alert();
-                        });
+                        let _result = native_dialog::MessageDialog::new()
+                            .set_title(&t!("menu.update_notice.title"))
+                            .set_text(&t!(
+                                "menu.update_notice.content",
+                                user_version = this_version,
+                                server_version = server_version,
+                                message = message
+                            ))
+                            .set_type(native_dialog::MessageType::Info)
+                            .show_alert();
                     }
                 }
                 MessageToView::GotServer => {
                     self.ui_state = State::Show;
-                    self.channel_presenter_tx
-                        .send(MessageToModel::FetchAll)
-                        .expect("Failed to send message to model: FetchAll");
-                    self.channel_presenter_tx
-                        .send(MessageToModel::FetchGhosts)
-                        .expect("Failed to send message to model: FetchGhosts");
+                    self.messages_to_presenter.push(MessageToModel::FetchAll);
+                    self.messages_to_presenter.push(MessageToModel::FetchGhosts);
 
                     // ensure the towns in the selection are fetched anew after loading the data from the server.
                     // If we don't do this the selection may become stale and show towns from server ab12 on a
@@ -396,11 +406,10 @@ impl eframe::App for View {
                         .collect();
                     for selection in &mut self.ui_data.selections {
                         selection.towns = Arc::new(Vec::new());
-                        selection.refresh_self(
-                            &self.channel_presenter_tx,
-                            HashSet::new(),
-                            &all_selections,
-                        );
+                        let msg = selection.refresh_self(HashSet::new(), &all_selections);
+                        if let Some(msg) = msg {
+                            self.messages_to_presenter.push(msg);
+                        }
                     }
                 }
                 MessageToView::TownListForSelection(selection, town_list) => {
