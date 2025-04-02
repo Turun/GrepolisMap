@@ -1,220 +1,64 @@
 use super::database::{Alliance, BackendTown, DataTable, Island, Offset, Player};
-use super::offset_data;
-use crate::message::{MessageToView, Progress};
-#[cfg(target_arch = "wasm32")]
-use anyhow::anyhow;
-use anyhow::Context;
+use super::{offset_data, APIResponse};
+use crate::message::{MessageToView, Progress, Server};
+use anyhow::{anyhow, Context};
 use reqwest;
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
-use std::sync::mpsc;
-
-// if wasm: due to cors we need to pass it through our server. http, because I didn't get wildcard certs working yet
-// if desktop version: we can contact grelpolis servers directly
-
-#[cfg(not(target_arch = "wasm32"))]
-const DATA_SERVER_URL: &str = "grepolis.com";
-#[cfg(target_arch = "wasm32")]
-const DATA_SERVER_URL: &str = "reflector.gmap.turun.de";
-#[cfg(not(target_arch = "wasm32"))]
-const DATA_SERVER_PROTOCOL: &str = "https";
-#[cfg(target_arch = "wasm32")]
-const DATA_SERVER_PROTOCOL: &str = "http";
-
-fn download_generic<U>(url: U) -> anyhow::Result<String>
-where
-    U: reqwest::IntoUrl + std::fmt::Display + 'static,
-{
-    #[cfg(target_arch = "wasm32")]
-    {
-        let client = reqwest::Client::builder()
-            .user_agent("Rust Grepolis Map - Turun")
-            // gzip/deflate not possible, but also not required, from what I can tell: https://github.com/seanmonstar/reqwest/issues/2073#issuecomment-1876919799
-            // on the web the browser will handle compression and decompression, so requests does not have to do that
-            .build()
-            .unwrap();
-        let (send, receive) = std::sync::mpsc::channel::<anyhow::Result<String>>();
-
-        let url_text_future = format!("{url}");
-        let url_text_thread = format!("{url}");
-        let fut = async move {
-            let res_result = client.get(url).send().await;
-            if let Err(err) = res_result {
-                let _ = send.send(Err(anyhow!(
-                    "client.get({url_text_future}).send().await failed with {err:?}"
-                )));
-                return;
-            }
-            let result = res_result.unwrap();
-            println!("Got status {} for url {}", result.status(), url_text_future);
-            let res_text = result.text().await;
-            if let Err(err) = res_text {
-                let _ = send.send(Err(anyhow!("result.text().await failed with {err:?}")));
-                return;
-            }
-            let text = res_text.unwrap();
-
-            let _ = send.send(Ok(text));
-        };
-
-        // code inspired by https://github.com/emilk/ehttp/blob/master/ehttp/src/web.rs#L141
-        wasm_bindgen_futures::spawn_local(fut);
-
-        let recv_result = receive.recv();
-        match recv_result {
-            Ok(recv) => {
-                return recv;
-            }
-            Err(err) => {
-                return Err(anyhow!(
-                    "async handling for requesting {url_text_thread} has failed unexpectedly with {err:?}"
-                ));
-            }
-        }
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let client = reqwest::blocking::Client::builder()
-            .user_agent("Rust Grepolis Map - Turun")
-            .gzip(true)
-            .deflate(true)
-            .build()
-            .unwrap();
-        let url_text = format!("{url}");
-        let result = client.get(url).send()?;
-        println!("Got status {} for url {}", result.status(), url_text);
-        let text = result.text()?;
-
-        Ok(text)
-    }
-}
+use std::sync::{mpsc, Arc, Mutex};
 
 impl DataTable {
     pub fn load_from_file(path: &Path) -> anyhow::Result<Self> {
         todo!();
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn create_for_world(
-        server_id: &str,
-        filename: Option<&Path>,
-        ctx: &egui::Context,
-    ) -> anyhow::Result<Self> {
-        // TODO: we need to massively improve the way we handle errors here. Crashing the entire backend if one line in
-        // one input file is unexpected is not a good solution. We need more fine grained error handling.
-        if let Some(path) = filename {
-            // TODO: load from file and return immediately
-        };
+    pub fn get_api_results(api_results: Arc<Mutex<APIResponse>>) {
+        let server_id = api_results.lock().unwrap().for_server.clone();
 
-        let thread_server_id = String::from(server_id);
-        let handle_data_players = std::thread::spawn(move || {
-            download_generic(format!(
-                "{DATA_SERVER_PROTOCOL}://{thread_server_id}.{DATA_SERVER_URL}/data/players.txt"
-            ))
-        });
-        let thread_server_id = String::from(server_id);
-        let handle_data_alliances = std::thread::spawn(move || {
-            download_generic(format!(
-                "{DATA_SERVER_PROTOCOL}://{thread_server_id}.{DATA_SERVER_URL}/data/alliances.txt"
-            ))
-        });
-        let thread_server_id = String::from(server_id);
-        let handle_data_towns = std::thread::spawn(move || {
-            download_generic(format!(
-                "{DATA_SERVER_PROTOCOL}://{thread_server_id}.{DATA_SERVER_URL}/data/towns.txt"
-            ))
-        });
-        let thread_server_id = String::from(server_id);
-        let handle_data_islands = std::thread::spawn(move || {
-            download_generic(format!(
-                "{DATA_SERVER_PROTOCOL}://{thread_server_id}.{DATA_SERVER_URL}/data/islands.txt"
-            ))
+        #[cfg(target_arch = "wasm32")]
+        let base_url = format!("https://reflector.gmap.turun.de/{server_id}/");
+        #[cfg(not(target_arch = "wasm32"))]
+        let base_url = format!("https://{server_id}.grepolis.com/data/");
+
+        let req_players = ehttp::Request::get(base_url.clone() + "players.txt");
+        let these_api_results = Arc::clone(&api_results);
+        ehttp::fetch(req_players, move |response| {
+            let text = String::from_utf8(response.unwrap().bytes).unwrap();
+            these_api_results.lock().unwrap().players = Some(text);
         });
 
-        // sender
-        //     .send(MessageToView::Loading(Progress::Started))
-        //     .context("Failed to send progressupdate 1 to view")?;
-        // ctx.request_repaint();
+        let req_players = ehttp::Request::get(base_url.clone() + "alliances.txt");
+        let these_api_results = Arc::clone(&api_results);
+        ehttp::fetch(req_players, move |response| {
+            let text = String::from_utf8(response.unwrap().bytes).unwrap();
+            these_api_results.lock().unwrap().alliances = Some(text);
+        });
 
-        let offsets = Self::make_offsets();
-        // sender
-        //     .send(MessageToView::Loading(Progress::IslandOffsets))
-        //     .context("Failed to send progressupdate 2 to view")?;
-        // ctx.request_repaint();
+        let req_players = ehttp::Request::get(base_url.clone() + "towns.txt");
+        let these_api_results = Arc::clone(&api_results);
+        ehttp::fetch(req_players, move |response| {
+            let text = String::from_utf8(response.unwrap().bytes).unwrap();
+            these_api_results.lock().unwrap().towns = Some(text);
+        });
 
-        let data_alliances = handle_data_alliances
-            .join()
-            .expect("Failed to join AllianceData fetching thread")
-            .context("Failed to download alliance data")?;
-        let alliances = Self::parse_alliances(data_alliances)?;
-        // sender
-        //     .send(MessageToView::Loading(Progress::Alliances))
-        //     .context("Failed to send progressupdate 3 to view")?;
-        // ctx.request_repaint();
-
-        let data_islands = handle_data_islands
-            .join()
-            .expect("Failed to join islandData fetching thread")
-            .context("Failed to download island data")?;
-        let islands = Self::parse_islands(data_islands)?;
-        // sender
-        //     .send(MessageToView::Loading(Progress::Islands))
-        //     .context("Failed to send progressupdate 4 to view")?;
-        // ctx.request_repaint();
-
-        let data_players = handle_data_players
-            .join()
-            .expect("Failed to join PlayerData fetching thread")
-            .context("Failed to download player data")?;
-        let players = Self::parse_players(data_players, &alliances)?;
-        // sender
-        //     .send(MessageToView::Loading(Progress::Players))
-        //     .context("Failed to send progressupdate 5 to view")?;
-        // ctx.request_repaint();
-
-        let data_towns = handle_data_towns
-            .join()
-            .expect("Failed to join TownData fetching thread")
-            .context("Failed to download town data")?;
-        let towns = Self::parse_towns(data_towns, &players, &islands, &offsets)?;
-        // sender
-        //     .send(MessageToView::Loading(Progress::Towns))
-        //     .context("Failed to send progressupdate 6 to view")?;
-        // ctx.request_repaint();
-
-        let towns = towns.into_values().collect();
-        Ok(Self { towns })
+        let req_players = ehttp::Request::get(base_url.clone() + "islands.txt");
+        let these_api_results = Arc::clone(&api_results);
+        ehttp::fetch(req_players, move |response| {
+            let text = String::from_utf8(response.unwrap().bytes).unwrap();
+            these_api_results.lock().unwrap().islands = Some(text);
+        });
     }
 
-    #[cfg(target_arch = "wasm32")]
     pub fn create_for_world(
-        server_id: &str,
+        api_response: APIResponse,
         filename: Option<&Path>,
-        ctx: &egui::Context,
     ) -> anyhow::Result<Self> {
         // TODO: we need to massively improve the way we handle errors here. Crashing the entire backend if one line in
         // one input file is unexpected is not a good solution. We need more fine grained error handling.
         if let Some(path) = filename {
             // TODO: load from file and return immediately
         };
-
-        let data_players = download_generic(format!(
-            "{DATA_SERVER_PROTOCOL}://{server_id}.{DATA_SERVER_URL}/data/players.txt"
-        ))
-        .context("failed to download player data")?;
-        let data_alliances = download_generic(format!(
-            "{DATA_SERVER_PROTOCOL}://{server_id}.{DATA_SERVER_URL}/data/alliances.txt"
-        ))
-        .context("failed to download alliance data")?;
-        let data_towns = download_generic(format!(
-            "{DATA_SERVER_PROTOCOL}://{server_id}.{DATA_SERVER_URL}/data/towns.txt"
-        ))
-        .context("failed to download town data")?;
-        let data_islands = download_generic(format!(
-            "{DATA_SERVER_PROTOCOL}://{server_id}.{DATA_SERVER_URL}/data/islands.txt"
-        ))
-        .context("failed to download island data")?;
 
         // sender
         //     .send(MessageToView::Loading(Progress::Started))
@@ -227,25 +71,25 @@ impl DataTable {
         //     .context("Failed to send progressupdate 2 to view")?;
         // ctx.request_repaint();
 
-        let alliances = Self::parse_alliances(data_alliances)?;
+        let alliances = Self::parse_alliances(api_response.alliances.unwrap())?;
         // sender
         //     .send(MessageToView::Loading(Progress::Alliances))
         //     .context("Failed to send progressupdate 3 to view")?;
         // ctx.request_repaint();
 
-        let islands = Self::parse_islands(data_islands)?;
+        let islands = Self::parse_islands(api_response.islands.unwrap())?;
         // sender
         //     .send(MessageToView::Loading(Progress::Islands))
         //     .context("Failed to send progressupdate 4 to view")?;
         // ctx.request_repaint();
 
-        let players = Self::parse_players(data_players, &alliances)?;
+        let players = Self::parse_players(api_response.players.unwrap(), &alliances)?;
         // sender
         //     .send(MessageToView::Loading(Progress::Players))
         //     .context("Failed to send progressupdate 5 to view")?;
         // ctx.request_repaint();
 
-        let towns = Self::parse_towns(data_towns, &players, &islands, &offsets)?;
+        let towns = Self::parse_towns(api_response.towns.unwrap(), &players, &islands, &offsets)?;
         // sender
         //     .send(MessageToView::Loading(Progress::Towns))
         //     .context("Failed to send progressupdate 6 to view")?;

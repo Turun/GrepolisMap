@@ -3,12 +3,12 @@ use eframe::epaint::ahash::HashMap;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToModel, MessageToServer, MessageToView};
+use crate::message::{MessageToModel, MessageToServer, MessageToView, Server};
 use crate::model::database::DataTable;
-use crate::model::Model;
+use crate::model::{APIResponse, Model};
 use crate::storage;
 use crate::view::preferences::CacheSize;
-use std::sync::{mpsc, Arc};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -38,7 +38,7 @@ pub struct Presenter {
 impl Presenter {
     pub fn new() -> Self {
         Self {
-            model: Model::Uninitialized,
+            model: Model::Uninitialized(Arc::new(Mutex::new(APIResponse::new(String::new())))),
             max_cache_size: CacheSize::Normal,
         }
     }
@@ -71,6 +71,54 @@ impl Presenter {
                         .collect(),
                 )
             })
+    }
+
+    /// triggers the server loading, which is handled asynchronously
+    pub fn load_server(&mut self, server: Server) {
+        let api_response = Arc::new(Mutex::new(APIResponse::new(server.id)));
+        self.model = Model::Uninitialized(Arc::clone(&api_response));
+        DataTable::get_api_results(Arc::clone(&api_response));
+    }
+
+    /// returns Some(true) if the model is initialized and the presenter can start answering requests.
+    /// returns None if the backend crashed trying to parse the complete api response.
+    /// returns Some(false) if the api data is still being fetched.
+    pub fn ready_for_requests(&mut self) -> Option<bool> {
+        match &self.model {
+            Model::Uninitialized(api_response) => {
+                let api_response = api_response.lock().unwrap().clone();
+                if api_response.is_complete() {
+                    let db_path = storage::get_new_db_filename(&api_response.for_server);
+                    let db_result = DataTable::create_for_world(api_response, db_path.as_deref());
+
+                    match db_result {
+                        Ok(db) => {
+                            self.model = Model::Loaded {
+                                db,
+                                cache_strings: HashMap::default(),
+                                cache_towns: HashMap::default(),
+                            };
+                            return Some(true);
+                        }
+                        Err(err) => {
+                            self.model = Model::Uninitialized(Arc::new(Mutex::new(
+                                APIResponse::new(String::new()),
+                            )));
+
+                            // if we failed halfway during the creation of our db, we need to remove the unfinished db from the filesystem
+                            if let Some(path) = db_path {
+                                let _result = storage::remove_db(&path);
+                            }
+
+                            return None;
+                        }
+                    }
+                } else {
+                    return Some(false);
+                }
+            }
+            Model::Loaded { .. } => return Some(true),
+        }
     }
 
     #[allow(clippy::too_many_lines)] // processing all variants of incoming messages simply needs a lot of lines
@@ -120,43 +168,46 @@ impl Presenter {
                     // }
                 }
                 MessageToModel::SetServer(server, ctx) => {
-                    // let _result = re.
-                    //     .telemetry_tx
-                    //     .send(MessageToServer::LoadServer(server.id.clone()));
-                    let db_path = storage::get_new_db_filename(&server.id);
-                    let db_result =
-                        DataTable::create_for_world(&server.id, db_path.as_deref(), &ctx);
-                    // TODO: if the db we just created is identical to a previously saved file we should get rid of one of them.
-                    //       optionally this can be done as a background process. We could also leave the just created db alone, no matter what
-                    //       and only touch those that had been created in previous runs of the program
-                    match db_result {
-                        Ok(db) => {
-                            self.model = Model::Loaded {
-                                db,
-                                ctx: ctx.clone(),
-                                cache_strings: HashMap::default(),
-                                cache_towns: HashMap::default(),
-                            };
-                            send_to_view(
-                                &mut re,
-                                Ok(MessageToView::GotServer),
-                                String::from("Failed to send message 'got server'"),
-                            );
-                        }
-                        Err(err) => {
-                            self.model = Model::Uninitialized;
-                            send_to_view(
-                                &mut re,
-                                Ok(MessageToView::BackendCrashed(format!("{err}"))),
-                                String::from("Failed to send crash message to view"),
-                            );
+                    unimplemented!("this is now extracted to a separate method!");
+                    // // let _result = re.
+                    // //     .telemetry_tx
+                    // //     .send(MessageToServer::LoadServer(server.id.clone()));
+                    // let db_path = storage::get_new_db_filename(&server.id);
+                    // let db_result =
+                    //     DataTable::create_for_world(&server.id, db_path.as_deref(), &ctx);
+                    // // TODO: if the db we just created is identical to a previously saved file we should get rid of one of them.
+                    // //       optionally this can be done as a background process. We could also leave the just created db alone, no matter what
+                    // //       and only touch those that had been created in previous runs of the program
+                    // match db_result {
+                    //     Ok(db) => {
+                    //         self.model = Model::Loaded {
+                    //             db,
+                    //             ctx: ctx.clone(),
+                    //             cache_strings: HashMap::default(),
+                    //             cache_towns: HashMap::default(),
+                    //         };
+                    //         send_to_view(
+                    //             &mut re,
+                    //             Ok(MessageToView::GotServer),
+                    //             String::from("Failed to send message 'got server'"),
+                    //         );
+                    //     }
+                    //     Err(err) => {
+                    //         self.model = Model::Uninitialized(Arc::new(Mutex::new(
+                    //             APIResponse::new(String::new()),
+                    //         )));
+                    //         send_to_view(
+                    //             &mut re,
+                    //             Ok(MessageToView::BackendCrashed(format!("{err}"))),
+                    //             String::from("Failed to send crash message to view"),
+                    //         );
 
-                            // if we failed halfway during the creation of our db, we need to remove the unfinished db from the filesystem
-                            if let Some(path) = db_path {
-                                let _result = storage::remove_db(&path);
-                            }
-                        }
-                    }
+                    //         // if we failed halfway during the creation of our db, we need to remove the unfinished db from the filesystem
+                    //         if let Some(path) = db_path {
+                    //             let _result = storage::remove_db(&path);
+                    //         }
+                    //     }
+                    // }
                 }
                 MessageToModel::FetchAll => {
                     let towns = self.model.get_all_towns();
@@ -329,11 +380,6 @@ impl Presenter {
                 }
             }
 
-            // after we process a message, tell the UI to repaint
-            // this helps a lot speeding things along, but sometimes the UI finished painting
-            // before receiving the message. In that case it fulfilled the request_repaint here,
-            // but goes to sleep before it can fulfill the message intent.
-            self.model.request_repaint_after(Duration::from_millis(50));
             self.model.age_cache(self.max_cache_size.value());
         }
 

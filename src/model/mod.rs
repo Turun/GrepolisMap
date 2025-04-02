@@ -6,7 +6,7 @@ use crate::town::Town;
 use eframe::epaint::ahash::HashMap;
 use std::collections::hash_map::Entry;
 use std::collections::BTreeSet;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 pub(crate) mod database;
@@ -24,11 +24,53 @@ type StringCacheKey = (
 );
 type TownCacheKey = (Vec<EmptyConstraint>, AndOr, BTreeSet<EmptyTownSelection>);
 
+#[derive(Debug, Clone)]
+pub struct APIResponse {
+    pub for_server: String,
+    players: Option<String>,
+    alliances: Option<String>,
+    towns: Option<String>,
+    islands: Option<String>,
+}
+
+impl APIResponse {
+    pub fn new(server_id: String) -> Self {
+        Self {
+            for_server: server_id,
+            players: None,
+            alliances: None,
+            towns: None,
+            islands: None,
+        }
+    }
+
+    /// how many of the fields are already populated/loaded?
+    pub fn count_completed(&self) -> u8 {
+        let mut re = 0;
+        if self.players.is_some() {
+            re += 1;
+        }
+        if self.alliances.is_some() {
+            re += 1;
+        }
+        if self.towns.is_some() {
+            re += 1;
+        }
+        if self.islands.is_some() {
+            re += 1;
+        }
+        return re;
+    }
+
+    pub fn is_complete(&self) -> bool {
+        return self.count_completed() == 4;
+    }
+}
+
 pub enum Model {
-    Uninitialized,
+    Uninitialized(Arc<Mutex<APIResponse>>),
     Loaded {
         db: database::DataTable,
-        ctx: egui::Context,
         cache_strings: HashMap<StringCacheKey, (f32, Arc<Vec<String>>)>,
         cache_towns: HashMap<TownCacheKey, (f32, Arc<Vec<Town>>)>,
     },
@@ -66,7 +108,7 @@ fn age_and_filter_hashmap<K, V>(map: &mut HashMap<K, (f32, V)>, keep_count: usiz
 impl Model {
     pub fn age_cache(&mut self, keep_count: usize) {
         match self {
-            Model::Uninitialized => { /*do nothing*/ }
+            Model::Uninitialized(_) => { /*do nothing*/ }
             Model::Loaded {
                 cache_strings,
                 cache_towns,
@@ -81,15 +123,6 @@ impl Model {
         }
     }
 
-    pub fn request_repaint_after(&self, duration: Duration) {
-        match self {
-            Model::Uninitialized => { /*do nothing*/ }
-            Model::Loaded { ctx, .. } => {
-                ctx.request_repaint_after(duration);
-            }
-        }
-    }
-
     pub fn get_towns_for_constraints(
         &mut self,
         selection: &EmptyTownSelection,
@@ -97,7 +130,7 @@ impl Model {
         all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
-            Model::Uninitialized => Ok(Arc::new(Vec::new())),
+            Model::Uninitialized(_) => Ok(Arc::new(Vec::new())),
             Model::Loaded {
                 db, cache_towns, ..
             } => {
@@ -143,7 +176,7 @@ impl Model {
         all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<Arc<Vec<String>>> {
         match self {
-            Model::Uninitialized => Ok(Arc::new(Vec::new())),
+            Model::Uninitialized(_) => Ok(Arc::new(Vec::new())),
             Model::Loaded {
                 db, cache_strings, ..
             } => {
@@ -194,14 +227,14 @@ impl Model {
 
     pub fn get_ghost_towns(&self) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
-            Model::Uninitialized => Ok(Arc::new(Vec::new())),
+            Model::Uninitialized(_) => Ok(Arc::new(Vec::new())),
             Model::Loaded { db, .. } => Ok(Arc::new(db.get_ghost_towns()?)),
         }
     }
 
     pub fn get_all_towns(&self) -> anyhow::Result<Arc<Vec<Town>>> {
         match self {
-            Model::Uninitialized => Ok(Arc::new(Vec::new())),
+            Model::Uninitialized(_) => Ok(Arc::new(Vec::new())),
             Model::Loaded { db, .. } => Ok(Arc::new(db.get_all_towns()?)),
         }
     }
@@ -211,7 +244,7 @@ impl Model {
         constraint_type: ConstraintType,
     ) -> anyhow::Result<Arc<Vec<String>>> {
         match self {
-            Model::Uninitialized => Ok(Arc::new(Vec::new())),
+            Model::Uninitialized(_) => Ok(Arc::new(Vec::new())),
             Model::Loaded {
                 db, cache_strings, ..
             } => {

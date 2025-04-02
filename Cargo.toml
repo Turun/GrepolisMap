@@ -21,6 +21,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.25"
 runtime-format = "0.1.3"
 rust-i18n = "2.2.1"
+ehttp = "0.5.0"
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
 getrandom = { version = "0.2.15", features = ["js"] }  # enable js feature in indirect "rand" dependency 

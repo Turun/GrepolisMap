@@ -270,12 +270,30 @@ impl View {
             // change self.ui_data
             self.reload_server();
             // tell the backend to fetch data from the server
-            self.messages_to_presenter.push(MessageToModel::SetServer(
-                Server {
-                    id: self.ui_data.server_id.clone(),
-                },
-                ctx.clone(),
-            ));
+            self.presenter.load_server(Server {
+                id: self.ui_data.server_id.clone(),
+            });
+
+            self.messages_to_presenter.push(MessageToModel::FetchAll);
+            self.messages_to_presenter.push(MessageToModel::FetchGhosts);
+
+            // ensure the towns in the selection are fetched anew after loading the data from the server.
+            // If we don't do this the selection may become stale and show towns from server ab12 on a
+            // map that is otherwise pulled from server cd34
+            let all_selections: Vec<EmptyTownSelection> = self
+                .ui_data
+                .selections
+                .iter()
+                .map(TownSelection::partial_clone)
+                .collect();
+            for selection in &mut self.ui_data.selections {
+                selection.towns = Arc::new(Vec::new());
+                let msg = selection.refresh_self(HashSet::new(), &all_selections);
+                if let Some(msg) = msg {
+                    self.messages_to_presenter.push(msg);
+                }
+            }
+
             // refresh our list of available saved databases
             self.messages_to_presenter
                 .push(MessageToModel::DiscoverSavedDatabases);
@@ -343,18 +361,33 @@ impl eframe::App for View {
         // make sure we process messages from the backend every once in a while
         ctx.request_repaint_after(Duration::from_millis(500));
 
-        if !self.messages_to_presenter.is_empty() {
-            println!("Messages to Presenter:");
-            for msg in &self.messages_to_presenter {
-                println!("    {msg}")
+        match self.presenter.ready_for_requests() {
+            Some(true) => {
+                if !self.messages_to_presenter.is_empty() {
+                    println!("Messages to Presenter:");
+                    for msg in &self.messages_to_presenter {
+                        println!("    {msg}")
+                    }
+                    ctx.request_repaint();
+                }
+
+                let mut additional_messages_to_view =
+                    self.presenter.process_messages(&self.messages_to_presenter);
+                self.messages_to_view
+                    .append(&mut additional_messages_to_view);
+                self.messages_to_presenter = Vec::new();
+            }
+            Some(false) => {
+                // wait, but make sure to check back in soon
+                ctx.request_repaint_after(Duration::from_millis(50));
+            }
+            None => {
+                eprintln!("Backend Crashed with unspecified error!");
+                self.ui_state = State::Uninitialized(Progress::BackendCrashed(String::from(
+                    "unspecified error",
+                )));
             }
         }
-
-        let mut additional_messages_to_view =
-            self.presenter.process_messages(&self.messages_to_presenter);
-        self.messages_to_view
-            .append(&mut additional_messages_to_view);
-        self.messages_to_presenter = Vec::new();
 
         telemetry::process_messages(&self.messages_to_server);
         self.messages_to_server = Vec::new();
@@ -364,6 +397,7 @@ impl eframe::App for View {
             for msg in &self.messages_to_view {
                 println!("    {msg}")
             }
+            ctx.request_repaint();
         }
 
         // process any messages that came in from the backend since the last frame
@@ -391,26 +425,28 @@ impl eframe::App for View {
                     }
                 }
                 MessageToView::GotServer => {
-                    self.ui_state = State::Show;
-                    self.messages_to_presenter.push(MessageToModel::FetchAll);
-                    self.messages_to_presenter.push(MessageToModel::FetchGhosts);
+                    unimplemented!("this is now implemented differently!");
+                    // // I think we need to push those messages immidiately after starting the api response downloads
+                    // self.ui_state = State::Show;
+                    // self.messages_to_presenter.push(MessageToModel::FetchAll);
+                    // self.messages_to_presenter.push(MessageToModel::FetchGhosts);
 
-                    // ensure the towns in the selection are fetched anew after loading the data from the server.
-                    // If we don't do this the selection may become stale and show towns from server ab12 on a
-                    // map that is otherwise pulled from server cd34
-                    let all_selections: Vec<EmptyTownSelection> = self
-                        .ui_data
-                        .selections
-                        .iter()
-                        .map(TownSelection::partial_clone)
-                        .collect();
-                    for selection in &mut self.ui_data.selections {
-                        selection.towns = Arc::new(Vec::new());
-                        let msg = selection.refresh_self(HashSet::new(), &all_selections);
-                        if let Some(msg) = msg {
-                            self.messages_to_presenter.push(msg);
-                        }
-                    }
+                    // // ensure the towns in the selection are fetched anew after loading the data from the server.
+                    // // If we don't do this the selection may become stale and show towns from server ab12 on a
+                    // // map that is otherwise pulled from server cd34
+                    // let all_selections: Vec<EmptyTownSelection> = self
+                    //     .ui_data
+                    //     .selections
+                    //     .iter()
+                    //     .map(TownSelection::partial_clone)
+                    //     .collect();
+                    // for selection in &mut self.ui_data.selections {
+                    //     selection.towns = Arc::new(Vec::new());
+                    //     let msg = selection.refresh_self(HashSet::new(), &all_selections);
+                    //     if let Some(msg) = msg {
+                    //         self.messages_to_presenter.push(msg);
+                    //     }
+                    // }
                 }
                 MessageToView::TownListForSelection(selection, town_list) => {
                     self.ui_state = State::Show;
