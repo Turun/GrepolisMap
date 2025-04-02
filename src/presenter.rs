@@ -1,16 +1,14 @@
-use anyhow::Context;
+use anyhow::anyhow;
 use eframe::epaint::ahash::HashMap;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToModel, MessageToServer, MessageToView, Server};
+use crate::message::{MessageToModel, MessageToView, Server};
 use crate::model::database::DataTable;
 use crate::model::{APIResponse, Model};
 use crate::storage;
 use crate::view::preferences::CacheSize;
-use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
 
 /// Given a Result<MessageToView>, send it to the View if it is ok. If the sending
 /// fails, output to stderr with the message given in `error_channel`. If the given
@@ -74,16 +72,25 @@ impl Presenter {
     }
 
     /// triggers the server loading, which is handled asynchronously
-    pub fn load_server(&mut self, server: Server) {
-        let api_response = Arc::new(Mutex::new(APIResponse::new(server.id)));
+    pub fn load_server(&mut self, server: String) {
+        let api_response = Arc::new(Mutex::new(APIResponse::new(server)));
         self.model = Model::Uninitialized(Arc::clone(&api_response));
         DataTable::get_api_results(Arc::clone(&api_response));
+    }
+
+    /// returns how many of the api requests already completed. i.e. 1/4 -> 0.25
+    /// if model is not in the loading state we return a flat 1.0
+    pub fn loading_progress(&self) -> f32 {
+        match &self.model {
+            Model::Uninitialized(arc) => arc.lock().unwrap().count_completed() as f32 / 4.0,
+            Model::Loaded { .. } => 1.0,
+        }
     }
 
     /// returns Some(true) if the model is initialized and the presenter can start answering requests.
     /// returns None if the backend crashed trying to parse the complete api response.
     /// returns Some(false) if the api data is still being fetched.
-    pub fn ready_for_requests(&mut self) -> Option<bool> {
+    pub fn ready_for_requests(&mut self) -> anyhow::Result<bool> {
         match &self.model {
             Model::Uninitialized(api_response) => {
                 let api_response = api_response.lock().unwrap().clone();
@@ -98,7 +105,7 @@ impl Presenter {
                                 cache_strings: HashMap::default(),
                                 cache_towns: HashMap::default(),
                             };
-                            return Some(true);
+                            return Ok(true);
                         }
                         Err(err) => {
                             self.model = Model::Uninitialized(Arc::new(Mutex::new(
@@ -110,14 +117,14 @@ impl Presenter {
                                 let _result = storage::remove_db(&path);
                             }
 
-                            return None;
+                            return Err(anyhow!("{err}"));
                         }
                     }
                 } else {
-                    return Some(false);
+                    return Ok(false);
                 }
             }
-            Model::Loaded { .. } => return Some(true),
+            Model::Loaded { .. } => return Ok(true),
         }
     }
 

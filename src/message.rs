@@ -137,12 +137,7 @@ impl fmt::Display for MessageToModel {
 pub enum Progress {
     None,
     BackendCrashed(String),
-    Started,
-    IslandOffsets,
-    Alliances,
-    Players,
-    Towns,
-    Islands,
+    Fetching,
 }
 
 #[derive(Debug, Clone)]

@@ -270,9 +270,8 @@ impl View {
             // change self.ui_data
             self.reload_server();
             // tell the backend to fetch data from the server
-            self.presenter.load_server(Server {
-                id: self.ui_data.server_id.clone(),
-            });
+            self.presenter.load_server(self.ui_data.server_id.clone());
+            self.ui_state = State::Uninitialized(Progress::Fetching);
 
             self.messages_to_presenter.push(MessageToModel::FetchAll);
             self.messages_to_presenter.push(MessageToModel::FetchGhosts);
@@ -311,7 +310,6 @@ impl View {
             ui.vertical(|ui| {
                 self.ui_server_input(ui, ctx);
                 match progress {
-                    // TODO adjust this once the backend has moved from sql to rust
                     Progress::None => {}
                     Progress::BackendCrashed(stringified_reason) => {
                         ui.label(
@@ -322,23 +320,11 @@ impl View {
                             .color(ui.style().visuals.warn_fg_color),
                         );
                     }
-                    Progress::Started => {
-                        ui.add(ProgressBar::new(0.0).text(format!("{progress:?}")));
-                    }
-                    Progress::IslandOffsets => {
-                        ui.add(ProgressBar::new(0.2).text(format!("{progress:?}")));
-                    }
-                    Progress::Alliances => {
-                        ui.add(ProgressBar::new(0.4).text(format!("{progress:?}")));
-                    }
-                    Progress::Islands => {
-                        ui.add(ProgressBar::new(0.6).text(format!("{progress:?}")));
-                    }
-                    Progress::Players => {
-                        ui.add(ProgressBar::new(0.8).text(format!("{progress:?}")));
-                    }
-                    Progress::Towns => {
-                        ui.add(ProgressBar::new(1.0).text(format!("{progress:?}")));
+                    Progress::Fetching => {
+                        ui.add(
+                            ProgressBar::new(self.presenter.loading_progress())
+                                .text(format!("Loading API data...")),
+                        );
                     }
                 }
             });
@@ -362,7 +348,7 @@ impl eframe::App for View {
         ctx.request_repaint_after(Duration::from_millis(500));
 
         match self.presenter.ready_for_requests() {
-            Some(true) => {
+            Ok(true) => {
                 if !self.messages_to_presenter.is_empty() {
                     println!("Messages to Presenter:");
                     for msg in &self.messages_to_presenter {
@@ -377,15 +363,13 @@ impl eframe::App for View {
                     .append(&mut additional_messages_to_view);
                 self.messages_to_presenter = Vec::new();
             }
-            Some(false) => {
+            Ok(false) => {
                 // wait, but make sure to check back in soon
                 ctx.request_repaint_after(Duration::from_millis(50));
             }
-            None => {
-                eprintln!("Backend Crashed with unspecified error!");
-                self.ui_state = State::Uninitialized(Progress::BackendCrashed(String::from(
-                    "unspecified error",
-                )));
+            Err(err) => {
+                eprintln!("Backend Crashed with the following error:\n{err}");
+                self.ui_state = State::Uninitialized(Progress::BackendCrashed(format!("{err}")));
             }
         }
 

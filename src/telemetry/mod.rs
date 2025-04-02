@@ -1,6 +1,4 @@
 /// I want to know how many users I have and what sort of request they send.
-use std::sync::mpsc;
-
 use crate::message::{MessageToServer, MessageToView};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -64,13 +62,15 @@ pub fn get_latest_version() -> Option<MessageToView> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn process_messages(messages: &[MessageToServer]) {
-    let client = reqwest::blocking::Client::new();
     for msg in messages {
         let (url, body) = match msg {
             MessageToServer::LoadServer(server_id) => (SERVER_POST_LOAD_SERVER, server_id),
             MessageToServer::StoredConfig(yaml_string) => (SERVER_POST_STORED_CONFIG, yaml_string),
         };
-        let _result = client.post(url).body(body.to_string()).send();
+        ehttp::fetch(
+            ehttp::Request::post(url, body.as_bytes().to_vec()),
+            |_response| { /*do nothing. I don't think we send anything back anyway*/ },
+        );
     }
 }
 

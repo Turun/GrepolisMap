@@ -60,41 +60,11 @@ impl DataTable {
             // TODO: load from file and return immediately
         };
 
-        // sender
-        //     .send(MessageToView::Loading(Progress::Started))
-        //     .context("Failed to send progressupdate 1 to view")?;
-        // ctx.request_repaint();
-
         let offsets = Self::make_offsets();
-        // sender
-        //     .send(MessageToView::Loading(Progress::IslandOffsets))
-        //     .context("Failed to send progressupdate 2 to view")?;
-        // ctx.request_repaint();
-
         let alliances = Self::parse_alliances(api_response.alliances.unwrap())?;
-        // sender
-        //     .send(MessageToView::Loading(Progress::Alliances))
-        //     .context("Failed to send progressupdate 3 to view")?;
-        // ctx.request_repaint();
-
         let islands = Self::parse_islands(api_response.islands.unwrap())?;
-        // sender
-        //     .send(MessageToView::Loading(Progress::Islands))
-        //     .context("Failed to send progressupdate 4 to view")?;
-        // ctx.request_repaint();
-
         let players = Self::parse_players(api_response.players.unwrap(), &alliances)?;
-        // sender
-        //     .send(MessageToView::Loading(Progress::Players))
-        //     .context("Failed to send progressupdate 5 to view")?;
-        // ctx.request_repaint();
-
         let towns = Self::parse_towns(api_response.towns.unwrap(), &players, &islands, &offsets)?;
-        // sender
-        //     .send(MessageToView::Loading(Progress::Towns))
-        //     .context("Failed to send progressupdate 6 to view")?;
-        // ctx.request_repaint();
-
         let towns = towns.into_values().collect();
         Ok(Self { towns })
     }
