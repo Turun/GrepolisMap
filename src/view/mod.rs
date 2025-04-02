@@ -16,8 +16,7 @@ use crate::view::data::Data;
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Ui};
 use std::collections::HashSet;
-use std::sync::{mpsc, Arc};
-use std::thread;
+use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Clone, Copy)]
@@ -81,7 +80,8 @@ impl View {
         if let Some(storage) = cc.storage {
             re.ui_data = if let Some(text) = storage.get_string(crate::APP_KEY) {
                 // println!("{}", text);
-                // let _result = telemetry_tx.send(MessageToServer::StoredConfig(text.clone()));
+                re.messages_to_server
+                    .push(MessageToServer::StoredConfig(text.clone()));
                 serde_yaml::from_str(&text).unwrap_or_else(|err| {
                     eprintln!("Failed to read saved config as YAML: {err}");
                     Data::default()
@@ -98,10 +98,9 @@ impl View {
             re.ui_data.preferences.cache_size,
         ));
 
-        let msg = telemetry::get_latest_version(); // TODO
-        if let Some(msg) = msg {
-            re.messages_to_view.push(msg);
-        }
+        // start checking the latest version in the background. Will pop up a notification window if there is a newer version available
+        // noop on wasm
+        telemetry::get_latest_version();
 
         // TODO
         // self.channel_presenter_tx
@@ -214,6 +213,8 @@ impl View {
             ghost_towns: Arc::new(Vec::new()),
             ..self.ui_data.clone()
         };
+        self.messages_to_server
+            .push(MessageToServer::LoadServer(self.ui_data.server_id.clone()));
         // the selections are invalidated after the backend sends "got server"
     }
 

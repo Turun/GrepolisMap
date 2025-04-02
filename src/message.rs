@@ -87,7 +87,6 @@ impl fmt::Display for MessageToView {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone)]
 pub enum MessageToModel {
-    SetServer(Server, egui::Context),
     FetchAll,
     FetchGhosts,
     FetchTowns(
@@ -103,9 +102,6 @@ pub enum MessageToModel {
 impl fmt::Display for MessageToModel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MessageToModel::SetServer(server, _frame) => {
-                write!(f, "MessageToMode::SetServer({})", server.id)
-            }
             MessageToModel::FetchTowns(selection, constraints, selections) => {
                 write!(
                     f,

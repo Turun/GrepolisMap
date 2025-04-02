@@ -19,14 +19,7 @@ mod telemetry;
 mod town;
 mod view;
 
-use std::{sync::mpsc, thread};
-
-use message::MessageToModel;
-use message::MessageToServer;
-use message::MessageToView;
 use view::View;
-
-use crate::presenter::Presenter;
 
 // before we had the default from eframe, "app"
 // const APP_KEY: &str = "TESTING";

@@ -174,48 +174,6 @@ impl Presenter {
                     //     }
                     // }
                 }
-                MessageToModel::SetServer(server, ctx) => {
-                    unimplemented!("this is now extracted to a separate method!");
-                    // // let _result = re.
-                    // //     .telemetry_tx
-                    // //     .send(MessageToServer::LoadServer(server.id.clone()));
-                    // let db_path = storage::get_new_db_filename(&server.id);
-                    // let db_result =
-                    //     DataTable::create_for_world(&server.id, db_path.as_deref(), &ctx);
-                    // // TODO: if the db we just created is identical to a previously saved file we should get rid of one of them.
-                    // //       optionally this can be done as a background process. We could also leave the just created db alone, no matter what
-                    // //       and only touch those that had been created in previous runs of the program
-                    // match db_result {
-                    //     Ok(db) => {
-                    //         self.model = Model::Loaded {
-                    //             db,
-                    //             ctx: ctx.clone(),
-                    //             cache_strings: HashMap::default(),
-                    //             cache_towns: HashMap::default(),
-                    //         };
-                    //         send_to_view(
-                    //             &mut re,
-                    //             Ok(MessageToView::GotServer),
-                    //             String::from("Failed to send message 'got server'"),
-                    //         );
-                    //     }
-                    //     Err(err) => {
-                    //         self.model = Model::Uninitialized(Arc::new(Mutex::new(
-                    //             APIResponse::new(String::new()),
-                    //         )));
-                    //         send_to_view(
-                    //             &mut re,
-                    //             Ok(MessageToView::BackendCrashed(format!("{err}"))),
-                    //             String::from("Failed to send crash message to view"),
-                    //         );
-
-                    //         // if we failed halfway during the creation of our db, we need to remove the unfinished db from the filesystem
-                    //         if let Some(path) = db_path {
-                    //             let _result = storage::remove_db(&path);
-                    //         }
-                    //     }
-                    // }
-                }
                 MessageToModel::FetchAll => {
                     let towns = self.model.get_all_towns();
                     let msg = towns.map(MessageToView::AllTowns);
