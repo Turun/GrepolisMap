@@ -7,7 +7,6 @@ use eframe::epaint::ahash::HashMap;
 use std::collections::hash_map::Entry;
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 pub(crate) mod database;
 pub mod download;

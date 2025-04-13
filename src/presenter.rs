@@ -3,7 +3,7 @@ use eframe::epaint::ahash::HashMap;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToModel, MessageToView, Server};
+use crate::message::{MessageToModel, MessageToView, PresenterReady};
 use crate::model::database::DataTable;
 use crate::model::{APIResponse, Model};
 use crate::storage;
@@ -72,6 +72,8 @@ impl Presenter {
     }
 
     /// triggers the server loading, which is handled asynchronously
+    /// This is deliberately its own method, because the self.model = Model::Uninit needs to be triggered before the
+    /// normal message processing.
     pub fn load_server(&mut self, server: String) {
         let api_response = Arc::new(Mutex::new(APIResponse::new(server)));
         self.model = Model::Uninitialized(Arc::clone(&api_response));
@@ -90,7 +92,7 @@ impl Presenter {
     /// returns Some(true) if the model is initialized and the presenter can start answering requests.
     /// returns None if the backend crashed trying to parse the complete api response.
     /// returns Some(false) if the api data is still being fetched.
-    pub fn ready_for_requests(&mut self) -> anyhow::Result<bool> {
+    pub fn ready_for_requests(&mut self) -> anyhow::Result<PresenterReady> {
         match &self.model {
             Model::Uninitialized(api_response) => {
                 let api_response = api_response.lock().unwrap().clone();
@@ -105,7 +107,7 @@ impl Presenter {
                                 cache_strings: HashMap::default(),
                                 cache_towns: HashMap::default(),
                             };
-                            return Ok(true);
+                            return Ok(PresenterReady::NewlyReady);
                         }
                         Err(err) => {
                             self.model = Model::Uninitialized(Arc::new(Mutex::new(
@@ -121,10 +123,10 @@ impl Presenter {
                         }
                     }
                 } else {
-                    return Ok(false);
+                    return Ok(PresenterReady::WaitingForAPI);
                 }
             }
-            Model::Loaded { .. } => return Ok(true),
+            Model::Loaded { .. } => return Ok(PresenterReady::AlwaysHasBeen),
         }
     }
 
@@ -134,7 +136,7 @@ impl Presenter {
         let mut re = Vec::new();
 
         for message in messages {
-            // println!("Got Message from View to Model: {message}");
+            println!("Got Message from View to Model: {message}");
             match message {
                 MessageToModel::MaxCacheSize(x) => {
                     self.max_cache_size = x.clone();
@@ -148,7 +150,7 @@ impl Presenter {
                     );
                 }
                 MessageToModel::LoadDataFromFile(path, ctx) => {
-                    unimplemented!("we had this in the SQL version, but it's still a TODO for the rust only version");
+                    todo!("we had this in the SQL version, but it's still a TODO for the rust only version");
                     // let db_result = Database::load_from_file(&path);
                     // match db_result {
                     //     Ok(db) => {

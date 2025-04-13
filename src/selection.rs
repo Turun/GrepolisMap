@@ -1,7 +1,7 @@
 use core::fmt;
 use std::collections::HashSet;
 use std::default::Default;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 

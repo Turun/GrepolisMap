@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
 use std::hash::Hash;
 use std::ops::Deref;
 use std::rc::Rc;

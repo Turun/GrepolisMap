@@ -8,7 +8,7 @@ mod sidepanel;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToModel, MessageToServer, MessageToView, Progress, Server};
+use crate::message::{MessageToModel, MessageToServer, MessageToView, PresenterReady, Progress};
 use crate::presenter::Presenter;
 use crate::selection::{SelectionState, TownSelection};
 use crate::telemetry;
@@ -271,28 +271,9 @@ impl View {
             // change self.ui_data
             self.reload_server();
             // tell the backend to fetch data from the server
+            // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
             self.presenter.load_server(self.ui_data.server_id.clone());
             self.ui_state = State::Uninitialized(Progress::Fetching);
-
-            self.messages_to_presenter.push(MessageToModel::FetchAll);
-            self.messages_to_presenter.push(MessageToModel::FetchGhosts);
-
-            // ensure the towns in the selection are fetched anew after loading the data from the server.
-            // If we don't do this the selection may become stale and show towns from server ab12 on a
-            // map that is otherwise pulled from server cd34
-            let all_selections: Vec<EmptyTownSelection> = self
-                .ui_data
-                .selections
-                .iter()
-                .map(TownSelection::partial_clone)
-                .collect();
-            for selection in &mut self.ui_data.selections {
-                selection.towns = Arc::new(Vec::new());
-                let msg = selection.refresh_self(HashSet::new(), &all_selections);
-                if let Some(msg) = msg {
-                    self.messages_to_presenter.push(msg);
-                }
-            }
 
             // refresh our list of available saved databases
             self.messages_to_presenter
@@ -348,8 +329,28 @@ impl eframe::App for View {
         // make sure we process messages from the backend every once in a while
         ctx.request_repaint_after(Duration::from_millis(500));
 
-        match self.presenter.ready_for_requests() {
-            Ok(true) => {
+        let presenter_ready_for_requests = self.presenter.ready_for_requests();
+        // should we do anything special?
+        match &presenter_ready_for_requests {
+            Ok(PresenterReady::AlwaysHasBeen) => {}
+            Ok(PresenterReady::WaitingForAPI) => {
+                // still waiting for the API to respond. Make sure to check back in soon
+                ctx.request_repaint_after(Duration::from_millis(50));
+            }
+            Ok(PresenterReady::NewlyReady) => {
+                // trigger all the data refreshes that are required when loading new data
+                self.messages_to_view.push(MessageToView::GotServer);
+            }
+            Err(err) => {
+                // crashed when trying to convert API Response into our backend data structure
+                eprintln!("Backend Crashed with the following error:\n{err}");
+                self.ui_state = State::Uninitialized(Progress::BackendCrashed(format!("{err}")));
+            }
+        }
+
+        // should we process presenter messages?
+        match &presenter_ready_for_requests {
+            Ok(PresenterReady::AlwaysHasBeen | PresenterReady::NewlyReady) => {
                 if !self.messages_to_presenter.is_empty() {
                     println!("Messages to Presenter:");
                     for msg in &self.messages_to_presenter {
@@ -364,14 +365,7 @@ impl eframe::App for View {
                     .append(&mut additional_messages_to_view);
                 self.messages_to_presenter = Vec::new();
             }
-            Ok(false) => {
-                // wait, but make sure to check back in soon
-                ctx.request_repaint_after(Duration::from_millis(50));
-            }
-            Err(err) => {
-                eprintln!("Backend Crashed with the following error:\n{err}");
-                self.ui_state = State::Uninitialized(Progress::BackendCrashed(format!("{err}")));
-            }
+            Ok(PresenterReady::WaitingForAPI) | Err(_) => {}
         }
 
         telemetry::process_messages(&self.messages_to_server);
@@ -389,49 +383,30 @@ impl eframe::App for View {
         let messages = self.messages_to_view.clone();
         self.messages_to_view = Vec::new();
         for message in messages {
-            // println!("Got Message from Model to View: {message}");
+            println!("Got Message from Model to View: {message}");
             match message {
-                MessageToView::VersionInfo(server_version, message) => {
-                    // TODO preferences -> disable telemetry
-                    #[cfg(not(target_arch = "wasm32"))]
-                    // not on wasm, because this code block uses native_dialog
-                    {
-                        let this_version = env!("CARGO_PKG_VERSION");
-                        let _result = native_dialog::MessageDialog::new()
-                            .set_title(&t!("menu.update_notice.title"))
-                            .set_text(&t!(
-                                "menu.update_notice.content",
-                                user_version = this_version,
-                                server_version = server_version,
-                                message = message
-                            ))
-                            .set_type(native_dialog::MessageType::Info)
-                            .show_alert();
-                    }
-                }
                 MessageToView::GotServer => {
-                    unimplemented!("this is now implemented differently!");
-                    // // I think we need to push those messages immidiately after starting the api response downloads
-                    // self.ui_state = State::Show;
-                    // self.messages_to_presenter.push(MessageToModel::FetchAll);
-                    // self.messages_to_presenter.push(MessageToModel::FetchGhosts);
+                    // I think we need to push those messages immidiately after starting the api response downloads
+                    self.ui_state = State::Show;
+                    self.messages_to_presenter.push(MessageToModel::FetchAll);
+                    self.messages_to_presenter.push(MessageToModel::FetchGhosts);
 
-                    // // ensure the towns in the selection are fetched anew after loading the data from the server.
-                    // // If we don't do this the selection may become stale and show towns from server ab12 on a
-                    // // map that is otherwise pulled from server cd34
-                    // let all_selections: Vec<EmptyTownSelection> = self
-                    //     .ui_data
-                    //     .selections
-                    //     .iter()
-                    //     .map(TownSelection::partial_clone)
-                    //     .collect();
-                    // for selection in &mut self.ui_data.selections {
-                    //     selection.towns = Arc::new(Vec::new());
-                    //     let msg = selection.refresh_self(HashSet::new(), &all_selections);
-                    //     if let Some(msg) = msg {
-                    //         self.messages_to_presenter.push(msg);
-                    //     }
-                    // }
+                    // ensure the towns in the selection are fetched anew after loading the data from the server.
+                    // If we don't do this the selection may become stale and show towns from server ab12 on a
+                    // map that is otherwise pulled from server cd34
+                    let all_selections: Vec<EmptyTownSelection> = self
+                        .ui_data
+                        .selections
+                        .iter()
+                        .map(TownSelection::partial_clone)
+                        .collect();
+                    for selection in &mut self.ui_data.selections {
+                        selection.towns = Arc::new(Vec::new());
+                        let msg = selection.refresh_self(HashSet::new(), &all_selections);
+                        if let Some(msg) = msg {
+                            self.messages_to_presenter.push(msg);
+                        }
+                    }
                 }
                 MessageToView::TownListForSelection(selection, town_list) => {
                     self.ui_state = State::Show;

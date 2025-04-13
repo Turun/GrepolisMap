@@ -14,6 +14,12 @@ use crate::view::preferences::CacheSize;
 /// This is a file for the messages passed between the view and the presenter.
 /// message passing communication allows them to be on separate threads. Also it's good code hygene
 
+pub enum PresenterReady {
+    AlwaysHasBeen,
+    WaitingForAPI,
+    NewlyReady,
+}
+
 #[allow(clippy::module_name_repetitions)]
 pub enum MessageToServer {
     LoadServer(String),
@@ -32,8 +38,6 @@ pub enum MessageToView {
     BackendCrashed(String),
     FoundSavedDatabases(BTreeMap<String, Vec<SavedDB>>),
     RemovedDatabases(Vec<SavedDB>),
-
-    VersionInfo(String, String),
 }
 
 impl fmt::Display for MessageToView {
@@ -76,9 +80,6 @@ impl fmt::Display for MessageToView {
                     "MessageToView::RemovedDatabases({})",
                     removed_paths.len()
                 )
-            }
-            MessageToView::VersionInfo(version, message) => {
-                write!(f, "MessageToView::VersionInfo({version}, {message})")
             }
         }
     }

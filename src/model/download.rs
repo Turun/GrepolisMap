@@ -1,12 +1,10 @@
 use super::database::{Alliance, BackendTown, DataTable, Island, Offset, Player};
 use super::{offset_data, APIResponse};
-use crate::message::{MessageToView, Progress, Server};
-use anyhow::{anyhow, Context};
-use reqwest;
+use anyhow::Context;
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 
 impl DataTable {
     pub fn load_from_file(path: &Path) -> anyhow::Result<Self> {
