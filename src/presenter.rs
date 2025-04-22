@@ -8,6 +8,7 @@ use crate::model::database::DataTable;
 use crate::model::{APIResponse, Model};
 use crate::storage;
 use crate::view::preferences::CacheSize;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 /// Given a Result<MessageToView>, send it to the View if it is ok. If the sending
@@ -80,6 +81,15 @@ impl Presenter {
         DataTable::get_api_results(Arc::clone(&api_response));
     }
 
+    /// triggers the server loading, which is handled asynchronously
+    /// This is deliberately its own method, because the self.model = Model::Uninit needs to be triggered before the
+    /// normal message processing.
+    pub fn load_server_from_file(&mut self, file: PathBuf) {
+        let api_response = Arc::new(Mutex::new(APIResponse::empty()));
+        self.model = Model::Uninitialized(Arc::clone(&api_response));
+        APIResponse::load_from_file(file, api_response);
+    }
+
     /// returns how many of the api requests already completed. i.e. 1/4 -> 0.25
     /// if model is not in the loading state we return a flat 1.0
     pub fn loading_progress(&self) -> f32 {
@@ -97,8 +107,9 @@ impl Presenter {
             Model::Uninitialized(api_response) => {
                 let api_response = api_response.lock().unwrap().clone();
                 if api_response.is_complete() {
-                    let db_path = storage::get_new_db_filename(&api_response.for_server);
-                    let db_result = DataTable::create_for_world(api_response, db_path.as_deref());
+                    api_response.save_to_file(); // TODO: extract into extra thread. since this is only for native, we can simply use a thread (make sure to gate with feature though)
+                    let db_path = api_response.filename.clone();
+                    let db_result = DataTable::create_for_world(api_response);
 
                     match db_result {
                         Ok(db) => {

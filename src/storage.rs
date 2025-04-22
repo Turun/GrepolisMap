@@ -12,7 +12,7 @@ use time::macros::offset;
 use time::OffsetDateTime;
 use time::UtcOffset;
 
-const DEFAULT_FILENAME: &str = "de99-1970-01-01-00-00-00T00-00-00.sqlite";
+const DEFAULT_FILENAME: &str = "de99-1970-01-01-00-00-00T00-00-00";
 const FORMAT_FILENAME: &[FormatItem<'_>] = format_description!(
     "[year]-[month]-[day]-[hour]-[minute]-[second]T[offset_hour]-[offset_minute]-[offset_second]"
 );
@@ -37,15 +37,11 @@ impl From<PathBuf> for SavedDB {
     fn from(path: PathBuf) -> Self {
         let default_filename = OsString::from(DEFAULT_FILENAME);
         let filename = path
-            .file_name()
+            .file_stem()
             .unwrap_or(&default_filename)
             .to_str()
             .unwrap_or(DEFAULT_FILENAME);
-        let splits: Vec<&str> = filename
-            .strip_suffix(".sqlite")
-            .unwrap_or(filename)
-            .splitn(2, '-')
-            .collect();
+        let splits: Vec<&str> = filename.splitn(2, '-').collect();
         let server_str = splits[0];
         let date_str = splits[1];
         let date =
@@ -104,20 +100,18 @@ impl Display for SavedDB {
     }
 }
 
-/// returns a path to a not yet existing sqlite file. If the
+/// returns a path to a not yet existing apiresponse file. If the
 /// function returns `Some(path)`, the parent directory is
 /// guaranteed to exist.
-pub fn get_new_db_filename(server: &str) -> Option<PathBuf> {
+pub fn get_new_db_filename(server: &str, now: &OffsetDateTime) -> Option<PathBuf> {
     if !ensure_storage_location_exists() {
         return None;
     }
 
     let dir = storage_dir()?;
     // let format = format_description!("[year]-[month]-[day]-[hour]-[minute]-[second]UTC");
-    let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
-    let now = OffsetDateTime::now_utc().to_offset(local_offset);
     let time_str = now.format(&FORMAT_FILENAME).ok()?;
-    let filename = format!("{server}-{time_str}.sqlite");
+    let filename = format!("{server}-{time_str}.apiresponse");
     Some(dir.join(filename))
 }
 
@@ -142,12 +136,15 @@ pub fn get_list_of_saved_dbs() -> BTreeMap<String, Vec<SavedDB>> {
     }
     let files = res_files.unwrap();
 
-    // get a list of all files that have the "sqlite" extension
+    // get a list of all files that have the "sqlite" or apiresponse extension
     let db_files: Vec<SavedDB> = files
         .flatten()
         .map(|e| e.path())
         .filter(|path| path.is_file())
-        .filter(|path| path.extension() == Some(OsStr::new("sqlite")))
+        .filter(|path| {
+            path.extension() == Some(OsStr::new("sqlite"))
+                || path.extension() == Some(OsStr::new("apiresponse"))
+        })
         .map(SavedDB::from)
         .collect();
     // push them into a BTreeMap

@@ -2,11 +2,17 @@ use crate::constraint::ConstraintType;
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::selection::AndOr;
+use crate::storage;
 use crate::town::Town;
+use anyhow::Context;
 use eframe::epaint::ahash::HashMap;
+use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::{fs, thread};
+use time::{OffsetDateTime, UtcOffset};
 
 pub(crate) mod database;
 pub mod download;
@@ -23,9 +29,12 @@ type StringCacheKey = (
 );
 type TownCacheKey = (Vec<EmptyConstraint>, AndOr, BTreeSet<EmptyTownSelection>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct APIResponse {
     pub for_server: String,
+    pub filename: Option<PathBuf>,
+    pub timestamp: OffsetDateTime,
+
     players: Option<String>,
     alliances: Option<String>,
     towns: Option<String>,
@@ -34,8 +43,27 @@ pub struct APIResponse {
 
 impl APIResponse {
     pub fn new(server_id: String) -> Self {
+        let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
+        let now = OffsetDateTime::now_utc().to_offset(local_offset);
+        let filename = storage::get_new_db_filename(&server_id, &now);
         Self {
             for_server: server_id,
+            filename,
+            timestamp: now,
+            players: None,
+            alliances: None,
+            towns: None,
+            islands: None,
+        }
+    }
+
+    pub fn empty() -> Self {
+        let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
+        let now = OffsetDateTime::now_utc().to_offset(local_offset);
+        Self {
+            for_server: String::new(),
+            filename: None,
+            timestamp: now,
             players: None,
             alliances: None,
             towns: None,
@@ -63,6 +91,62 @@ impl APIResponse {
 
     pub fn is_complete(&self) -> bool {
         return self.count_completed() == 4;
+    }
+
+    /// given a filepath, load the previously fetched API Response and put it into the api_results out variable. This is done so the UI doesn't hang.
+    pub fn load_from_file(path: PathBuf, api_results: Arc<Mutex<APIResponse>>) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            thread::spawn(move || {
+                // TODO: deal with legacy sqlite files
+                // TODO: improve error handling
+
+                // read file content
+                let s = fs::read_to_string(path).unwrap();
+                // convert to api response
+                let api_response = serde_json::from_str(&s)
+                    .context("failes to parse api response from json saved at {path:?}")
+                    .unwrap();
+                let mut guard = api_results.lock().unwrap();
+                *guard = api_response;
+            });
+        }
+    }
+
+    /// save the api response to the file as defined in self.filename.
+    pub fn save_to_file(&self) {
+        // only relevant on native. WASM does not get to save old api responses
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let opt_output_string = serde_json::to_string(self);
+            let opt_filename = self.filename.clone();
+            // write to file in a different thread. Otherwise we hang the UI on slow systems.
+            let _handle = thread::spawn(move || {
+                match (opt_filename, opt_output_string) {
+                    (None, Ok(_output_string)) => {
+                        eprintln!("no filename to save the api response to");
+                    }
+                    (Some(filename), Ok(output_string)) => {
+                        let msg = format!("failed to write api resonse to file ({filename:?}):");
+                        match fs::write(filename, output_string) {
+                            Ok(_) => {
+                                println!("successfully saved api response to file");
+                            }
+                            Err(err) => {
+                                eprintln!("{msg}\n{err:?}");
+                            }
+                        }
+                    }
+                    (None, Err(err)) => {
+                        eprintln!("no filename to save the api response to");
+                        eprintln!("failed to convert the api response to a json string: {err:?}");
+                    }
+                    (Some(_filename), Err(err)) => {
+                        eprintln!("failed to convert the api response to a json string: {err:?}");
+                    }
+                };
+            });
+        }
     }
 }
 

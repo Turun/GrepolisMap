@@ -38,6 +38,14 @@ impl<'a> Widget for DropDownBox<'a> {
         let mut r = ui.text_edit_singleline(buf);
         if r.gained_focus() {
             ui.memory_mut(|m| m.open_popup(popup_id));
+            //TODO: When making the code fully sync we would have self.opt_it always
+            // be None, until we reach this code path. Then we fetch the data from
+            // the presenter (sync) and have opt_it=Some(...)
+            // Widget::ui takes an owned self to call. So we would have to figure out
+            // some way (probably not trivial) on how to get this piece of code access to
+            // the presenter instance and also store the result in something permentent
+            // that is not reconstructed every frame (the constraint struct would be the
+            // obvious place).
         }
 
         if let Some(it) = opt_it {

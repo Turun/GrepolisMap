@@ -2,15 +2,12 @@ use super::database::{Alliance, BackendTown, DataTable, Island, Offset, Player};
 use super::{offset_data, APIResponse};
 use anyhow::Context;
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 impl DataTable {
-    pub fn load_from_file(path: &Path) -> anyhow::Result<Self> {
-        todo!();
-    }
-
     pub fn get_api_results(api_results: Arc<Mutex<APIResponse>>) {
         let server_id = api_results.lock().unwrap().for_server.clone();
 
@@ -48,16 +45,9 @@ impl DataTable {
         });
     }
 
-    pub fn create_for_world(
-        api_response: APIResponse,
-        filename: Option<&Path>,
-    ) -> anyhow::Result<Self> {
+    pub fn create_for_world(api_response: APIResponse) -> anyhow::Result<Self> {
         // TODO: we need to massively improve the way we handle errors here. Crashing the entire backend if one line in
         // one input file is unexpected is not a good solution. We need more fine grained error handling.
-        if let Some(path) = filename {
-            // TODO: load from file and return immediately
-        };
-
         let offsets = Self::make_offsets();
         let alliances = Self::parse_alliances(api_response.alliances.unwrap())?;
         let islands = Self::parse_islands(api_response.islands.unwrap())?;

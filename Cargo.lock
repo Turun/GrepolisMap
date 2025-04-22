@@ -1000,6 +1000,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
 dependencies = [
  "powerfmt",
+ "serde",
 ]
 
 [[package]]
@@ -4108,6 +4109,7 @@ dependencies = [
  "runtime-format",
  "rust-i18n",
  "serde",
+ "serde_json",
  "serde_yaml 0.9.34+deprecated",
  "strum",
  "strum_macros",
