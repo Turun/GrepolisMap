@@ -29,7 +29,7 @@ const FORMAT_DISPLAY: &[FormatItem<'_>] =
 pub struct SavedDB {
     pub path: PathBuf,
     pub date: OffsetDateTime,
-    server_str: String,
+    pub server_str: String,
     date_str: String,
 }
 
@@ -124,6 +124,7 @@ pub fn get_list_of_saved_dbs() -> BTreeMap<String, Vec<SavedDB>> {
     // because if we create it now it will be empty anyway
     let opt_dir = storage_dir();
     if opt_dir.is_none() {
+        eprintln!("did not find the storage dir");
         return re;
     }
     let dir = opt_dir.unwrap();
@@ -132,6 +133,7 @@ pub fn get_list_of_saved_dbs() -> BTreeMap<String, Vec<SavedDB>> {
     // TODO maybe we can tell the user what went wrong, if we can't read the directory?
     let res_files = fs::read_dir(dir);
     if res_files.is_err() {
+        eprintln!("did not find any files in the storage dir");
         return re;
     }
     let files = res_files.unwrap();

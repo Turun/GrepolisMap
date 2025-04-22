@@ -128,12 +128,16 @@ impl APIResponse {
                     }
                     (Some(filename), Ok(output_string)) => {
                         let msg = format!("failed to write api resonse to file ({filename:?}):");
-                        match fs::write(filename, output_string) {
-                            Ok(_) => {
-                                println!("successfully saved api response to file");
-                            }
-                            Err(err) => {
-                                eprintln!("{msg}\n{err:?}");
+                        if filename.exists() {
+                            println!("skip saving api response to file, because the file exists already.");
+                        } else {
+                            match fs::write(filename, output_string) {
+                                Ok(_) => {
+                                    println!("successfully saved api response to file");
+                                }
+                                Err(err) => {
+                                    eprintln!("{msg}\n{err:?}");
+                                }
                             }
                         }
                     }

@@ -11,8 +11,8 @@ use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToServer, MessageToView, PresenterReady, Progress};
 use crate::presenter::Presenter;
 use crate::selection::{SelectionState, TownSelection};
-use crate::telemetry;
 use crate::view::data::Data;
+use crate::{storage, telemetry};
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Ui};
 use std::collections::HashSet;
@@ -73,9 +73,6 @@ impl View {
             .push(String::from("Custom Font"));
         cc.egui_ctx.set_fonts(fonts);
 
-        re.messages_to_presenter
-            .push(MessageToModel::DiscoverSavedDatabases);
-
         // load saved app data from disk
         if let Some(storage) = cc.storage {
             re.ui_data = if let Some(text) = storage.get_string(crate::APP_KEY) {
@@ -107,10 +104,11 @@ impl View {
         //     .send(MessageToModel::AutoDeleteTime(data.preferences.auto_delete_time))
         //     .expect("Failed to send message to backend: Discover Saved Databases");
 
+        // apply preferences before returning and refresh list of saved dbs (which are not saved across app restarts)
         re.ui_data
             .apply_darkmode(&cc.egui_ctx, re.ui_data.preferences.darkmode);
-
         re.ui_data.preferences.language.apply();
+        re.ui_data.saved_db = storage::get_list_of_saved_dbs();
 
         re
     }
@@ -260,10 +258,12 @@ impl View {
                 .clicked()
             {
                 self.ui_data.server_id = server_id;
+                // change self.ui_data
                 self.reload_server();
-                self.messages_to_presenter
-                    .push(MessageToModel::LoadDataFromFile(saved_db.path, ctx.clone()));
-                self.ui_state = State::Uninitialized(Progress::None);
+                // tell the backend to fetch data from the server
+                // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
+                self.presenter.load_server_from_file(saved_db.path);
+                self.ui_state = State::Uninitialized(Progress::LoadingFile);
             }
         }
 
@@ -276,8 +276,7 @@ impl View {
             self.ui_state = State::Uninitialized(Progress::Fetching);
 
             // refresh our list of available saved databases
-            self.messages_to_presenter
-                .push(MessageToModel::DiscoverSavedDatabases);
+            self.ui_data.saved_db = storage::get_list_of_saved_dbs();
         }
     }
 
@@ -307,6 +306,9 @@ impl View {
                             ProgressBar::new(self.presenter.loading_progress())
                                 .text(format!("Loading API data...")),
                         );
+                    }
+                    Progress::LoadingFile => {
+                        ui.add(ProgressBar::new(0.5).text(format!("Loading data from file...")));
                     }
                 }
             });
@@ -462,9 +464,6 @@ impl eframe::App for View {
                     eprintln!("Backend Crashed with the following error:\n{err:?}");
                     self.ui_state =
                         State::Uninitialized(Progress::BackendCrashed(format!("{err:?}")));
-                }
-                MessageToView::FoundSavedDatabases(list_of_paths) => {
-                    self.ui_data.saved_db = list_of_paths;
                 }
                 MessageToView::RemovedDatabases(removed_dbs) => {
                     for saved_dbs in self.ui_data.saved_db.values_mut() {

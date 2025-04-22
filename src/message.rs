@@ -36,7 +36,6 @@ pub enum MessageToView {
     TownListForSelection(EmptyTownSelection, Arc<Vec<Town>>),
     ValueListForConstraint(EmptyConstraint, EmptyTownSelection, Arc<Vec<String>>),
     BackendCrashed(String),
-    FoundSavedDatabases(BTreeMap<String, Vec<SavedDB>>),
     RemovedDatabases(Vec<SavedDB>),
 }
 
@@ -71,9 +70,6 @@ impl fmt::Display for MessageToView {
             MessageToView::BackendCrashed(err) => {
                 write!(f, "MessageToView::BackendCrashed({err:?})")
             }
-            MessageToView::FoundSavedDatabases(db_paths) => {
-                write!(f, "MessageToView::FoundSavedDatabases({})", db_paths.len())
-            }
             MessageToView::RemovedDatabases(removed_paths) => {
                 write!(
                     f,
@@ -96,7 +92,6 @@ pub enum MessageToModel {
         Vec<EmptyTownSelection>,
     ),
     LoadDataFromFile(PathBuf, egui::Context),
-    DiscoverSavedDatabases,
     MaxCacheSize(CacheSize),
 }
 
@@ -120,9 +115,6 @@ impl fmt::Display for MessageToModel {
             MessageToModel::LoadDataFromFile(path, _ctx) => {
                 write!(f, "MessageToModel::LoadDataFromFile({path:?})")
             }
-            MessageToModel::DiscoverSavedDatabases => {
-                write!(f, "MessageToModel::DiscoverSavedDatabases")
-            }
             MessageToModel::MaxCacheSize(x) => {
                 write!(f, "MessageToModel::MaxCacheSize({})", x.to_string())
             }
@@ -135,6 +127,7 @@ pub enum Progress {
     None,
     BackendCrashed(String),
     Fetching,
+    LoadingFile,
 }
 
 #[derive(Debug, Clone)]

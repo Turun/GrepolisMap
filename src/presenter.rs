@@ -152,14 +152,6 @@ impl Presenter {
                 MessageToModel::MaxCacheSize(x) => {
                     self.max_cache_size = x.clone();
                 }
-                MessageToModel::DiscoverSavedDatabases => {
-                    let dbs = storage::get_list_of_saved_dbs();
-                    send_to_view(
-                        &mut re,
-                        Ok(MessageToView::FoundSavedDatabases(dbs)),
-                        String::from("Failed to send list of saved dbs to View"),
-                    );
-                }
                 MessageToModel::LoadDataFromFile(path, ctx) => {
                     todo!("we had this in the SQL version, but it's still a TODO for the rust only version");
                     // let db_result = Database::load_from_file(&path);
