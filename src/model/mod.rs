@@ -5,6 +5,7 @@ use crate::selection::AndOr;
 use crate::storage;
 use crate::town::Town;
 use anyhow::Context;
+use chrono::{DateTime, Local};
 use eframe::epaint::ahash::HashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
@@ -12,7 +13,6 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::{fs, thread};
-use time::{OffsetDateTime, UtcOffset};
 
 pub(crate) mod database;
 pub mod download;
@@ -33,7 +33,7 @@ type TownCacheKey = (Vec<EmptyConstraint>, AndOr, BTreeSet<EmptyTownSelection>);
 pub struct APIResponse {
     pub for_server: String,
     pub filename: Option<PathBuf>,
-    pub timestamp: OffsetDateTime,
+    pub timestamp: DateTime<Local>,
 
     players: Option<String>,
     alliances: Option<String>,
@@ -43,8 +43,7 @@ pub struct APIResponse {
 
 impl APIResponse {
     pub fn new(server_id: String) -> Self {
-        let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
-        let now = OffsetDateTime::now_utc().to_offset(local_offset);
+        let now: DateTime<Local> = Local::now();
         let filename = storage::get_new_db_filename(&server_id, &now);
         Self {
             for_server: server_id,
@@ -58,8 +57,7 @@ impl APIResponse {
     }
 
     pub fn empty() -> Self {
-        let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
-        let now = OffsetDateTime::now_utc().to_offset(local_offset);
+        let now: DateTime<Local> = Local::now();
         Self {
             for_server: String::new(),
             filename: None,
