@@ -1,5 +1,4 @@
 use anyhow::Context;
-use chrono::{DateTime, FixedOffset, Local, TimeZone};
 use directories_next::ProjectDirs;
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
@@ -7,10 +6,18 @@ use std::ffi::OsString;
 use std::fmt::Display;
 use std::fs;
 use std::path::{Path, PathBuf};
+use time::format_description::FormatItem;
+use time::macros::format_description;
+use time::macros::offset;
+use time::OffsetDateTime;
+use time::UtcOffset;
 
-const DEFAULT_FILENAME_STEM: &str = "de99-1970-01-01-00-00-00T00-00-00";
-const FORMAT_FILENAME: &str = "%Y-%m-%d-%H-%M-%ST%::z";
-const FORMAT_DISPLAY: &str = "%Y-%m-%d %H:%M:%S";
+const DEFAULT_FILENAME: &str = "de99-1970-01-01-00-00-00T00-00-00";
+const FORMAT_FILENAME: &[FormatItem<'_>] = format_description!(
+    "[year]-[month]-[day]-[hour]-[minute]-[second]T[offset_hour]-[offset_minute]-[offset_second]"
+);
+const FORMAT_DISPLAY: &[FormatItem<'_>] =
+    format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 
 /// Takes care of persistent storage to disk. Yes, this makes it impossible
 /// to run in the browser, which only provides a String-String database. But
@@ -21,46 +28,39 @@ const FORMAT_DISPLAY: &str = "%Y-%m-%d %H:%M:%S";
 #[derive(Debug, Clone)]
 pub struct SavedDB {
     pub path: PathBuf,
-    pub date: DateTime<Local>,
+    pub date: OffsetDateTime,
     pub server_str: String,
+    date_str: String,
 }
 
 impl From<PathBuf> for SavedDB {
     fn from(path: PathBuf) -> Self {
-        let default_filename = OsString::from(DEFAULT_FILENAME_STEM);
+        let default_filename = OsString::from(DEFAULT_FILENAME);
         let filename = path
             .file_stem()
             .unwrap_or(&default_filename)
             .to_str()
-            .unwrap_or(DEFAULT_FILENAME_STEM);
+            .unwrap_or(DEFAULT_FILENAME);
         let splits: Vec<&str> = filename.splitn(2, '-').collect();
         let server_str = splits[0];
         let date_str = splits[1];
-
-        // first we need to turn "de99-1970-01-01-00-00-00T00-00-00" into "de99-1970-01-01-00-00-00T00:00:00" so chrono can parse it.
-        // This shit is done for legacy reasons. I used to use the time crate, which allowed more flexible offset formatting and I decided to use - instead of : for separating the offset code.
-        let rev: String = date_str.chars().rev().collect();
-        let swapped = rev.replacen('-', ":", 2);
-        let date_str: String = swapped.chars().rev().collect();
-
-        let date_fixed = DateTime::parse_from_str(&date_str, FORMAT_FILENAME).unwrap_or(
-            FixedOffset::east_opt(0)
-                .unwrap()
-                .with_ymd_and_hms(1970, 01, 01, 00, 00, 00)
-                .unwrap(),
-        );
+        let date =
+            OffsetDateTime::parse(date_str, &FORMAT_FILENAME).unwrap_or(OffsetDateTime::UNIX_EPOCH);
 
         // not sure if that is properly localized. Technically we don't need to convert to current
         // local offset, we need to convert to local offset at the time of the date. But maybe to
         // current_local_offset is actually better? That way all times are accurate in relation to
         // now, instead of being accurate to the clock of the past (which may be in a different
         // timezone after DST change)
-        let date_local: DateTime<Local> = date_fixed.with_timezone(&Local);
+        // Doing it "properly" would require https://docs.rs/time/latest/time/struct.UtcOffset.html#method.local_offset_at
+        let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
+        let date = date.to_offset(local_offset);
 
         Self {
             path: path.clone(),
-            date: date_local,
+            date,
             server_str: server_str.into(),
+            date_str: date_str.into(),
         }
     }
 }
@@ -86,24 +86,31 @@ impl PartialEq for SavedDB {
 
 impl Display for SavedDB {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let time_str = self.date.format(&FORMAT_DISPLAY).to_string();
-        write!(f, "{time_str}")
+        let time_str = self
+            .date
+            .format(&FORMAT_DISPLAY)
+            .unwrap_or(self.date_str.clone());
+        if self.date.offset() == offset!(UTC) {
+            // write!(f, "{}/{} UTC", self.server_str, time_str)
+            write!(f, "{time_str} UTC")
+        } else {
+            // write!(f, "{}/{}", self.server_str, time_str)
+            write!(f, "{time_str}")
+        }
     }
 }
 
 /// returns a path to a not yet existing apiresponse file. If the
 /// function returns `Some(path)`, the parent directory is
 /// guaranteed to exist.
-pub fn get_new_db_filename(server: &str, now: &DateTime<Local>) -> Option<PathBuf> {
+pub fn get_new_db_filename(server: &str, now: &OffsetDateTime) -> Option<PathBuf> {
     if !ensure_storage_location_exists() {
         return None;
     }
 
     let dir = storage_dir()?;
-    let time_str = now
-        .format(FORMAT_FILENAME) // format as "YYYY-MM-DD-HH-MM-SST+HH:MM:SS"
-        .to_string()
-        .replace(":", "-"); // backwards compatibility: turn the above string into "YYYY-MM-DD-HH-MM-SST+HH-MM-SS"
+    // let format = format_description!("[year]-[month]-[day]-[hour]-[minute]-[second]UTC");
+    let time_str = now.format(&FORMAT_FILENAME).ok()?;
     let filename = format!("{server}-{time_str}.apiresponse");
     Some(dir.join(filename))
 }
