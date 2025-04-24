@@ -2,13 +2,14 @@ use crate::constraint::ConstraintType;
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::selection::AndOr;
-use crate::storage;
+use crate::storage::{self, SavedDB};
 use crate::town::Town;
 use anyhow::Context;
 use eframe::epaint::ahash::HashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::BTreeSet;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::{fs, thread};
@@ -17,6 +18,7 @@ use time::{OffsetDateTime, UtcOffset};
 pub(crate) mod database;
 pub mod download;
 mod offset_data;
+mod parse_sqlite;
 
 const DECAY: f32 = 0.9;
 const MIN_AGE: f32 = 0.1; // anything that was not touched `DECAY.powi(20)` times in a row should be removed from cache
@@ -94,21 +96,35 @@ impl APIResponse {
     }
 
     /// given a filepath, load the previously fetched API Response and put it into the api_results out variable. This is done so the UI doesn't hang.
-    pub fn load_from_file(path: PathBuf, api_results: Arc<Mutex<APIResponse>>) {
+    pub fn load_from_file(saved_db: SavedDB, api_results: Arc<Mutex<APIResponse>>) {
         #[cfg(not(target_arch = "wasm32"))]
         {
             thread::spawn(move || {
-                // TODO: deal with legacy sqlite files
                 // TODO: improve error handling
-
-                // read file content
-                let s = fs::read_to_string(path).unwrap();
-                // convert to api response
-                let api_response = serde_json::from_str(&s)
-                    .context("failes to parse api response from json saved at {path:?}")
-                    .unwrap();
-                let mut guard = api_results.lock().unwrap();
-                *guard = api_response;
+                match saved_db.path.extension().and_then(|ext| ext.to_str()) {
+                    Some("sqlite") => {
+                        let api_response = parse_sqlite::sqlite_to_apiresponse(saved_db).context("failed to parse the api response from the sqlite file saved at {path:?}")
+                        .unwrap();
+                        let mut guard = api_results.lock().unwrap();
+                        *guard = api_response;
+                    }
+                    Some("apiresponse") => {
+                        // read file content
+                        let s = fs::read_to_string(saved_db.path.clone()).unwrap();
+                        // convert to api response
+                        let api_response = serde_json::from_str(&s)
+                            .context(format!(
+                                "failes to parse api response from json saved at {:?}",
+                                saved_db.path
+                            ))
+                            .unwrap();
+                        let mut guard = api_results.lock().unwrap();
+                        *guard = api_response;
+                    }
+                    Some(_) | None => {
+                        eprintln!("Can not load data from file {:?}", saved_db.path);
+                    }
+                }
             });
         }
     }

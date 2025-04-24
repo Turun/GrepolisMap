@@ -6,7 +6,7 @@ use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToView, PresenterReady};
 use crate::model::database::DataTable;
 use crate::model::{APIResponse, Model};
-use crate::storage;
+use crate::storage::{self, SavedDB};
 use crate::view::preferences::CacheSize;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -84,10 +84,10 @@ impl Presenter {
     /// triggers the server loading, which is handled asynchronously
     /// This is deliberately its own method, because the self.model = Model::Uninit needs to be triggered before the
     /// normal message processing.
-    pub fn load_server_from_file(&mut self, file: PathBuf) {
+    pub fn load_server_from_file(&mut self, saved_db: SavedDB) {
         let api_response = Arc::new(Mutex::new(APIResponse::empty()));
         self.model = Model::Uninitialized(Arc::clone(&api_response));
-        APIResponse::load_from_file(file, api_response);
+        APIResponse::load_from_file(saved_db, api_response);
     }
 
     /// returns how many of the api requests already completed. i.e. 1/4 -> 0.25

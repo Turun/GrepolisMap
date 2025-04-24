@@ -262,7 +262,7 @@ impl View {
                 self.reload_server();
                 // tell the backend to fetch data from the server
                 // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
-                self.presenter.load_server_from_file(saved_db.path);
+                self.presenter.load_server_from_file(saved_db);
                 self.ui_state = State::Uninitialized(Progress::LoadingFile);
             }
         }

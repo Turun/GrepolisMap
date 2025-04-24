@@ -40,12 +40,12 @@ impl View {
                         });
                     }
                     if let Some(saved_db) = clicked_path {
-                        self.ui_data.server_id = saved_db.server_str;
+                        self.ui_data.server_id = saved_db.server_str.clone();
                         // change self.ui_data
                         self.reload_server();
                         // tell the backend to fetch data from the server
                         // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
-                        self.presenter.load_server_from_file(saved_db.path);
+                        self.presenter.load_server_from_file(saved_db);
                         self.ui_state = State::Uninitialized(Progress::LoadingFile);
                     }
                 });
