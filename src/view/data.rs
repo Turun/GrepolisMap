@@ -7,10 +7,10 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::selection::TownSelection;
-use crate::view::preferences::Preferences;
-use crate::{storage::SavedDB, town::Town};
-
-use super::preferences::DarkModePref;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::storage::SavedDB;
+use crate::town::Town;
+use crate::view::preferences::{DarkModePref, Preferences};
 
 pub const ALL_TOWNS_DARK: egui::Color32 = egui::Color32::from_gray(60);
 pub const ALL_TOWNS_LIGHT: egui::Color32 = egui::Color32::from_gray(180);
@@ -42,6 +42,7 @@ pub struct Data {
     pub ghost_towns: Arc<Vec<Town>>,
 
     #[serde(skip)]
+    #[cfg(not(target_arch = "wasm32"))]
     pub saved_db: BTreeMap<String, Vec<SavedDB>>,
     pub preferences: Preferences,
 }
@@ -62,6 +63,7 @@ impl Default for Data {
                 enabled: true,
                 color: ALL_TOWNS_DARK,
             },
+            #[cfg(not(target_arch = "wasm32"))]
             saved_db: BTreeMap::new(),
             preferences: Preferences::default(),
         }

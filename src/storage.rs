@@ -19,12 +19,6 @@ const FORMAT_FILENAME: &[FormatItem<'_>] = format_description!(
 const FORMAT_DISPLAY: &[FormatItem<'_>] =
     format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 
-/// Takes care of persistent storage to disk. Yes, this makes it impossible
-/// to run in the browser, which only provides a String-String database. But
-/// on Desktop this will improve the functionality immensely
-/// if we want to run this on our server some day, it'll require some rework
-/// and quite a few cfg!(), but it's worth it for the local functionality
-
 #[derive(Debug, Clone)]
 pub struct SavedDB {
     pub path: PathBuf,

@@ -6,10 +6,11 @@ use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToView, PresenterReady};
 use crate::model::database::DataTable;
 use crate::model::{APIResponse, Model};
-use crate::storage::{self, SavedDB};
 use crate::view::preferences::CacheSize;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::storage::{self, SavedDB};
 
 /// Given a Result<MessageToView>, send it to the View if it is ok. If the sending
 /// fails, output to stderr with the message given in `error_channel`. If the given
@@ -84,8 +85,9 @@ impl Presenter {
     /// triggers the server loading, which is handled asynchronously
     /// This is deliberately its own method, because the self.model = Model::Uninit needs to be triggered before the
     /// normal message processing.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load_server_from_file(&mut self, saved_db: SavedDB) {
-        let api_response = Arc::new(Mutex::new(APIResponse::empty()));
+        let api_response = Arc::new(Mutex::new(APIResponse::new(String::from(""))));
         self.model = Model::Uninitialized(Arc::clone(&api_response));
         APIResponse::load_from_file(saved_db, api_response);
     }
@@ -107,10 +109,12 @@ impl Presenter {
             Model::Uninitialized(api_response) => {
                 let api_response = api_response.lock().unwrap().clone();
                 if api_response.is_complete() {
+                    #[cfg(not(target_arch = "wasm32"))]
                     api_response.save_to_file();
+                    #[cfg(not(target_arch = "wasm32"))]
                     let db_path = api_response.filename.clone();
-                    let db_result = DataTable::create_for_world(api_response);
 
+                    let db_result = DataTable::create_for_world(api_response);
                     match db_result {
                         Ok(db) => {
                             self.model = Model::Loaded {
@@ -126,6 +130,7 @@ impl Presenter {
                             )));
 
                             // if we failed halfway during the creation of our db, we need to remove the unfinished db from the filesystem
+                            #[cfg(not(target_arch = "wasm32"))]
                             if let Some(path) = db_path {
                                 let _result = storage::remove_db(&path);
                             }

@@ -14,10 +14,12 @@ mod message;
 mod model;
 mod presenter;
 mod selection;
-mod storage;
 mod telemetry;
 mod town;
 mod view;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod storage;
 
 use view::View;
 

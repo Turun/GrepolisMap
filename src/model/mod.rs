@@ -2,6 +2,8 @@ use crate::constraint::ConstraintType;
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::selection::AndOr;
+
+#[cfg(not(target_arch = "wasm32"))]
 use crate::storage::{self, SavedDB};
 use crate::town::Town;
 use anyhow::Context;
@@ -13,11 +15,13 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::{fs, thread};
+#[cfg(not(target_arch = "wasm32"))]
 use time::{OffsetDateTime, UtcOffset};
 
 pub(crate) mod database;
 pub mod download;
 mod offset_data;
+#[cfg(not(target_arch = "wasm32"))]
 mod parse_sqlite;
 
 const DECAY: f32 = 0.9;
@@ -34,7 +38,9 @@ type TownCacheKey = (Vec<EmptyConstraint>, AndOr, BTreeSet<EmptyTownSelection>);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct APIResponse {
     pub for_server: String,
+    #[cfg(not(target_arch = "wasm32"))]
     pub filename: Option<PathBuf>,
+    #[cfg(not(target_arch = "wasm32"))]
     pub timestamp: OffsetDateTime,
 
     players: Option<String>,
@@ -45,31 +51,30 @@ pub struct APIResponse {
 
 impl APIResponse {
     pub fn new(server_id: String) -> Self {
-        let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
-        let now = OffsetDateTime::now_utc().to_offset(local_offset);
-        let filename = storage::get_new_db_filename(&server_id, &now);
-        Self {
-            for_server: server_id,
-            filename,
-            timestamp: now,
-            players: None,
-            alliances: None,
-            towns: None,
-            islands: None,
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
+            let now = OffsetDateTime::now_utc().to_offset(local_offset);
+            let filename = storage::get_new_db_filename(&server_id, &now);
+            Self {
+                for_server: server_id,
+                filename,
+                timestamp: now,
+                players: None,
+                alliances: None,
+                towns: None,
+                islands: None,
+            }
         }
-    }
-
-    pub fn empty() -> Self {
-        let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
-        let now = OffsetDateTime::now_utc().to_offset(local_offset);
-        Self {
-            for_server: String::new(),
-            filename: None,
-            timestamp: now,
-            players: None,
-            alliances: None,
-            towns: None,
-            islands: None,
+        #[cfg(target_arch = "wasm32")]
+        {
+            Self {
+                for_server: server_id,
+                players: None,
+                alliances: None,
+                towns: None,
+                islands: None,
+            }
         }
     }
 
@@ -96,77 +101,75 @@ impl APIResponse {
     }
 
     /// given a filepath, load the previously fetched API Response and put it into the api_results out variable. This is done so the UI doesn't hang.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load_from_file(saved_db: SavedDB, api_results: Arc<Mutex<APIResponse>>) {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            thread::spawn(move || {
-                // TODO: improve error handling
-                match saved_db.path.extension().and_then(|ext| ext.to_str()) {
-                    Some("sqlite") => {
-                        let api_response = parse_sqlite::sqlite_to_apiresponse(saved_db).context("failed to parse the api response from the sqlite file saved at {path:?}")
+        thread::spawn(move || {
+            // TODO: improve error handling
+            match saved_db.path.extension().and_then(|ext| ext.to_str()) {
+                Some("sqlite") => {
+                    let api_response = parse_sqlite::sqlite_to_apiresponse(saved_db).context("failed to parse the api response from the sqlite file saved at {path:?}")
                         .unwrap();
-                        let mut guard = api_results.lock().unwrap();
-                        *guard = api_response;
-                    }
-                    Some("apiresponse") => {
-                        // read file content
-                        let s = fs::read_to_string(saved_db.path.clone()).unwrap();
-                        // convert to api response
-                        let api_response = serde_json::from_str(&s)
-                            .context(format!(
-                                "failes to parse api response from json saved at {:?}",
-                                saved_db.path
-                            ))
-                            .unwrap();
-                        let mut guard = api_results.lock().unwrap();
-                        *guard = api_response;
-                    }
-                    Some(_) | None => {
-                        eprintln!("Can not load data from file {:?}", saved_db.path);
-                    }
+                    let mut guard = api_results.lock().unwrap();
+                    *guard = api_response;
                 }
-            });
-        }
+                Some("apiresponse") => {
+                    // read file content
+                    let s = fs::read_to_string(saved_db.path.clone()).unwrap();
+                    // convert to api response
+                    let api_response = serde_json::from_str(&s)
+                        .context(format!(
+                            "failes to parse api response from json saved at {:?}",
+                            saved_db.path
+                        ))
+                        .unwrap();
+                    let mut guard = api_results.lock().unwrap();
+                    *guard = api_response;
+                }
+                Some(_) | None => {
+                    eprintln!("Can not load data from file {:?}", saved_db.path);
+                }
+            }
+        });
     }
 
     /// save the api response to the file as defined in self.filename.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn save_to_file(&self) {
         // only relevant on native. WASM does not get to save old api responses
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let opt_output_string = serde_json::to_string(self);
-            let opt_filename = self.filename.clone();
-            // write to file in a different thread. Otherwise we hang the UI on slow systems.
-            let _handle = thread::spawn(move || {
-                match (opt_filename, opt_output_string) {
-                    (None, Ok(_output_string)) => {
-                        eprintln!("no filename to save the api response to");
-                    }
-                    (Some(filename), Ok(output_string)) => {
-                        let msg = format!("failed to write api resonse to file ({filename:?}):");
-                        if filename.exists() {
-                            println!("skip saving api response to file, because the file exists already.");
-                        } else {
-                            match fs::write(filename, output_string) {
-                                Ok(_) => {
-                                    println!("successfully saved api response to file");
-                                }
-                                Err(err) => {
-                                    eprintln!("{msg}\n{err:?}");
-                                }
+        let opt_output_string = serde_json::to_string(self);
+        let opt_filename = self.filename.clone();
+        // write to file in a different thread. Otherwise we hang the UI on slow systems.
+        let _handle = thread::spawn(move || {
+            match (opt_filename, opt_output_string) {
+                (None, Ok(_output_string)) => {
+                    eprintln!("no filename to save the api response to");
+                }
+                (Some(filename), Ok(output_string)) => {
+                    let msg = format!("failed to write api resonse to file ({filename:?}):");
+                    if filename.exists() {
+                        println!(
+                            "skip saving api response to file, because the file exists already."
+                        );
+                    } else {
+                        match fs::write(filename, output_string) {
+                            Ok(_) => {
+                                println!("successfully saved api response to file");
+                            }
+                            Err(err) => {
+                                eprintln!("{msg}\n{err:?}");
                             }
                         }
                     }
-                    (None, Err(err)) => {
-                        eprintln!("no filename to save the api response to");
-                        eprintln!("failed to convert the api response to a json string: {err:?}");
-                    }
-                    (Some(_filename), Err(err)) => {
-                        eprintln!("failed to convert the api response to a json string: {err:?}");
-                    }
-                };
-            });
-        }
+                }
+                (None, Err(err)) => {
+                    eprintln!("no filename to save the api response to");
+                    eprintln!("failed to convert the api response to a json string: {err:?}");
+                }
+                (Some(_filename), Err(err)) => {
+                    eprintln!("failed to convert the api response to a json string: {err:?}");
+                }
+            };
+        });
     }
 }
 

@@ -11,8 +11,10 @@ use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToServer, MessageToView, PresenterReady, Progress};
 use crate::presenter::Presenter;
 use crate::selection::{SelectionState, TownSelection};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::storage;
+use crate::telemetry;
 use crate::view::data::Data;
-use crate::{storage, telemetry};
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Ui};
 use std::collections::HashSet;
@@ -104,12 +106,15 @@ impl View {
         //     .send(MessageToModel::AutoDeleteTime(data.preferences.auto_delete_time))
         //     .expect("Failed to send message to backend: Discover Saved Databases");
 
-        // apply preferences before returning and refresh list of saved dbs (which are not saved across app restarts)
+        // apply preferences before returning
         re.ui_data
             .apply_darkmode(&cc.egui_ctx, re.ui_data.preferences.darkmode);
         re.ui_data.preferences.language.apply();
-        re.ui_data.saved_db = storage::get_list_of_saved_dbs();
-
+        //  and refresh list of saved dbs (which are not saved across app restarts)
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            re.ui_data.saved_db = storage::get_list_of_saved_dbs();
+        }
         re
     }
 
@@ -237,33 +242,38 @@ impl View {
             should_load_server = true;
         }
 
-        let most_recently_loaded = self
-            .ui_data
-            .saved_db
-            .iter()
-            .flat_map(|(server_id, saved_dbs)| {
-                saved_dbs
-                    .iter()
-                    .map(|saved_db| (server_id.clone(), saved_db.clone()))
-            })
-            .max_by_key(|(_, saved_db)| saved_db.date);
+        // on native show a button to (re)load the data that was last fetched.
+        // Partially also there to serve as a note from what time the map data is from.
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let most_recently_loaded = self
+                .ui_data
+                .saved_db
+                .iter()
+                .flat_map(|(server_id, saved_dbs)| {
+                    saved_dbs
+                        .iter()
+                        .map(|saved_db| (server_id.clone(), saved_db.clone()))
+                })
+                .max_by_key(|(_, saved_db)| saved_db.date);
 
-        if let Some((server_id, saved_db)) = most_recently_loaded {
-            if ui
-                .button(t!(
-                    "sidepanel.header.open_recent",
-                    server_id = server_id,
-                    db = saved_db
-                ))
-                .clicked()
-            {
-                self.ui_data.server_id = server_id;
-                // change self.ui_data
-                self.reload_server();
-                // tell the backend to fetch data from the server
-                // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
-                self.presenter.load_server_from_file(saved_db);
-                self.ui_state = State::Uninitialized(Progress::LoadingFile);
+            if let Some((server_id, saved_db)) = most_recently_loaded {
+                if ui
+                    .button(t!(
+                        "sidepanel.header.open_recent",
+                        server_id = server_id,
+                        db = saved_db
+                    ))
+                    .clicked()
+                {
+                    self.ui_data.server_id = server_id;
+                    // change self.ui_data
+                    self.reload_server();
+                    // tell the backend to fetch data from the server
+                    // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
+                    self.presenter.load_server_from_file(saved_db);
+                    self.ui_state = State::Uninitialized(Progress::LoadingFile);
+                }
             }
         }
 
@@ -274,9 +284,6 @@ impl View {
             // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
             self.presenter.load_server(self.ui_data.server_id.clone());
             self.ui_state = State::Uninitialized(Progress::Fetching);
-
-            // refresh our list of available saved databases
-            self.ui_data.saved_db = storage::get_list_of_saved_dbs();
         }
     }
 
@@ -342,6 +349,15 @@ impl eframe::App for View {
             Ok(PresenterReady::NewlyReady) => {
                 // trigger all the data refreshes that are required when loading new data
                 self.messages_to_view.push(MessageToView::GotServer);
+
+                // also refresh which SavedDBs are present. If we keep the api response saving in a
+                // separate thread this refresh will still miss the latest response (because it will
+                // take a while for the thread to save it). Nevertheless this is the best place I
+                // can think of at the moment to put it.
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    self.ui_data.saved_db = storage::get_list_of_saved_dbs();
+                }
             }
             Err(err) => {
                 // crashed when trying to convert API Response into our backend data structure
@@ -464,11 +480,6 @@ impl eframe::App for View {
                     eprintln!("Backend Crashed with the following error:\n{err:?}");
                     self.ui_state =
                         State::Uninitialized(Progress::BackendCrashed(format!("{err:?}")));
-                }
-                MessageToView::RemovedDatabases(removed_dbs) => {
-                    for saved_dbs in self.ui_data.saved_db.values_mut() {
-                        saved_dbs.retain(|saved_db| !removed_dbs.contains(saved_db));
-                    }
                 }
             }
         }

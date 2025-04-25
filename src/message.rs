@@ -1,13 +1,8 @@
 use core::fmt;
-use std::{
-    collections::{BTreeMap, HashSet},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::storage::SavedDB;
 use crate::town::Town;
 use crate::view::preferences::CacheSize;
 
@@ -36,7 +31,6 @@ pub enum MessageToView {
     TownListForSelection(EmptyTownSelection, Arc<Vec<Town>>),
     ValueListForConstraint(EmptyConstraint, EmptyTownSelection, Arc<Vec<String>>),
     BackendCrashed(String),
-    RemovedDatabases(Vec<SavedDB>),
 }
 
 impl fmt::Display for MessageToView {
@@ -69,13 +63,6 @@ impl fmt::Display for MessageToView {
             }
             MessageToView::BackendCrashed(err) => {
                 write!(f, "MessageToView::BackendCrashed({err:?})")
-            }
-            MessageToView::RemovedDatabases(removed_paths) => {
-                write!(
-                    f,
-                    "MessageToView::RemovedDatabases({})",
-                    removed_paths.len()
-                )
             }
         }
     }
