@@ -107,7 +107,7 @@ impl Presenter {
             Model::Uninitialized(api_response) => {
                 let api_response = api_response.lock().unwrap().clone();
                 if api_response.is_complete() {
-                    api_response.save_to_file(); // TODO: extract into extra thread. since this is only for native, we can simply use a thread (make sure to gate with feature though)
+                    api_response.save_to_file();
                     let db_path = api_response.filename.clone();
                     let db_result = DataTable::create_for_world(api_response);
 

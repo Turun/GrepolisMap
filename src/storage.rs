@@ -117,6 +117,7 @@ pub fn get_new_db_filename(server: &str, now: &OffsetDateTime) -> Option<PathBuf
 
 /// get a list of all saved databases
 pub fn get_list_of_saved_dbs() -> BTreeMap<String, Vec<SavedDB>> {
+    // TODO: need to time the calling of this method better. This should always run such that after loading of an API Response is _complete_ the UI is updated to show the new save file.
     let mut re = BTreeMap::new();
 
     // only progress if the storage dir exists

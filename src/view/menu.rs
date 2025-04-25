@@ -20,7 +20,6 @@ impl View {
     #[allow(clippy::single_match)] // temporary, until we fix the error reporting and make it more user friendly
     pub(crate) fn ui_menu(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // TODO [preferences] [auto delete saved data] after 1d/1w/1m/never
-        // TODO localization
         // TODO disable telemetry
 
         egui::TopBottomPanel::top("menu bar").show(ctx, |ui| {
