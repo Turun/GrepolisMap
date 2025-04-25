@@ -221,7 +221,7 @@ impl View {
         // the selections are invalidated after the backend sends "got server"
     }
 
-    fn ui_server_input(&mut self, ui: &mut Ui, ctx: &egui::Context) {
+    fn ui_server_input(&mut self, ui: &mut Ui) {
         let mut should_load_server = false;
         ui.horizontal(|ui| {
             ui.label(t!("sidepanel.header.server_id"));
@@ -296,7 +296,7 @@ impl View {
         self.ui_menu(ctx, frame);
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
-                self.ui_server_input(ui, ctx);
+                self.ui_server_input(ui);
                 match progress {
                     Progress::None => {}
                     Progress::BackendCrashed(stringified_reason) => {
@@ -311,11 +311,11 @@ impl View {
                     Progress::Fetching => {
                         ui.add(
                             ProgressBar::new(self.presenter.loading_progress())
-                                .text(format!("Loading API data...")),
+                                .text("Loading API data...".to_string()),
                         );
                     }
                     Progress::LoadingFile => {
-                        ui.add(ProgressBar::new(0.5).text(format!("Loading data from file...")));
+                        ui.add(ProgressBar::new(0.5).text("Loading data from file...".to_string()));
                     }
                 }
             });
@@ -372,7 +372,7 @@ impl eframe::App for View {
                 if !self.messages_to_presenter.is_empty() {
                     println!("Messages to Presenter:");
                     for msg in &self.messages_to_presenter {
-                        println!("    {msg}")
+                        println!("    {msg}");
                     }
                     ctx.request_repaint();
                 }
@@ -392,7 +392,7 @@ impl eframe::App for View {
         if !self.messages_to_view.is_empty() {
             println!("Messages to View:");
             for msg in &self.messages_to_view {
-                println!("    {msg}")
+                println!("    {msg}");
             }
             ctx.request_repaint();
         }
@@ -469,9 +469,6 @@ impl eframe::App for View {
                 MessageToView::GhostTowns(towns) => {
                     self.ui_state = State::Show;
                     self.ui_data.ghost_towns = towns;
-                }
-                MessageToView::Loading(progress) => {
-                    self.ui_state = State::Uninitialized(progress);
                 }
                 MessageToView::BackendCrashed(err) => {
                     // technically we don't need to remove the displayed stuff yet. The data that

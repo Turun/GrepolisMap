@@ -2,13 +2,11 @@ use super::database::{Alliance, BackendTown, DataTable, Island, Offset, Player};
 use super::{offset_data, APIResponse};
 use anyhow::Context;
 use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 impl DataTable {
-    pub fn get_api_results(api_results: Arc<Mutex<APIResponse>>) {
+    pub fn get_api_results(api_results: &Arc<Mutex<APIResponse>>) {
         let server_id = api_results.lock().unwrap().for_server.clone();
 
         #[cfg(target_arch = "wasm32")]
@@ -17,28 +15,28 @@ impl DataTable {
         let base_url = format!("https://{server_id}.grepolis.com/data/");
 
         let req_players = ehttp::Request::get(base_url.clone() + "players.txt");
-        let these_api_results = Arc::clone(&api_results);
+        let these_api_results = Arc::clone(api_results);
         ehttp::fetch(req_players, move |response| {
             let text = String::from_utf8(response.unwrap().bytes).unwrap();
             these_api_results.lock().unwrap().players = Some(text);
         });
 
         let req_players = ehttp::Request::get(base_url.clone() + "alliances.txt");
-        let these_api_results = Arc::clone(&api_results);
+        let these_api_results = Arc::clone(api_results);
         ehttp::fetch(req_players, move |response| {
             let text = String::from_utf8(response.unwrap().bytes).unwrap();
             these_api_results.lock().unwrap().alliances = Some(text);
         });
 
         let req_players = ehttp::Request::get(base_url.clone() + "towns.txt");
-        let these_api_results = Arc::clone(&api_results);
+        let these_api_results = Arc::clone(api_results);
         ehttp::fetch(req_players, move |response| {
             let text = String::from_utf8(response.unwrap().bytes).unwrap();
             these_api_results.lock().unwrap().towns = Some(text);
         });
 
         let req_players = ehttp::Request::get(base_url.clone() + "islands.txt");
-        let these_api_results = Arc::clone(&api_results);
+        let these_api_results = Arc::clone(api_results);
         ehttp::fetch(req_players, move |response| {
             let text = String::from_utf8(response.unwrap().bytes).unwrap();
             these_api_results.lock().unwrap().islands = Some(text);
@@ -49,10 +47,10 @@ impl DataTable {
         // TODO: we need to massively improve the way we handle errors here. Crashing the entire backend if one line in
         // one input file is unexpected is not a good solution. We need more fine grained error handling.
         let offsets = Self::make_offsets();
-        let alliances = Self::parse_alliances(api_response.alliances.unwrap())?;
-        let islands = Self::parse_islands(api_response.islands.unwrap())?;
-        let players = Self::parse_players(api_response.players.unwrap(), &alliances)?;
-        let towns = Self::parse_towns(api_response.towns.unwrap(), &players, &islands, &offsets)?;
+        let alliances = Self::parse_alliances(&api_response.alliances.unwrap())?;
+        let islands = Self::parse_islands(&api_response.islands.unwrap())?;
+        let players = Self::parse_players(&api_response.players.unwrap(), &alliances)?;
+        let towns = Self::parse_towns(&api_response.towns.unwrap(), &players, &islands, &offsets)?;
         let towns = towns.into_values().collect();
         Ok(Self { towns })
     }
@@ -61,7 +59,7 @@ impl DataTable {
         let lines: Vec<&str> = offset_data::OFFSET_DATA.lines().collect();
         let mut re = HashMap::with_capacity(lines.len());
         for line in lines {
-            let mut values = line.split(",");
+            let mut values = line.split(',');
             let typ: u8 = values.next().unwrap().parse().unwrap();
             let x: u16 = values.next().unwrap().parse().unwrap();
             let y: u16 = values.next().unwrap().parse().unwrap();
@@ -79,7 +77,7 @@ impl DataTable {
         return re;
     }
 
-    fn parse_alliances(data: String) -> anyhow::Result<HashMap<u32, Rc<Alliance>>> {
+    fn parse_alliances(data: &str) -> anyhow::Result<HashMap<u32, Rc<Alliance>>> {
         let lines: Vec<&str> = data.lines().collect();
         let mut re = HashMap::with_capacity(lines.len());
         for line in lines {
@@ -134,7 +132,7 @@ impl DataTable {
         return Ok(re);
     }
 
-    fn parse_islands(data: String) -> anyhow::Result<HashMap<(u16, u16), Rc<Island>>> {
+    fn parse_islands(data: &str) -> anyhow::Result<HashMap<(u16, u16), Rc<Island>>> {
         let lines: Vec<&str> = data.lines().collect();
         let mut re = HashMap::with_capacity(lines.len());
         for line in lines {
@@ -190,7 +188,7 @@ impl DataTable {
     }
 
     fn parse_players(
-        data: String,
+        data: &str,
         alliances: &HashMap<u32, Rc<Alliance>>,
     ) -> anyhow::Result<HashMap<u32, Rc<Player>>> {
         let lines: Vec<&str> = data.lines().collect();
@@ -242,11 +240,7 @@ impl DataTable {
 
             let alliance_tuple = if let Some(alliance_id) = opt_alliance_id {
                 let opt_alliance = alliances.get(&alliance_id);
-                if let Some(alliance) = opt_alliance {
-                    Some((alliance_id, Rc::clone(alliance)))
-                } else {
-                    None
-                }
+                opt_alliance.map(|alliance| (alliance_id, Rc::clone(alliance)))
             } else {
                 None
             };
@@ -267,7 +261,7 @@ impl DataTable {
     }
 
     fn parse_towns(
-        data: String,
+        data: &str,
         players: &HashMap<u32, Rc<Player>>,
         islands: &HashMap<(u16, u16), Rc<Island>>,
         offsets: &HashMap<(u8, u8), Rc<Offset>>,
@@ -329,11 +323,7 @@ impl DataTable {
             // get actual player from the player id
             let player_tuple = if let Some(player_id) = opt_player_id {
                 let opt_player = players.get(&player_id);
-                if let Some(player) = opt_player {
-                    Some((player_id, Rc::clone(player)))
-                } else {
-                    None
-                }
+                opt_player.map(|player| (player_id, Rc::clone(player)))
             } else {
                 None
             };
@@ -363,8 +353,8 @@ impl DataTable {
             });
 
             // compute actual x
-            let actual_x = x as f32 + offset_tuple.1.x as f32 / 125f32;
-            let actual_y = y as f32 + offset_tuple.1.y as f32 / 125f32;
+            let actual_x = f32::from(x) + f32::from(offset_tuple.1.x) / 125f32;
+            let actual_y = f32::from(y) + f32::from(offset_tuple.1.y) / 125f32;
 
             let _duplicate = re.insert(
                 id,

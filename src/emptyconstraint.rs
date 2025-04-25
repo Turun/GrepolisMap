@@ -53,20 +53,20 @@ impl EmptyConstraint {
         // TODO: do this check in the frontend and highlight invalid input
         let constraint_type_type: ConstraintTypeType = self.into();
         match constraint_type_type {
-            ConstraintTypeType::StringLike => self.value.len() > 0,
+            ConstraintTypeType::StringLike => !self.value.is_empty(),
             ConstraintTypeType::Number => self.value.parse::<f64>().is_ok(),
             ConstraintTypeType::IslandRessource => {
-                let value_lower_case = self.value.to_lowercase();
-                match value_lower_case.as_str() {
-                    "iron" | "stone" | "wood" => true,
-                    _ => false,
-                }
+                matches!(
+                    self.value.to_lowercase().as_str(),
+                    "iron" | "stone" | "wood"
+                )
             }
             ConstraintTypeType::Selection => all_selections.iter().any(|s| s.name == self.value),
         }
     }
 
     /// given a set of towns, modify said set to only include towns for which the constraint matches.
+    #[allow(clippy::too_many_lines)]
     pub fn matching_towns(
         &self,
         towns: &mut HashSet<Rc<BackendTown>>,
@@ -106,7 +106,7 @@ impl EmptyConstraint {
                 ConstraintType::PlayerID => {
                     towns.retain(|t| {
                         if let Some(id) = t.player.as_ref().map(|(id, _)| id) {
-                            self.comparator.compare(*id as f64, value_f64)
+                            self.comparator.compare(f64::from(*id), value_f64)
                         } else {
                             // Use empty player ID as a sentinel for ghost towns.
                             // TODO: make it so that the empty selection filtering in the presenter
@@ -114,11 +114,7 @@ impl EmptyConstraint {
                             //   impossible, because the constraint is filtered from being passed to
                             //   database. Or maybe we have some more bogus self.value.is_empty() in
                             //   database.rs as well.
-                            if self.value.is_empty() {
-                                true
-                            } else {
-                                false
-                            }
+                            self.value.is_empty()
                         }
                     });
                 }
@@ -134,7 +130,7 @@ impl EmptyConstraint {
                 ConstraintType::PlayerPoints => {
                     towns.retain(|t| {
                         if let Some(points) = t.player.as_ref().map(|(_id, player)| player.points) {
-                            self.comparator.compare(points as f64, value_f64)
+                            self.comparator.compare(f64::from(points), value_f64)
                         } else {
                             false
                         }
@@ -143,7 +139,7 @@ impl EmptyConstraint {
                 ConstraintType::PlayerRank => {
                     towns.retain(|t| {
                         if let Some(rank) = t.player.as_ref().map(|(_id, player)| player.rank) {
-                            self.comparator.compare(rank as f64, value_f64)
+                            self.comparator.compare(f64::from(rank), value_f64)
                         } else {
                             false
                         }
@@ -152,7 +148,7 @@ impl EmptyConstraint {
                 ConstraintType::PlayerTowns => {
                     towns.retain(|t| {
                         if let Some(towns) = t.player.as_ref().map(|(_id, player)| player.towns) {
-                            self.comparator.compare(towns as f64, value_f64)
+                            self.comparator.compare(f64::from(towns), value_f64)
                         } else {
                             false
                         }
@@ -163,8 +159,7 @@ impl EmptyConstraint {
                         if let Some(name) = t
                             .player
                             .as_ref()
-                            .map(|(_id, player)| player.alliance.clone())
-                            .flatten()
+                            .and_then(|(_id, player)| player.alliance.clone())
                             .map(|(_id, alliance)| alliance.name.clone())
                         {
                             self.comparator.compare(&name, &self.value)
@@ -178,11 +173,10 @@ impl EmptyConstraint {
                         if let Some(points) = t
                             .player
                             .as_ref()
-                            .map(|(_id, player)| player.alliance.clone())
-                            .flatten()
+                            .and_then(|(_id, player)| player.alliance.clone())
                             .map(|(_id, alliance)| alliance.points)
                         {
-                            self.comparator.compare(points as f64, value_f64)
+                            self.comparator.compare(f64::from(points), value_f64)
                         } else {
                             false
                         }
@@ -193,11 +187,10 @@ impl EmptyConstraint {
                         if let Some(towns) = t
                             .player
                             .as_ref()
-                            .map(|(_id, player)| player.alliance.clone())
-                            .flatten()
+                            .and_then(|(_id, player)| player.alliance.clone())
                             .map(|(_id, alliance)| alliance.towns)
                         {
-                            self.comparator.compare(towns as f64, value_f64)
+                            self.comparator.compare(f64::from(towns), value_f64)
                         } else {
                             false
                         }
@@ -208,11 +201,10 @@ impl EmptyConstraint {
                         if let Some(members) = t
                             .player
                             .as_ref()
-                            .map(|(_id, player)| player.alliance.clone())
-                            .flatten()
+                            .and_then(|(_id, player)| player.alliance.clone())
                             .map(|(_id, alliance)| alliance.members)
                         {
-                            self.comparator.compare(members as f64, value_f64)
+                            self.comparator.compare(f64::from(members), value_f64)
                         } else {
                             false
                         }
@@ -223,53 +215,52 @@ impl EmptyConstraint {
                         if let Some(rank) = t
                             .player
                             .as_ref()
-                            .map(|(_id, player)| player.alliance.clone())
-                            .flatten()
+                            .and_then(|(_id, player)| player.alliance.clone())
                             .map(|(_id, alliance)| alliance.rank)
                         {
-                            self.comparator.compare(rank as f64, value_f64)
+                            self.comparator.compare(f64::from(rank), value_f64)
                         } else {
                             false
                         }
                     });
                 }
                 ConstraintType::TownID => {
-                    towns.retain(|t| self.comparator.compare(t.id as f64, value_f64));
+                    towns.retain(|t| self.comparator.compare(f64::from(t.id), value_f64));
                 }
                 ConstraintType::TownName => {
                     towns.retain(|t| self.comparator.compare(&t.name, &self.value));
                 }
                 ConstraintType::TownPoints => {
-                    towns.retain(|t| self.comparator.compare(t.points as f64, value_f64));
+                    towns.retain(|t| self.comparator.compare(f64::from(t.points), value_f64));
                 }
                 ConstraintType::IslandID => {
                     towns.retain(|t| {
                         let (_x, _y, island) = &t.island;
-                        self.comparator.compare(island.id as f64, value_f64)
+                        self.comparator.compare(f64::from(island.id), value_f64)
                     });
                 }
                 ConstraintType::IslandX => {
                     towns.retain(|t| {
                         let (x, _y, _island) = &t.island;
-                        self.comparator.compare(*x as f64, value_f64)
+                        self.comparator.compare(f64::from(*x), value_f64)
                     });
                 }
                 ConstraintType::IslandY => {
                     towns.retain(|t| {
                         let (_x, y, _island) = &t.island;
-                        self.comparator.compare(*y as f64, value_f64)
+                        self.comparator.compare(f64::from(*y), value_f64)
                     });
                 }
                 ConstraintType::IslandType => {
                     towns.retain(|t| {
                         let (_x, _y, island) = &t.island;
-                        self.comparator.compare(island.typ as f64, value_f64)
+                        self.comparator.compare(f64::from(island.typ), value_f64)
                     });
                 }
                 ConstraintType::IslandTowns => {
                     towns.retain(|t| {
                         let (_x, _y, island) = &t.island;
-                        self.comparator.compare(island.towns as f64, value_f64)
+                        self.comparator.compare(f64::from(island.towns), value_f64)
                     });
                 }
                 ConstraintType::IslandResMore => {
@@ -289,17 +280,15 @@ impl EmptyConstraint {
             Comparator::InSelection => {
                 let opt_selection = all_selections.iter().find(|s| s.name == self.value);
                 let selection = opt_selection.expect("we ran EmptyConstraint::has_valid_input just before this. So unwrap _must_ be fine here!");
-                let given_towns = towns.clone();
                 let towns_in_referenced_selection =
-                    database::matching_towns_for_selection(given_towns, selection, all_selections);
+                    database::matching_towns_for_selection(towns, selection, all_selections);
                 towns.retain(|t| towns_in_referenced_selection.contains(t));
             }
             Comparator::NotInSelection => {
                 let opt_selection = all_selections.iter().find(|s| s.name == self.value);
                 let selection = opt_selection.expect("we ran EmptyConstraint::has_valid_input just before this. So unwrap _must_ be fine here!");
-                let given_towns = towns.clone();
                 let towns_in_referenced_selection =
-                    database::matching_towns_for_selection(given_towns, selection, all_selections);
+                    database::matching_towns_for_selection(towns, selection, all_selections);
                 towns.retain(|t| !towns_in_referenced_selection.contains(t));
             }
         };
@@ -407,7 +396,7 @@ pub mod short_serialization {
     }
 
     struct EmptyConstraintVisitor;
-    impl<'de> Visitor<'de> for EmptyConstraintVisitor {
+    impl Visitor<'_> for EmptyConstraintVisitor {
         type Value = EmptyConstraint;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

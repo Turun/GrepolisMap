@@ -225,7 +225,7 @@ pub enum Comparator {
 }
 
 impl Comparator {
-    pub fn compare<T: PartialEq + PartialOrd>(&self, a: T, b: T) -> bool {
+    pub fn compare<T: PartialEq + PartialOrd>(self, a: T, b: T) -> bool {
         match self {
             Comparator::LessThan => a <= b,
             Comparator::Equal => a == b,

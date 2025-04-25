@@ -1,13 +1,16 @@
+/// This is a file for the messages passed between the view and the presenter.
+/// message passing communication allows them to be on separate threads. Also it's good code hygene
+/// UPDATE: yeah about that .... lol. Message passing is nice, but it takes some form of good
+/// control flow, which I have given up on after switching to a completely sync code model that
+/// allows us to run in the browser. Technically I could still make it work, but it is more likely
+/// that I will drop messages fully at some point.
 use core::fmt;
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::town::Town;
 use crate::view::preferences::CacheSize;
-
-/// This is a file for the messages passed between the view and the presenter.
-/// message passing communication allows them to be on separate threads. Also it's good code hygene
 
 pub enum PresenterReady {
     AlwaysHasBeen,
@@ -24,7 +27,6 @@ pub enum MessageToServer {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone)]
 pub enum MessageToView {
-    Loading(Progress),
     GotServer,
     AllTowns(Arc<Vec<Town>>),
     GhostTowns(Arc<Vec<Town>>),
@@ -54,7 +56,6 @@ impl fmt::Display for MessageToView {
                     towns.len()
                 )
             }
-            MessageToView::Loading(progress) => write!(f, "MessageToView::Loading({progress:?})"),
             MessageToView::AllTowns(towns) => {
                 write!(f, "MessageToView::AllTowns({} towns)", towns.len())
             }
@@ -78,7 +79,6 @@ pub enum MessageToModel {
         HashSet<EmptyConstraint>,
         Vec<EmptyTownSelection>,
     ),
-    LoadDataFromFile(PathBuf, egui::Context),
     MaxCacheSize(CacheSize),
 }
 
@@ -99,9 +99,6 @@ impl fmt::Display for MessageToModel {
             MessageToModel::FetchGhosts => {
                 write!(f, "MessageToModel::FetchGhosts")
             }
-            MessageToModel::LoadDataFromFile(path, _ctx) => {
-                write!(f, "MessageToModel::LoadDataFromFile({path:?})")
-            }
             MessageToModel::MaxCacheSize(x) => {
                 write!(f, "MessageToModel::MaxCacheSize({})", x.to_string())
             }
@@ -115,9 +112,4 @@ pub enum Progress {
     BackendCrashed(String),
     Fetching,
     LoadingFile,
-}
-
-#[derive(Debug, Clone)]
-pub struct Server {
-    pub id: String,
 }

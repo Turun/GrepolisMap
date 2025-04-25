@@ -10,10 +10,11 @@ use crate::storage::SavedDB;
 
 use super::APIResponse;
 
+#[allow(clippy::too_many_lines)]
 pub fn sqlite_to_apiresponse(db: SavedDB) -> anyhow::Result<APIResponse> {
     let path = db.path.clone();
-    let conn = Connection::open(&path)
-        .with_context(|| format!("Failed to open database at {:?}", path))?;
+    let conn =
+        Connection::open(&path).with_context(|| format!("Failed to open database at {path:?}"))?;
 
     // 1) players.txt
     let mut stmt = conn
@@ -27,19 +28,16 @@ pub fn sqlite_to_apiresponse(db: SavedDB) -> anyhow::Result<APIResponse> {
         .query_map([], |row| {
             let id: i64 = row.get(0)?;
             let name: String = row.get(1)?;
-            let alliance: Option<i64> = row.get(2)?;
+            let alliance_id: Option<i64> = row.get(2)?;
             let pts: i64 = row.get(3)?;
             let rank: i64 = row.get(4)?;
             let towns: i64 = row.get(5)?;
 
             // URL-encode exactly as form_urlencoded::parse would decode
             let name_enc = utf8_percent_encode(&name, NON_ALPHANUMERIC).to_string();
-            let alliance_s = alliance.map(|a| a.to_string()).unwrap_or_default();
+            let alliance = alliance_id.map(|a| a.to_string()).unwrap_or_default();
 
-            Ok(format!(
-                "{},{},{},{},{},{}",
-                id, name_enc, alliance_s, pts, rank, towns
-            ))
+            Ok(format!("{id},{name_enc},{alliance},{pts},{rank},{towns}"))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     let players_txt = players.join("\n");
@@ -63,10 +61,7 @@ pub fn sqlite_to_apiresponse(db: SavedDB) -> anyhow::Result<APIResponse> {
 
             let name_enc = utf8_percent_encode(&name, NON_ALPHANUMERIC).to_string();
 
-            Ok(format!(
-                "{},{},{},{},{},{}",
-                id, name_enc, pts, towns, memb, rank
-            ))
+            Ok(format!("{id},{name_enc},{pts},{towns},{memb},{rank}"))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     let alliances_txt = alliances.join("\n");
@@ -82,7 +77,7 @@ pub fn sqlite_to_apiresponse(db: SavedDB) -> anyhow::Result<APIResponse> {
     let towns = stmt
         .query_map([], |row| {
             let id: i64 = row.get(0)?;
-            let player: Option<i64> = row.get(1)?;
+            let player_id: Option<i64> = row.get(1)?;
             let name: String = row.get(2)?;
             let ix: i64 = row.get(3)?;
             let iy: i64 = row.get(4)?;
@@ -90,12 +85,9 @@ pub fn sqlite_to_apiresponse(db: SavedDB) -> anyhow::Result<APIResponse> {
             let pts: i64 = row.get(6)?;
 
             let name_enc = utf8_percent_encode(&name, NON_ALPHANUMERIC).to_string();
-            let player_s = player.map(|p| p.to_string()).unwrap_or_default();
+            let player = player_id.map(|p| p.to_string()).unwrap_or_default();
 
-            Ok(format!(
-                "{},{},{},{},{},{},{}",
-                id, player_s, name_enc, ix, iy, slot, pts
-            ))
+            Ok(format!("{id},{player},{name_enc},{ix},{iy},{slot},{pts}"))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     let towns_txt = towns.join("\n");
@@ -118,10 +110,7 @@ pub fn sqlite_to_apiresponse(db: SavedDB) -> anyhow::Result<APIResponse> {
             let plus: String = row.get(5)?;
             let minus: String = row.get(6)?;
 
-            Ok(format!(
-                "{},{},{},{},{},{},{}",
-                id, x, y, typ, towns, plus, minus
-            ))
+            Ok(format!("{id},{x},{y},{typ},{towns},{plus},{minus}"))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     let islands_txt = islands.join("\n");

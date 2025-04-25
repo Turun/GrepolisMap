@@ -74,20 +74,20 @@ impl Presenter {
     }
 
     /// triggers the server loading, which is handled asynchronously
-    /// This is deliberately its own method, because the self.model = Model::Uninit needs to be triggered before the
+    /// This is deliberately its own method, because the self.model = `Model::Uninit` needs to be triggered before the
     /// normal message processing.
     pub fn load_server(&mut self, server: String) {
         let api_response = Arc::new(Mutex::new(APIResponse::new(server)));
         self.model = Model::Uninitialized(Arc::clone(&api_response));
-        DataTable::get_api_results(Arc::clone(&api_response));
+        DataTable::get_api_results(&Arc::clone(&api_response));
     }
 
     /// triggers the server loading, which is handled asynchronously
-    /// This is deliberately its own method, because the self.model = Model::Uninit needs to be triggered before the
+    /// This is deliberately its own method, because the self.model = `Model::Uninit` needs to be triggered before the
     /// normal message processing.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load_server_from_file(&mut self, saved_db: SavedDB) {
-        let api_response = Arc::new(Mutex::new(APIResponse::new(String::from(""))));
+        let api_response = Arc::new(Mutex::new(APIResponse::new(String::new())));
         self.model = Model::Uninitialized(Arc::clone(&api_response));
         APIResponse::load_from_file(saved_db, api_response);
     }
@@ -96,7 +96,7 @@ impl Presenter {
     /// if model is not in the loading state we return a flat 1.0
     pub fn loading_progress(&self) -> f32 {
         match &self.model {
-            Model::Uninitialized(arc) => arc.lock().unwrap().count_completed() as f32 / 4.0,
+            Model::Uninitialized(arc) => f32::from(arc.lock().unwrap().count_completed()) / 4.0,
             Model::Loaded { .. } => 1.0,
         }
     }
@@ -108,38 +108,38 @@ impl Presenter {
         match &self.model {
             Model::Uninitialized(api_response) => {
                 let api_response = api_response.lock().unwrap().clone();
-                if api_response.is_complete() {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    api_response.save_to_file();
-                    #[cfg(not(target_arch = "wasm32"))]
-                    let db_path = api_response.filename.clone();
-
-                    let db_result = DataTable::create_for_world(api_response);
-                    match db_result {
-                        Ok(db) => {
-                            self.model = Model::Loaded {
-                                db,
-                                cache_strings: HashMap::default(),
-                                cache_towns: HashMap::default(),
-                            };
-                            return Ok(PresenterReady::NewlyReady);
-                        }
-                        Err(err) => {
-                            self.model = Model::Uninitialized(Arc::new(Mutex::new(
-                                APIResponse::new(String::new()),
-                            )));
-
-                            // if we failed halfway during the creation of our db, we need to remove the unfinished db from the filesystem
-                            #[cfg(not(target_arch = "wasm32"))]
-                            if let Some(path) = db_path {
-                                let _result = storage::remove_db(&path);
-                            }
-
-                            return Err(anyhow!("{err}"));
-                        }
-                    }
-                } else {
+                if !api_response.is_complete() {
                     return Ok(PresenterReady::WaitingForAPI);
+                }
+
+                #[cfg(not(target_arch = "wasm32"))]
+                api_response.save_to_file();
+                #[cfg(not(target_arch = "wasm32"))]
+                let db_path = api_response.filename.clone();
+
+                let db_result = DataTable::create_for_world(api_response);
+                match db_result {
+                    Ok(db) => {
+                        self.model = Model::Loaded {
+                            db,
+                            cache_strings: HashMap::default(),
+                            cache_towns: HashMap::default(),
+                        };
+                        return Ok(PresenterReady::NewlyReady);
+                    }
+                    Err(err) => {
+                        self.model = Model::Uninitialized(Arc::new(Mutex::new(APIResponse::new(
+                            String::new(),
+                        ))));
+
+                        // if we failed halfway during the creation of our db, we need to remove the unfinished db from the filesystem
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Some(path) = db_path {
+                            let _result = storage::remove_db(&path);
+                        }
+
+                        return Err(anyhow!("{err}"));
+                    }
                 }
             }
             Model::Loaded { .. } => return Ok(PresenterReady::AlwaysHasBeen),
@@ -155,50 +155,21 @@ impl Presenter {
             println!("Got Message from View to Model: {message}");
             match message {
                 MessageToModel::MaxCacheSize(x) => {
-                    self.max_cache_size = x.clone();
-                }
-                MessageToModel::LoadDataFromFile(path, ctx) => {
-                    todo!("we had this in the SQL version, but it's still a TODO for the rust only version");
-                    // let db_result = Database::load_from_file(&path);
-                    // match db_result {
-                    //     Ok(db) => {
-                    //         self.model = Model::Loaded {
-                    //             db,
-                    //             ctx,
-                    //             cache_strings: HashMap::default(),
-                    //             cache_towns: HashMap::default(),
-                    //         };
-                    //         send_to_view(
-                    //             &self.channel_tx,
-                    //             Ok(MessageToView::GotServer),
-                    //             String::from("Failed to send message 'got server'"),
-                    //         );
-                    //     }
-                    //     Err(err) => {
-                    //         self.model = Model::Uninitialized;
-                    //         send_to_view(
-                    //             &self.channel_tx,
-                    //             Ok(MessageToView::BackendCrashed(err)),
-                    //             String::from("Failed to send crash message to view"),
-                    //         );
-                    //     }
-                    // }
+                    self.max_cache_size = *x;
                 }
                 MessageToModel::FetchAll => {
                     let towns = self.model.get_all_towns();
-                    let msg = towns.map(MessageToView::AllTowns);
                     send_to_view(
                         &mut re,
-                        msg,
+                        Ok(MessageToView::AllTowns(towns)),
                         String::from("Failed to send all town list to view"),
                     );
                 }
                 MessageToModel::FetchGhosts => {
                     let towns = self.model.get_ghost_towns();
-                    let msg = towns.map(MessageToView::GhostTowns);
                     send_to_view(
                         &mut re,
-                        msg,
+                        Ok(MessageToView::GhostTowns(towns)),
                         String::from("Failed to send ghost town list to view"),
                     );
                 }
@@ -233,14 +204,14 @@ impl Presenter {
                     // The drop down values for the constraints currently being edited
                     for c in constraints_edited {
                         let possible_ddv =
-                            Self::possible_ddv_selections_or(&c, &selection, &all_selections)
+                            Self::possible_ddv_selections_or(c, selection, all_selections)
                                 .ok_or(Err(0))
                                 .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
                                     self.model.get_names_for_constraint_with_constraints(
-                                        &selection,
+                                        selection,
                                         c.constraint_type,
                                         &constraints_filled_not_edited,
-                                        &all_selections,
+                                        all_selections,
                                     )
                                 });
                         let msg = possible_ddv.map(|t| {
@@ -255,9 +226,9 @@ impl Presenter {
 
                     // Towns of this selection
                     let towns = self.model.get_towns_for_constraints(
-                        &selection,
+                        selection,
                         &constraints_filled_all,
-                        &all_selections,
+                        all_selections,
                     );
                     let msg =
                         towns.map(|t| MessageToView::TownListForSelection(selection.clone(), t));
@@ -271,14 +242,14 @@ impl Presenter {
                     if !constraints_empty.is_empty() {
                         for c in constraints_empty {
                             let possible_ddv =
-                                Self::possible_ddv_selections_or(c, &selection, &all_selections)
+                                Self::possible_ddv_selections_or(c, selection, all_selections)
                                     .ok_or(Err(0))
                                     .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
                                         self.model.get_names_for_constraint_with_constraints(
-                                            &selection,
+                                            selection,
                                             c.constraint_type,
                                             &constraints_filled_all,
-                                            &all_selections,
+                                            all_selections,
                                         )
                                     });
                             let msg = possible_ddv.map(|t| {
@@ -302,15 +273,17 @@ impl Presenter {
                     } else if constraints_filled_not_edited.len() == 1 {
                         // only one constraint that is filled, but not edited -> no restrictions apply
                         let c = constraints_filled_not_edited[0].clone();
+
                         let possible_ddv =
-                            Self::possible_ddv_selections_or(&c, &selection, &all_selections)
-                                .ok_or(Err(0))
-                                .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
+                            Self::possible_ddv_selections_or(&c, selection, all_selections)
+                                .unwrap_or_else(|| {
                                     self.model.get_names_for_constraint_type(c.constraint_type)
                                 });
-                        let msg = possible_ddv.map(|t| {
-                            MessageToView::ValueListForConstraint(c, selection.clone(), t)
-                        });
+                        let msg = Ok(MessageToView::ValueListForConstraint(
+                            c,
+                            selection.clone(),
+                            possible_ddv,
+                        ));
                         send_to_view(
                             &mut re,
                             msg,
@@ -328,14 +301,14 @@ impl Presenter {
                             let _this_constraint = other_constraints.swap_remove(index);
 
                             let possible_ddv =
-                                Self::possible_ddv_selections_or(&c, &selection, &all_selections)
+                                Self::possible_ddv_selections_or(&c, selection, all_selections)
                                     .ok_or(Err(0))
                                     .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
                                         self.model.get_names_for_constraint_with_constraints(
-                                            &selection,
+                                            selection,
                                             c.constraint_type,
                                             &other_constraints,
-                                            &all_selections,
+                                            all_selections,
                                         )
                                     });
                             let msg = possible_ddv.map(|t| {

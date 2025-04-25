@@ -1,7 +1,7 @@
 #[derive(Debug, Clone)]
 pub struct Town {
-    pub id: i32,
-    pub player_id: Option<i32>,
+    pub id: u32,
+    pub player_id: Option<u32>,
     pub player_name: Option<String>,
     pub alliance_name: Option<String>,
     pub name: String,

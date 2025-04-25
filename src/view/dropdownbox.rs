@@ -27,7 +27,7 @@ impl<'a> DropDownBox<'a> {
     }
 }
 
-impl<'a> Widget for DropDownBox<'a> {
+impl Widget for DropDownBox<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
             popup_id,

@@ -11,7 +11,7 @@ impl View {
     pub fn ui_sidepanel(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.vertical(|ui| {
-                self.ui_server_input(ui, ctx);
+                self.ui_server_input(ui);
                 ui.label(t!(
                     "sidepanel.town_stats.total",
                     count = self.ui_data.all_towns.len()

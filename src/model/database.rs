@@ -75,14 +75,13 @@ impl std::hash::Hash for BackendTown {
 impl From<&BackendTown> for Town {
     fn from(value: &BackendTown) -> Self {
         Self {
-            id: value.id as i32,
-            player_id: value.player.as_ref().map(|(id, _)| *id as i32),
+            id: value.id,
+            player_id: value.player.as_ref().map(|(id, _)| *id),
             player_name: value.player.as_ref().map(|(_, p)| p.name.clone()),
             alliance_name: value
                 .player
                 .as_ref()
-                .map(|(_, p)| p.alliance.as_ref())
-                .flatten()
+                .and_then(|(_, p)| p.alliance.as_ref())
                 .map(|(_, a)| a.name.clone()),
             name: value.name.clone(),
             x: value.actual_x,
@@ -98,24 +97,20 @@ pub struct DataTable {
 }
 
 impl DataTable {
-    pub fn get_all_towns(&self) -> anyhow::Result<Vec<Town>> {
-        Ok(self.towns.iter().map(|t| t.deref().into()).collect())
+    pub fn get_all_towns(&self) -> Vec<Town> {
+        self.towns.iter().map(|t| t.deref().into()).collect()
     }
 
-    pub fn get_ghost_towns(&self) -> anyhow::Result<Vec<Town>> {
-        Ok(self
-            .towns
+    pub fn get_ghost_towns(&self) -> Vec<Town> {
+        self.towns
             .iter()
-            .map(|t| t.deref())
+            .map(std::ops::Deref::deref)
             .filter(|t| t.player.is_none())
-            .map(|t| t.into())
-            .collect())
+            .map(std::convert::Into::into)
+            .collect()
     }
 
-    pub fn get_names_for_constraint_type(
-        &self,
-        constraint_type: ConstraintType,
-    ) -> anyhow::Result<Vec<String>> {
+    pub fn get_names_for_constraint_type(&self, constraint_type: ConstraintType) -> Vec<String> {
         return get_names_for_constraint_type_in_town_list(&self.towns, constraint_type);
     }
 
@@ -124,12 +119,12 @@ impl DataTable {
         constraint_type: ConstraintType,
         selection: &EmptyTownSelection,
         all_selections: &[EmptyTownSelection],
-    ) -> anyhow::Result<Vec<String>> {
+    ) -> Vec<String> {
         if selection.constraints.is_empty() {
             return self.get_names_for_constraint_type(constraint_type);
         }
 
-        let towns = self.get_backendtowns_for_constraints(&selection, all_selections)?;
+        let towns = self.get_backendtowns_for_constraints(selection, all_selections);
         return get_names_for_constraint_type_in_town_list(&towns, constraint_type);
     }
 
@@ -137,42 +132,40 @@ impl DataTable {
         &self,
         selection: &EmptyTownSelection,
         all_selections: &[EmptyTownSelection],
-    ) -> anyhow::Result<Vec<Town>> {
+    ) -> Vec<Town> {
         if selection.constraints.is_empty() {
-            return Ok(Vec::new());
+            return Vec::new();
         }
 
-        return Ok(self
-            .get_backendtowns_for_constraints(selection, all_selections)?
+        return self
+            .get_backendtowns_for_constraints(selection, all_selections)
             .iter()
             .map(|bt| &**bt)
-            .map(|bt| bt.into())
-            .collect());
+            .map(std::convert::Into::into)
+            .collect();
     }
 
     pub fn get_backendtowns_for_constraints(
         &self,
         selection: &EmptyTownSelection,
         all_selections: &[EmptyTownSelection],
-    ) -> anyhow::Result<Vec<Rc<BackendTown>>> {
+    ) -> Vec<Rc<BackendTown>> {
         if selection.constraints.is_empty() {
-            return Ok(Vec::new());
+            return Vec::new();
         }
 
-        let re = super::database::matching_towns_for_selection(
-            HashSet::from_iter(self.towns.clone().into_iter()),
-            &selection,
+        return super::database::matching_towns_for_selection(
+            &HashSet::from_iter(self.towns.clone()),
+            selection,
             all_selections,
         )
         .into_iter()
         .collect();
-
-        return Ok(re);
     }
 }
 
 pub fn matching_towns_for_selection(
-    towns: HashSet<Rc<BackendTown>>,
+    towns: &HashSet<Rc<BackendTown>>,
     selection: &EmptyTownSelection,
     all_selections: &[EmptyTownSelection],
 ) -> HashSet<Rc<BackendTown>> {
@@ -226,13 +219,14 @@ pub fn matching_towns_for_selection(
     return local_towns;
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn get_names_for_constraint_type_in_town_list(
     towns: &[Rc<BackendTown>],
     constraint_type: ConstraintType,
-) -> anyhow::Result<Vec<String>> {
+) -> Vec<String> {
     // TODO: we can probably improve the code by moving from collect into vector > sort > dedup into something hashset based (BTreeSet)
 
-    let re = match constraint_type {
+    return match constraint_type {
         ConstraintType::PlayerID => {
             let mut values = towns
                 .iter()
@@ -430,6 +424,4 @@ pub fn get_names_for_constraint_type_in_town_list(
             values
         }
     };
-
-    return Ok(re);
 }

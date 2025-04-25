@@ -11,8 +11,7 @@ use eframe::epaint::ahash::HashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::BTreeSet;
-use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{fs, thread};
 #[cfg(not(target_arch = "wasm32"))]
@@ -100,7 +99,7 @@ impl APIResponse {
         return self.count_completed() == 4;
     }
 
-    /// given a filepath, load the previously fetched API Response and put it into the api_results out variable. This is done so the UI doesn't hang.
+    /// given a filepath, load the previously fetched API Response and put it into the `api_results` out variable. This is done so the UI doesn't hang.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load_from_file(saved_db: SavedDB, api_results: Arc<Mutex<APIResponse>>) {
         thread::spawn(move || {
@@ -152,7 +151,7 @@ impl APIResponse {
                         );
                     } else {
                         match fs::write(filename, output_string) {
-                            Ok(_) => {
+                            Ok(()) => {
                                 println!("successfully saved api response to file");
                             }
                             Err(err) => {
@@ -258,9 +257,8 @@ impl Model {
                         tuple.1.clone()
                     }
                     Entry::Vacant(entry) => {
-                        let value = Arc::new(
-                            db.get_towns_for_constraints(&this_selection, all_selections)?,
-                        );
+                        let value =
+                            Arc::new(db.get_towns_for_constraints(&this_selection, all_selections));
                         entry.insert((1.0, value)).1.clone()
                     }
                 };
@@ -310,14 +308,14 @@ impl Model {
                                 constraint_type,
                                 &this_selection,
                                 all_selections,
-                            )?,
+                            ),
                             AndOr::Or => {
                                 let present_constraints: Vec<&str> = constraints
                                     .iter()
                                     .filter(|c| c.constraint_type == constraint_type)
                                     .map(|c| c.value.as_str())
                                     .collect();
-                                db.get_names_for_constraint_type(constraint_type)?
+                                db.get_names_for_constraint_type(constraint_type)
                                     .into_iter()
                                     .filter(|s| !present_constraints.contains(&s.as_str()))
                                     .collect()
@@ -331,42 +329,41 @@ impl Model {
         }
     }
 
-    pub fn get_ghost_towns(&self) -> anyhow::Result<Arc<Vec<Town>>> {
+    pub fn get_ghost_towns(&self) -> Arc<Vec<Town>> {
         match self {
-            Model::Uninitialized(_) => Ok(Arc::new(Vec::new())),
-            Model::Loaded { db, .. } => Ok(Arc::new(db.get_ghost_towns()?)),
+            Model::Uninitialized(_) => Arc::new(Vec::new()),
+            Model::Loaded { db, .. } => Arc::new(db.get_ghost_towns()),
         }
     }
 
-    pub fn get_all_towns(&self) -> anyhow::Result<Arc<Vec<Town>>> {
+    pub fn get_all_towns(&self) -> Arc<Vec<Town>> {
         match self {
-            Model::Uninitialized(_) => Ok(Arc::new(Vec::new())),
-            Model::Loaded { db, .. } => Ok(Arc::new(db.get_all_towns()?)),
+            Model::Uninitialized(_) => Arc::new(Vec::new()),
+            Model::Loaded { db, .. } => Arc::new(db.get_all_towns()),
         }
     }
 
     pub fn get_names_for_constraint_type(
         &mut self,
         constraint_type: ConstraintType,
-    ) -> anyhow::Result<Arc<Vec<String>>> {
+    ) -> Arc<Vec<String>> {
         match self {
-            Model::Uninitialized(_) => Ok(Arc::new(Vec::new())),
+            Model::Uninitialized(_) => Arc::new(Vec::new()),
             Model::Loaded {
                 db, cache_strings, ..
             } => {
                 let key = (constraint_type, Vec::new(), AndOr::And, BTreeSet::new());
-                let value = match cache_strings.entry(key) {
+                return match cache_strings.entry(key) {
                     Entry::Occupied(entry) => {
                         let tuple = entry.into_mut();
                         tuple.0 += 1.0;
                         tuple.1.clone()
                     }
                     Entry::Vacant(entry) => {
-                        let value = Arc::new(db.get_names_for_constraint_type(constraint_type)?);
+                        let value = Arc::new(db.get_names_for_constraint_type(constraint_type));
                         entry.insert((1.0, value)).1.clone()
                     }
                 };
-                Ok(value)
             }
         }
     }

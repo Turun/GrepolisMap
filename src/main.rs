@@ -1,5 +1,6 @@
 #![warn(clippy::pedantic)]
-#![allow(clippy::expect_fun_call)]
+#![allow(clippy::to_string_trait_impl)]
+#![allow(clippy::needless_return)]
 // hide the cmd when opening the exe on windows, see: https://github.com/emilk/egui/issues/116
 #![windows_subsystem = "windows"]
 

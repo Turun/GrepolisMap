@@ -40,7 +40,7 @@ impl View {
                         });
                     }
                     if let Some(saved_db) = clicked_path {
-                        self.ui_data.server_id = saved_db.server_str.clone();
+                        self.ui_data.server_id.clone_from(&saved_db.server_str);
                         // change self.ui_data
                         self.reload_server();
                         // tell the backend to fetch data from the server
@@ -145,16 +145,13 @@ impl View {
                             Ok(mut clipboard) => match clipboard.get_text() {
                                 Ok(text) => {
                                     let result = EmptyTownSelection::try_from_str(&text);
-                                    match result {
-                                        Ok(town_selections) => {
-                                            for town_selection in town_selections.iter().map(EmptyTownSelection::fill) {
-                                                if !self.ui_data.selections.contains(&town_selection) {
-                                                    self.ui_data.selections.push(town_selection);
-                                                }
+                                    if let Ok(town_selections) = result {
+                                        for town_selection in town_selections.iter().map(EmptyTownSelection::fill) {
+                                            if !self.ui_data.selections.contains(&town_selection) {
+                                                self.ui_data.selections.push(town_selection);
                                             }
-                                        },
-                                        Err(_) => {/* TODO report any errors to the user*/},
-                                    }
+                                        }
+                                    } else {/* TODO report any errors to the user*/}
                                 }
                                 Err(err) => {
                                     eprintln!("Got a Clipboard, but failed to get text from it: {err}");
@@ -175,16 +172,13 @@ impl View {
                             Ok(files) => {
                                 let results = EmptyTownSelection::try_from_path(&files);
                                 for result in results{
-                                    match result {
-                                        Ok(town_selections) => {
-                                            for town_selection in town_selections.iter().map(EmptyTownSelection::fill) {
-                                                if !self.ui_data.selections.contains(&town_selection) {
-                                                    self.ui_data.selections.push(town_selection);
-                                                }
+                                    if let Ok(town_selections) = result {
+                                        for town_selection in town_selections.iter().map(EmptyTownSelection::fill) {
+                                            if !self.ui_data.selections.contains(&town_selection) {
+                                                self.ui_data.selections.push(town_selection);
                                             }
-                                        },
-                                        Err(_) => {/* TODO report any errors to the user*/},
-                                    }
+                                        }
+                                    } else {/* TODO report any errors to the user*/}
                                 }
                             }
                             Err(err) => {

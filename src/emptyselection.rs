@@ -135,9 +135,7 @@ impl EmptyTownSelection {
     pub fn directly_referenced_selections(&self, all_selections: &[Self]) -> Vec<Self> {
         let referenced_names = self.directly_referenced_selection_names();
         all_selections
-            .iter()
-            .cloned()
-            .filter(|selection| referenced_names.contains(&selection.name))
+            .iter().filter(|&selection| referenced_names.contains(&selection.name)).cloned()
             .collect()
     }
 
