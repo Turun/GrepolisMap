@@ -122,7 +122,7 @@ impl Constraint {
                 ddb,
             );
             if ddb_response.gained_focus() {
-                println!("Constraint {selection_index}/{constraint_index} gained focus");
+                println!("Constraint {selection_index}/{constraint_index} gained focus, refreshing drop down values list");
                 self.drop_down_values = presenter
                     .drop_down_values_for_constraint(
                         &self.partial_clone(),

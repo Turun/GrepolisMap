@@ -84,7 +84,7 @@ impl View {
                         // refresh the selection that is currently being edited with the caveat that some constraints are currently being edited and we should maybe not change their drop down values
                         let result = selection.refresh_self(
                             &mut self.presenter,
-                            edited_constraints,
+                            &edited_constraints,
                             &all_selections,
                         );
                         if let Err(err) = result {
@@ -105,7 +105,7 @@ impl View {
                                 .expect("This Should not happen");
                             let result = selection.refresh_self(
                                 &mut self.presenter,
-                                HashSet::new(),
+                                &HashSet::new(),
                                 &all_selections,
                             );
                             if let Err(err) = result {

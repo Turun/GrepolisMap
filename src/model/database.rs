@@ -154,7 +154,7 @@ impl DataTable {
             return Vec::new();
         }
 
-        return super::database::matching_towns_for_selection(
+        return matching_towns_for_selection(
             &HashSet::from_iter(self.towns.clone()),
             selection,
             all_selections,

@@ -342,29 +342,4 @@ impl Model {
             Model::Loaded { db, .. } => Arc::new(db.get_all_towns()),
         }
     }
-
-    pub fn get_names_for_constraint_type(
-        &mut self,
-        constraint_type: ConstraintType,
-    ) -> Arc<Vec<String>> {
-        match self {
-            Model::Uninitialized(_) => Arc::new(Vec::new()),
-            Model::Loaded {
-                db, cache_strings, ..
-            } => {
-                let key = (constraint_type, Vec::new(), AndOr::And, BTreeSet::new());
-                return match cache_strings.entry(key) {
-                    Entry::Occupied(entry) => {
-                        let tuple = entry.into_mut();
-                        tuple.0 += 1.0;
-                        tuple.1.clone()
-                    }
-                    Entry::Vacant(entry) => {
-                        let value = Arc::new(db.get_names_for_constraint_type(constraint_type));
-                        entry.insert((1.0, value)).1.clone()
-                    }
-                };
-            }
-        }
-    }
 }

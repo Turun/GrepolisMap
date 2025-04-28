@@ -168,7 +168,7 @@ impl TownSelection {
     pub fn refresh_self(
         &mut self,
         presenter: &mut Presenter,
-        keep_ddv: HashSet<EmptyConstraint>,
+        keep_ddv: &HashSet<EmptyConstraint>,
         all_selections: &[EmptyTownSelection],
     ) -> anyhow::Result<()> {
         // Check if there is a cycle. If so, do not send to the backend
@@ -196,6 +196,9 @@ impl TownSelection {
             // in other words, make sure it's refreshed but also dont flash the
             // list in the users face everytime they type a single character
             constraint.drop_down_values = None;
+            // TODO: I think we can get rid of this drop mechanic. The list is refreshed whenever the constraint
+            // gains focus. That should be enough in my opinion, be we need to make absolutely sure before we refactor
+            // anything. If we do can can drop the keep_ddv arguement, which would cascade and remove a lot of code.
         }
 
         let fetch_towns_result =

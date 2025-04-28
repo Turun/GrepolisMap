@@ -5,11 +5,7 @@
 /// allows us to run in the browser. Technically I could still make it work, but it is more likely
 /// that I will drop messages fully at some point.
 use core::fmt;
-use std::{collections::HashSet, sync::Arc};
 
-use crate::emptyconstraint::EmptyConstraint;
-use crate::emptyselection::EmptyTownSelection;
-use crate::town::Town;
 use crate::view::preferences::CacheSize;
 
 pub enum PresenterReady {
@@ -28,11 +24,6 @@ pub enum MessageToServer {
 #[derive(Debug, Clone)]
 pub enum MessageToView {
     GotServer,
-    AllTowns(Arc<Vec<Town>>),
-    GhostTowns(Arc<Vec<Town>>),
-    TownListForSelection(EmptyTownSelection, Arc<Vec<Town>>),
-    ValueListForConstraint(EmptyConstraint, EmptyTownSelection, Arc<Vec<String>>),
-    BackendCrashed(String),
 }
 
 impl fmt::Display for MessageToView {
@@ -41,30 +32,6 @@ impl fmt::Display for MessageToView {
             MessageToView::GotServer => {
                 write!(f, "MessageToView::GotServer",)
             }
-            MessageToView::TownListForSelection(selection, towns) => write!(
-                f,
-                "MessageToView::TownListForSelection({}, {} towns)",
-                selection,
-                towns.len()
-            ),
-            MessageToView::ValueListForConstraint(constraint, selection, towns) => {
-                write!(
-                    f,
-                    "MessageToView::ValueListForConstraint({}, {}, {} Values)",
-                    constraint,
-                    selection,
-                    towns.len()
-                )
-            }
-            MessageToView::AllTowns(towns) => {
-                write!(f, "MessageToView::AllTowns({} towns)", towns.len())
-            }
-            MessageToView::GhostTowns(towns) => {
-                write!(f, "MessageToView::GhostTowns({} towns)", towns.len())
-            }
-            MessageToView::BackendCrashed(err) => {
-                write!(f, "MessageToView::BackendCrashed({err:?})")
-            }
         }
     }
 }
@@ -72,33 +39,12 @@ impl fmt::Display for MessageToView {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone)]
 pub enum MessageToModel {
-    FetchAll,
-    FetchGhosts,
-    FetchTowns(
-        EmptyTownSelection,
-        HashSet<EmptyConstraint>,
-        Vec<EmptyTownSelection>,
-    ),
     MaxCacheSize(CacheSize),
 }
 
 impl fmt::Display for MessageToModel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MessageToModel::FetchTowns(selection, constraints, selections) => {
-                write!(
-                    f,
-                    "MessageToModel::FetchTowns({selection}, {} Constraints currently edited, {} total selections)",
-                    constraints.len(),
-                    selections.len()
-                )
-            }
-            MessageToModel::FetchAll => {
-                write!(f, "MessageToModel::FetchAll")
-            }
-            MessageToModel::FetchGhosts => {
-                write!(f, "MessageToModel::FetchGhosts")
-            }
             MessageToModel::MaxCacheSize(x) => {
                 write!(f, "MessageToModel::MaxCacheSize({})", x.to_string())
             }
@@ -107,6 +53,10 @@ impl fmt::Display for MessageToModel {
 }
 
 #[derive(Debug, Clone)]
+// Regarding Progress::BackendCrashed: technically we don't need to remove the displayed
+// stuff yet and could the ui state as initialized. The data that is already loaded
+// can persist. It's just that the user can't fetch any new data from the backend, so a
+// warning about that should be fine.
 pub enum Progress {
     None,
     BackendCrashed(String),

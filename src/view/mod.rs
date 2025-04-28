@@ -10,7 +10,7 @@ use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
 use crate::message::{MessageToModel, MessageToServer, MessageToView, PresenterReady, Progress};
 use crate::presenter::Presenter;
-use crate::selection::{SelectionState, TownSelection};
+use crate::selection::TownSelection;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::storage;
 use crate::telemetry;
@@ -377,10 +377,7 @@ impl eframe::App for View {
                     ctx.request_repaint();
                 }
 
-                let mut additional_messages_to_view =
-                    self.presenter.process_messages(&self.messages_to_presenter);
-                self.messages_to_view
-                    .append(&mut additional_messages_to_view);
+                self.presenter.process_messages(&self.messages_to_presenter);
                 self.messages_to_presenter = Vec::new();
             }
             Ok(PresenterReady::WaitingForAPI) | Err(_) => {}
@@ -422,7 +419,7 @@ impl eframe::App for View {
                         selection.towns = Arc::new(Vec::new());
                         let result = selection.refresh_self(
                             &mut self.presenter,
-                            HashSet::new(),
+                            &HashSet::new(),
                             &all_selections,
                         );
                         if let Err(err) = result {
@@ -430,58 +427,6 @@ impl eframe::App for View {
                                 State::Uninitialized(Progress::BackendCrashed(format!("{err:?}")));
                         }
                     }
-                }
-                MessageToView::TownListForSelection(selection, town_list) => {
-                    self.ui_state = State::Show;
-                    let optional_selection = self
-                        .ui_data
-                        .selections
-                        .iter_mut()
-                        .find(|element| element.hidden_id == selection.hidden_id);
-                    if let Some(selection) = optional_selection {
-                        selection.towns = town_list;
-                        selection.state = SelectionState::Finished;
-                    } else {
-                        eprintln!("No existing selection found for {selection}");
-                    }
-                }
-                MessageToView::ValueListForConstraint(constraint, selection, towns) => {
-                    self.ui_state = State::Show;
-                    let optional_selection = self
-                        .ui_data
-                        .selections
-                        .iter_mut()
-                        .find(|element| element.hidden_id == selection.hidden_id);
-                    if let Some(selection) = optional_selection {
-                        let optional_constraint =
-                            selection.constraints.iter_mut().find(|c| **c == constraint);
-                        if let Some(constraint) = optional_constraint {
-                            constraint.drop_down_values = Some(towns);
-                        } else {
-                            eprintln!(
-                                "No existing constraint {constraint} found in selection {}",
-                                selection.partial_clone()
-                            );
-                        }
-                    } else {
-                        eprintln!("No existing selection found for {selection}");
-                    }
-                }
-                MessageToView::AllTowns(towns) => {
-                    self.ui_state = State::Show;
-                    self.ui_data.all_towns = towns;
-                }
-                MessageToView::GhostTowns(towns) => {
-                    self.ui_state = State::Show;
-                    self.ui_data.ghost_towns = towns;
-                }
-                MessageToView::BackendCrashed(err) => {
-                    // technically we don't need to remove the displayed stuff yet. The data that
-                    // is already loaded can persist. It's just that the user can't fetch any new data
-                    // from the backend, so a warning about that should be fine.
-                    eprintln!("Backend Crashed with the following error:\n{err:?}");
-                    self.ui_state =
-                        State::Uninitialized(Progress::BackendCrashed(format!("{err:?}")));
                 }
             }
         }

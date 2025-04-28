@@ -3,7 +3,7 @@ use eframe::epaint::ahash::HashMap;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToModel, MessageToView, PresenterReady};
+use crate::message::{MessageToModel, PresenterReady};
 use crate::model::database::DataTable;
 use crate::model::{APIResponse, Model};
 use crate::town::Town;
@@ -12,24 +12,6 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::storage::{self, SavedDB};
-
-/// Given a Result<MessageToView>, send it to the View if it is ok. If the sending
-/// fails, output to stderr with the message given in `error_channel`. If the given
-/// message result is error, simply output it to stderr.
-fn send_to_view(
-    tx: &mut Vec<MessageToView>,
-    msg_opt: anyhow::Result<MessageToView>,
-    _error_channel: String,
-) {
-    match msg_opt {
-        Ok(msg) => {
-            tx.push(msg);
-        }
-        Err(err) => {
-            tx.push(MessageToView::BackendCrashed(format!("{err}")));
-        }
-    }
-}
 
 pub struct Presenter {
     model: Model,
@@ -234,189 +216,16 @@ impl Presenter {
 
     #[allow(clippy::too_many_lines)] // processing all variants of incoming messages simply needs a lot of lines
     /// Start the service that handles incoming messages, calls the appropriate backend code and sends the resutls to the view
-    pub fn process_messages(&mut self, messages: &[MessageToModel]) -> Vec<MessageToView> {
-        let mut re = Vec::new();
-
+    pub fn process_messages(&mut self, messages: &[MessageToModel]) {
         for message in messages {
             println!("Got Message from View to Model: {message}");
             match message {
                 MessageToModel::MaxCacheSize(x) => {
                     self.max_cache_size = *x;
                 }
-                MessageToModel::FetchAll => {
-                    let towns = self.model.get_all_towns();
-                    send_to_view(
-                        &mut re,
-                        Ok(MessageToView::AllTowns(towns)),
-                        String::from("Failed to send all town list to view"),
-                    );
-                }
-                MessageToModel::FetchGhosts => {
-                    let towns = self.model.get_ghost_towns();
-                    send_to_view(
-                        &mut re,
-                        Ok(MessageToView::GhostTowns(towns)),
-                        String::from("Failed to send ghost town list to view"),
-                    );
-                }
-                MessageToModel::FetchTowns(selection, constraints_edited, all_selections) => {
-                    // a list of filled constraints that are not being edited. For each one, filter the ddv list by all _other_ filled, unedited constratins
-                    let constraints_filled_not_edited: Vec<EmptyConstraint> = selection
-                        .constraints
-                        .iter()
-                        .rev()
-                        .filter(|c| !c.value.is_empty())
-                        .filter(|c| !constraints_edited.contains(c))
-                        .cloned()
-                        .collect();
-
-                    // a list of filled constraints. For each one, filter the ddv list by all _other_ filled constratins
-                    let constraints_filled_all: Vec<EmptyConstraint> = selection
-                        .constraints
-                        .iter()
-                        .rev()
-                        .filter(|c| !c.value.is_empty())
-                        .cloned()
-                        .collect();
-
-                    // a list of empty constraints. Filter the ddv list by all non empty constraints
-                    let constraints_empty: Vec<&EmptyConstraint> = selection
-                        .constraints
-                        .iter()
-                        .filter(|c| c.value.is_empty())
-                        .filter(|c| !constraints_edited.contains(c))
-                        .collect();
-
-                    // The drop down values for the constraints currently being edited
-                    for c in constraints_edited {
-                        let possible_ddv =
-                            Self::possible_ddv_selections_or(c, selection, all_selections)
-                                .ok_or(Err(0))
-                                .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
-                                    self.model.get_names_for_constraint_with_constraints(
-                                        selection,
-                                        c.constraint_type,
-                                        &constraints_filled_not_edited,
-                                        all_selections,
-                                    )
-                                });
-                        let msg = possible_ddv.map(|t| {
-                            MessageToView::ValueListForConstraint(c.clone(), selection.clone(), t)
-                        });
-                        send_to_view(
-                            &mut re,
-                            msg,
-                            String::from("Failed to send town list for currently edited drop down"),
-                        );
-                    }
-
-                    // Towns of this selection
-                    let towns = self.model.get_towns_for_constraints(
-                        selection,
-                        &constraints_filled_all,
-                        all_selections,
-                    );
-                    let msg =
-                        towns.map(|t| MessageToView::TownListForSelection(selection.clone(), t));
-                    send_to_view(
-                        &mut re,
-                        msg,
-                        String::from("Failed to send town list to view"),
-                    );
-
-                    // drop down values for the empty constraints
-                    if !constraints_empty.is_empty() {
-                        for c in constraints_empty {
-                            let possible_ddv =
-                                Self::possible_ddv_selections_or(c, selection, all_selections)
-                                    .ok_or(Err(0))
-                                    .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
-                                        self.model.get_names_for_constraint_with_constraints(
-                                            selection,
-                                            c.constraint_type,
-                                            &constraints_filled_all,
-                                            all_selections,
-                                        )
-                                    });
-                            let msg = possible_ddv.map(|t| {
-                                MessageToView::ValueListForConstraint(
-                                    c.clone(),
-                                    selection.clone(),
-                                    t,
-                                )
-                            });
-                            send_to_view(
-                                &mut re,
-                                msg,
-                                String::from("Failed to send town list to view"),
-                            );
-                        }
-                    }
-
-                    // drop down values for the filled constraints
-                    if constraints_filled_not_edited.is_empty() {
-                        // nothing
-                    } else if constraints_filled_not_edited.len() == 1 {
-                        // only one constraint that is filled, but not edited -> no restrictions apply
-                        let c = constraints_filled_not_edited[0].clone();
-
-                        let possible_ddv =
-                            Self::possible_ddv_selections_or(&c, selection, all_selections)
-                                .unwrap_or_else(|| {
-                                    self.model.get_names_for_constraint_type(c.constraint_type)
-                                });
-                        let msg = Ok(MessageToView::ValueListForConstraint(
-                            c,
-                            selection.clone(),
-                            possible_ddv,
-                        ));
-                        send_to_view(
-                            &mut re,
-                            msg,
-                            String::from("Failed to send town list to view"),
-                        );
-                    } else {
-                        // for each constraint, make a list of all other filled constraints and get the ddv list filtered by those
-                        for c in constraints_filled_not_edited {
-                            let mut other_constraints = constraints_filled_all.clone();
-                            let index = other_constraints.iter().position(|x| x == &c);
-                            if index.is_none() {
-                                continue;
-                            }
-                            let index = index.unwrap();
-                            let _this_constraint = other_constraints.swap_remove(index);
-
-                            let possible_ddv =
-                                Self::possible_ddv_selections_or(&c, selection, all_selections)
-                                    .ok_or(Err(0))
-                                    .or_else(|_error_value: Result<Arc<Vec<String>>, i32>| {
-                                        self.model.get_names_for_constraint_with_constraints(
-                                            selection,
-                                            c.constraint_type,
-                                            &other_constraints,
-                                            all_selections,
-                                        )
-                                    });
-                            let msg = possible_ddv.map(|t| {
-                                MessageToView::ValueListForConstraint(
-                                    c.clone(),
-                                    selection.clone(),
-                                    t,
-                                )
-                            });
-                            send_to_view(
-                                &mut re,
-                                msg,
-                                String::from("Failed to send town list to view"),
-                            );
-                        }
-                    }
-                }
             }
 
             self.model.age_cache(self.max_cache_size.value());
         }
-
-        return re;
     }
 }
