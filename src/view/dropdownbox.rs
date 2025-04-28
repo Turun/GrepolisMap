@@ -39,13 +39,8 @@ impl Widget for DropDownBox<'_> {
         if r.gained_focus() {
             ui.memory_mut(|m| m.open_popup(popup_id));
             //TODO: When making the code fully sync we would have self.opt_it always
-            // be None, until we reach this code path. Then we fetch the data from
-            // the presenter (sync) and have opt_it=Some(...)
-            // Widget::ui takes an owned self to call. So we would have to figure out
-            // some way (probably not trivial) on how to get this piece of code access to
-            // the presenter instance and also store the result in something permentent
-            // that is not reconstructed every frame (the constraint struct would be the
-            // obvious place).
+            // be None, until we reach this code path.
+            // On second though, this will be taken care of on the callsite of this code path.
         }
 
         if let Some(it) = opt_it {
@@ -112,7 +107,7 @@ impl Widget for DropDownBox<'_> {
                 }
                 let combined = [first, second].concat();
 
-                egui::ScrollArea::vertical().show(ui, |ui| {
+                let _r = egui::ScrollArea::vertical().show(ui, |ui| {
                     let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
                     let table = TableBuilder::new(ui)
                         .striped(true)
@@ -130,6 +125,9 @@ impl Widget for DropDownBox<'_> {
                                     *buf = text;
                                     changed = true;
                                     ui.memory_mut(egui::Memory::close_popup);
+                                }
+                                if label.has_focus() {
+                                    // tell the global response that we have focus
                                 }
                             });
                         });

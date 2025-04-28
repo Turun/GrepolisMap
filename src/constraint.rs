@@ -1,4 +1,6 @@
 use crate::emptyconstraint::EmptyConstraint;
+use crate::emptyselection::EmptyTownSelection;
+use crate::presenter::Presenter;
 use crate::selection::AndOr;
 use crate::view::dropdownbox::DropDownBox;
 use crate::view::Change;
@@ -57,6 +59,9 @@ impl Constraint {
     pub fn make_ui(
         &mut self,
         ui: &mut egui::Ui,
+        presenter: &mut Presenter,
+        this_selection: &EmptyTownSelection,
+        all_selections: &[EmptyTownSelection],
         selection_index: usize,
         constraint_index: usize,
         last_item: bool,
@@ -109,16 +114,44 @@ impl Constraint {
                 format!("ComboBox {selection_index}/{constraint_index} Value"),
                 &mut self.value,
             );
-            if ui
-                .add_sized(
-                    [
-                        ui.style().spacing.interact_size.x * 4.5,
-                        ui.style().spacing.interact_size.y,
-                    ],
-                    ddb,
-                )
-                .changed()
-            {
+            let ddb_response = ui.add_sized(
+                [
+                    ui.style().spacing.interact_size.x * 4.5,
+                    ui.style().spacing.interact_size.y,
+                ],
+                ddb,
+            );
+            if ddb_response.gained_focus() {
+                println!("Constraint {selection_index}/{constraint_index} gained focus");
+                self.drop_down_values = presenter
+                    .drop_down_values_for_constraint(
+                        &self.partial_clone(),
+                        this_selection,
+                        all_selections,
+                    )
+                    .ok();
+            }
+            if ddb_response.lost_focus() {
+                println!("Constraint {selection_index}/{constraint_index} lost focus");
+                // TODO: when losing focus we should reset self.drop_down_values to None. This prevents the
+                // UI from showing a potentially incorrect list of ddv for one frame when the users clicks
+                // this constraint again. The problem is to determine when we lost focus. At the moment the
+                // ddb_response.has/gained/lost_focus() is only dependent on the text box, not the drop down list of
+                // selectable labels. So to solve this todo we need to figure out how to reliably tell the ddb_response
+                // if it has focus or not.
+                // It would really be best to solve this here with the focus. But as an alternative, we could also
+                // just invalidate the drop down values of all other constraints whenever one is edited. Then we
+                // have the issue of not showing anything for one frame, but that is probably better than showing
+                // a wrong list for one frame. On the other hand, when the values only change rarely, then showing
+                // a usually-not-incorrect list would be better than showing an empty list.
+                // As an alternative alternative (i.e. scratch that over eager invalidation), we could trigger the data
+                // loading/refresh on hover instead of on focus. That could lead to a lot of unnecessary requests to
+                // the backend if the user moves their mouse over the sidepanel (and therefore potentially lag, but that
+                // would be mitigated after the first time by the backend cache). But on the other hand most users don't
+                // use tab navigation, so the data will always be pre loaded correctly when they get to clicking into
+                // the textbox.
+            }
+            if ddb_response.changed() {
                 re_edited = true;
             };
 

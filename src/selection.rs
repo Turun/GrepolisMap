@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::constraint::Constraint;
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::{EmptyTownSelection, HiddenId};
-use crate::message::MessageToModel;
+use crate::presenter::Presenter;
 use crate::town::Town;
 use crate::view::{Change, Refresh};
 
@@ -167,9 +167,10 @@ impl TownSelection {
     /// ask the backend to refresh this selection. Dependent selections must be refeshed independently
     pub fn refresh_self(
         &mut self,
+        presenter: &mut Presenter,
         keep_ddv: HashSet<EmptyConstraint>,
         all_selections: &[EmptyTownSelection],
-    ) -> Option<MessageToModel> {
+    ) -> anyhow::Result<()> {
         // Check if there is a cycle. If so, do not send to the backend
         // TODO inform the user of this!
         let referenced_selections = self
@@ -177,7 +178,7 @@ impl TownSelection {
             .all_referenced_selections(all_selections);
         if let Err(err) = referenced_selections {
             eprintln!("abort refresh: {err}");
-            return None;
+            return Err(err);
         }
 
         // this check introduces a bug! If this check is commented in all
@@ -197,11 +198,10 @@ impl TownSelection {
             constraint.drop_down_values = None;
         }
 
-        return Some(MessageToModel::FetchTowns(
-            self.partial_clone(),
-            keep_ddv,
-            all_selections.to_vec(),
-        ));
+        let fetch_towns_result =
+            presenter.towns_for_selection(&self.partial_clone(), all_selections);
+        return fetch_towns_result.map(|towns| self.towns = towns); // map Result<Arc<Vec<Towns>>> to Result<()> implicitly
+
         // }
     }
 
@@ -209,6 +209,8 @@ impl TownSelection {
     pub fn make_ui(
         &mut self,
         ui: &mut egui::Ui,
+        presenter: &mut Presenter,
+        all_selections: &[EmptyTownSelection],
         selection_index: usize,
     ) -> (Option<Change>, Refresh) {
         let mut re = None;
@@ -271,9 +273,13 @@ impl TownSelection {
                 }
             })
             .body(|ui| {
+                let this_selection = self.partial_clone();
                 for (constraint_index, constraint) in self.constraints.iter_mut().enumerate() {
                     let (change, edited, bool_toggled) = constraint.make_ui(
                         ui,
+                        presenter,
+                        &this_selection,
+                        all_selections,
                         selection_index,
                         constraint_index,
                         constraint_index + 1 == num_constraints,

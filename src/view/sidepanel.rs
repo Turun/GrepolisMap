@@ -2,8 +2,10 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use super::Change;
+use super::State;
 use super::View;
 use crate::emptyselection::EmptyTownSelection;
+use crate::message::Progress;
 use crate::selection::TownSelection;
 
 impl View {
@@ -34,13 +36,25 @@ impl View {
                 });
                 ui.separator();
 
+                let all_selections: Vec<EmptyTownSelection> = self
+                    .ui_data
+                    .selections
+                    .iter()
+                    .map(TownSelection::partial_clone)
+                    .collect();
+
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     let mut selection_change_action: Option<Change> = None;
                     let mut refresh_list = Vec::new();
                     for (selection_index, selection) in
                         self.ui_data.selections.iter_mut().enumerate()
                     {
-                        let (opt_change, refresh) = selection.make_ui(ui, selection_index);
+                        let (opt_change, refresh) = selection.make_ui(
+                            ui,
+                            &mut self.presenter,
+                            &all_selections,
+                            selection_index,
+                        );
                         if let Some(change) = opt_change {
                             selection_change_action = Some(change);
                         }
@@ -49,12 +63,6 @@ impl View {
                     }
 
                     // process selections which need a refresh
-                    let all_selections: Vec<EmptyTownSelection> = self
-                        .ui_data
-                        .selections
-                        .iter()
-                        .map(TownSelection::partial_clone)
-                        .collect();
                     // let mut all_dependent_selections = HashSet::new();
                     for (index, refresh) in refresh_list {
                         let selection = self.ui_data.selections.get_mut(index).unwrap();
@@ -74,9 +82,14 @@ impl View {
                         };
 
                         // refresh the selection that is currently being edited with the caveat that some constraints are currently being edited and we should maybe not change their drop down values
-                        let msg = selection.refresh_self(edited_constraints, &all_selections);
-                        if let Some(msg) = msg {
-                            self.messages_to_presenter.push(msg);
+                        let result = selection.refresh_self(
+                            &mut self.presenter,
+                            edited_constraints,
+                            &all_selections,
+                        );
+                        if let Err(err) = result {
+                            self.ui_state =
+                                State::Uninitialized(Progress::BackendCrashed(format!("{err:?}")));
                         }
                         // and refresh all selections that depend on the currently edited one completely
                         let dependents = selection.get_dependents(&all_selections);
@@ -90,9 +103,15 @@ impl View {
                                     mutable_selection.name == dependent_selection.name
                                 })
                                 .expect("This Should not happen");
-                            let msg = selection.refresh_self(HashSet::new(), &all_selections);
-                            if let Some(msg) = msg {
-                                self.messages_to_presenter.push(msg);
+                            let result = selection.refresh_self(
+                                &mut self.presenter,
+                                HashSet::new(),
+                                &all_selections,
+                            );
+                            if let Err(err) = result {
+                                self.ui_state = State::Uninitialized(Progress::BackendCrashed(
+                                    format!("{err:?}"),
+                                ));
                             }
                         }
                     }

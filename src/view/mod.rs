@@ -420,9 +420,14 @@ impl eframe::App for View {
                         .collect();
                     for selection in &mut self.ui_data.selections {
                         selection.towns = Arc::new(Vec::new());
-                        let msg = selection.refresh_self(HashSet::new(), &all_selections);
-                        if let Some(msg) = msg {
-                            self.messages_to_presenter.push(msg);
+                        let result = selection.refresh_self(
+                            &mut self.presenter,
+                            HashSet::new(),
+                            &all_selections,
+                        );
+                        if let Err(err) = result {
+                            self.ui_state =
+                                State::Uninitialized(Progress::BackendCrashed(format!("{err:?}")));
                         }
                     }
                 }
