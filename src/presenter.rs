@@ -93,6 +93,16 @@ impl Presenter {
         APIResponse::load_from_file(saved_db, api_response);
     }
 
+    /// return a list of all towns in the current model with no constraints applied.
+    pub fn get_all_towns(&mut self) -> Arc<Vec<Town>> {
+        self.model.get_all_towns()
+    }
+
+    /// return a list of all ghost towns in the current model
+    pub fn get_ghost_towns(&mut self) -> Arc<Vec<Town>> {
+        self.model.get_ghost_towns()
+    }
+
     /// return a list of all the towns that match a given selection with all its constraints.
     pub fn towns_for_selection(
         &mut self,

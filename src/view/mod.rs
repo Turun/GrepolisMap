@@ -406,8 +406,8 @@ impl eframe::App for View {
                 MessageToView::GotServer => {
                     // I think we need to push those messages immidiately after starting the api response downloads
                     self.ui_state = State::Show;
-                    self.messages_to_presenter.push(MessageToModel::FetchAll);
-                    self.messages_to_presenter.push(MessageToModel::FetchGhosts);
+                    self.ui_data.ghost_towns = self.presenter.get_ghost_towns();
+                    self.ui_data.all_towns = self.presenter.get_all_towns();
 
                     // ensure the towns in the selection are fetched anew after loading the data from the server.
                     // If we don't do this the selection may become stale and show towns from server ab12 on a
