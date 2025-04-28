@@ -12,16 +12,6 @@ use crate::presenter::Presenter;
 use crate::town::Town;
 use crate::view::{Change, Refresh};
 
-#[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub enum SelectionState {
-    Loading,
-    Finished,
-
-    #[default]
-    NewlyCreated,
-}
-
 #[derive(
     Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Default, PartialOrd, Ord,
 )]
@@ -56,7 +46,6 @@ pub struct TownSelection {
     pub collapsed: bool,
     pub hidden_id: HiddenId,
     pub name: String,
-    pub state: SelectionState,
     pub constraints: Vec<Constraint>,
     pub constraint_join_mode: AndOr,
     pub color: egui::Color32,
@@ -103,9 +92,8 @@ impl fmt::Display for TownSelection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "TownSelection({}, {:?}, {:?}, {} towns)",
+            "TownSelection({}, {:?}, {} towns)",
             self.name,
-            self.state,
             self.constraints,
             self.towns.len()
         )
@@ -186,7 +174,6 @@ impl TownSelection {
         // If this check is commented out, this does not happen. I dont know
         // why.
         // if !self.is_hidden() {
-        self.state = SelectionState::Loading;
         for constraint in &mut self
             .constraints
             .iter_mut()
@@ -271,9 +258,6 @@ impl TownSelection {
                 } else {
                     ui.label(t!("selection.town_count", count = self.towns.len()));
                 }
-                if self.state == SelectionState::Loading {
-                    ui.spinner();
-                }
             })
             .body(|ui| {
                 let this_selection = self.partial_clone();
@@ -331,14 +315,9 @@ impl TownSelection {
         }
 
         let refresh_complete_selection = matches!(
-            (
-                self.state,
-                constraint_change_action,
-                constraint_join_mode_toggled
-            ),
-            (SelectionState::NewlyCreated, _, _)  // reload everything if this selection is newly created (This is probably not needed, but I'll leave it in, just to be save)
-                 | (_, Some(Change::Add | Change::Remove(_)), _) // or if a constraint was added or removed
-            | (_, _, true) // or the join mode was switched (AND vs OR joining in SQL)
+            (constraint_change_action, constraint_join_mode_toggled),
+            (Some(Change::Add | Change::Remove(_)), _) // reload everything if a constraint was added or removed
+            | (_, true) // or the join mode was switched
         );
         refresh_action = if refresh_complete_selection {
             Refresh::Complete

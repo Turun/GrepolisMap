@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::emptyconstraint::EmptyConstraint;
-use crate::selection::{AndOr, SelectionState, TownSelection};
+use crate::selection::{AndOr, TownSelection};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HiddenId(String);
@@ -117,7 +117,6 @@ impl EmptyTownSelection {
             collapsed: false, // The state of the headers is saved by egui by default. We don't do need to do that ourselves
             hidden_id: self.hidden_id.clone(),
             name: self.name.clone(),
-            state: SelectionState::default(),
             constraints: self.constraints.iter().map(EmptyConstraint::fill).collect(),
             constraint_join_mode: self.constraint_join_mode,
             color: self.color,
@@ -135,7 +134,9 @@ impl EmptyTownSelection {
     pub fn directly_referenced_selections(&self, all_selections: &[Self]) -> Vec<Self> {
         let referenced_names = self.directly_referenced_selection_names();
         all_selections
-            .iter().filter(|&selection| referenced_names.contains(&selection.name)).cloned()
+            .iter()
+            .filter(|&selection| referenced_names.contains(&selection.name))
+            .cloned()
             .collect()
     }
 
