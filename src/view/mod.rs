@@ -216,6 +216,11 @@ impl View {
             ghost_towns: Arc::new(Vec::new()),
             ..self.ui_data.clone()
         };
+
+        for selection in self.ui_data.selections.iter_mut() {
+            selection.towns = Arc::new(Vec::new());
+        }
+
         self.messages_to_server
             .push(MessageToServer::LoadServer(self.ui_data.server_id.clone()));
         // the selections are invalidated after the backend sends "got server"
