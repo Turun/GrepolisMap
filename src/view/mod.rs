@@ -336,7 +336,7 @@ impl eframe::App for View {
                 // trigger all the data refreshes that are required when loading new data
                 self.messages_to_view.push(MessageToView::GotServer);
 
-                // also refresh which SavedDBs are present. If we keep the api response saving in a
+                // also refresh which SavedDBs are present. If we keep the *api response saving* in a
                 // separate thread this refresh will still miss the latest response (because it will
                 // take a while for the thread to save it). Nevertheless this is the best place I
                 // can think of at the moment to put it.

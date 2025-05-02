@@ -38,9 +38,6 @@ impl Widget for DropDownBox<'_> {
         let mut r = ui.text_edit_singleline(buf);
         if r.gained_focus() {
             ui.memory_mut(|m| m.open_popup(popup_id));
-            //TODO: When making the code fully sync we would have self.opt_it always
-            // be None, until we reach this code path.
-            // On second though, this will be taken care of on the callsite of this code path.
         }
 
         if let Some(it) = opt_it {

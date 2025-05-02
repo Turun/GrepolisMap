@@ -21,7 +21,9 @@ impl View {
     #[allow(clippy::single_match)] // temporary, until we fix the error reporting and make it more user friendly
     pub(crate) fn ui_menu(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // TODO [preferences] [auto delete saved data] after 1d/1w/1m/never
-        // TODO disable telemetry
+        // TODO disable telemetry as a preference option (only on local though, hehe)
+        // TODO add link to github
+        // TODO make clipboard wasm capable
 
         egui::TopBottomPanel::top("menu bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -66,8 +68,6 @@ impl View {
                             for saved_db in saved_dbs {
                                 if ui.button(format!("{saved_db}")).clicked() {
                                     // TODO Error handling
-                                    // TODO do it with messages instead?
-                                    // TODO if we have a list of dbs in the backend, make sure this change is synchronized
                                     storage::remove_db(&saved_db.path).unwrap();
                                     removed_dbs.push(saved_db.clone());
                                 }
