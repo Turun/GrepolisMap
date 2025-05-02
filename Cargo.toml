@@ -34,7 +34,7 @@ log = "0.4"
 arboard = "3.2.0"
 native-dialog = "0.6.4"
 rusqlite = "0.35.0"
-percent-encoding = "2.3.1"
+percent-encoding = "2.3.1"  # TODO: get rid of form_urlencoded in favor of percent-encoding
 time = { version = "0.3.37", features = ["formatting", "parsing", "local-offset", "macros", "serde"] }
 
 [profile.release]
