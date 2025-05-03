@@ -224,7 +224,11 @@ pub fn get_names_for_constraint_type_in_town_list(
     towns: &[Rc<BackendTown>],
     constraint_type: ConstraintType,
 ) -> Vec<String> {
-    // TODO: we can probably improve the code by moving from collect into vector > sort > dedup into something hashset based (BTreeSet)
+    // This is a big chunk of the actual work the program is doing. If we want to speed it up, we could
+    // - cache the format! calls
+    //
+    // It does not help to
+    // - turn the collect::<Vec> -> sort -> dedup chain into a BTreeSet. I tested it
 
     return match constraint_type {
         ConstraintType::PlayerID => {
