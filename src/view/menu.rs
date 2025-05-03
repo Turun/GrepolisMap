@@ -1,5 +1,5 @@
 use super::{
-    preferences::{CacheSize, DarkModePref, Language, Preferences},
+    preferences::{CacheSize, DarkModePref, Language, Preferences, Telemetry},
     State, View,
 };
 #[cfg(not(target_arch = "wasm32"))]
@@ -21,7 +21,6 @@ impl View {
     #[allow(clippy::single_match)] // temporary, until we fix the error reporting and make it more user friendly
     pub(crate) fn ui_menu(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // TODO [preferences] [auto delete saved data] after 1d/1w/1m/never
-        // TODO disable telemetry as a preference option (only on local though, hehe)
         // TODO add link to github
         // TODO make clipboard wasm capable
 
@@ -114,6 +113,24 @@ impl View {
                         self.ui_data.preferences.cache_size = CacheSize::Large;
                         self.messages_to_presenter.push(MessageToModel::MaxCacheSize(CacheSize::Large));
                         ui.close_menu();
+                    }
+
+                    #[cfg(not(target_arch="wasm32"))]
+                    {
+                        ui.separator();
+
+                        if ui.button(t!("menu.preferences.telemetry_all")).clicked() {
+                            self.ui_data.preferences.telemetry = Telemetry::All;
+                            ui.close_menu();
+                        }
+                        if ui.button(t!("menu.preferences.telemetry_version_check")).clicked() {
+                            self.ui_data.preferences.telemetry = Telemetry::OnlyVersionCheck;
+                            ui.close_menu();
+                        }
+                        if ui.button(t!("menu.preferences.telemetry_nothing")).clicked() {
+                            self.ui_data.preferences.telemetry = Telemetry::Nothing;
+                            ui.close_menu();
+                        }
                     }
 
                     ui.separator();

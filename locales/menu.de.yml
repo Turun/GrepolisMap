@@ -17,6 +17,10 @@ menu:
     no_cache: "Kein Cache"
     normal_cache: "Normaler Cache"
     large_cache: "Großer Cache"
+    
+    telemetry_all: "Telemetrie Erlauben"
+    telemetry_version_check: "Nur nach neuen Versionen schauen"
+    telemetry_nothing: "Telemetrie Verbieten"
 
     reset: "Einstellungen zurücksetzen"
 
@@ -39,5 +43,3 @@ menu:
       Du kannst die neueste Version hier herunterladen:\n\
       https://github.com/Turun/GrepolisMap/releases/latest\n\
       Bei Fragen, Feedback oder Bugs, sende \"erstes\" eine Nachricht im Grepolis Forum oder im Spiel"
-
-

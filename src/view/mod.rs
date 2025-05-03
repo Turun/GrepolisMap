@@ -17,6 +17,7 @@ use crate::telemetry;
 use crate::view::data::Data;
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Ui};
+use preferences::Telemetry;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -99,7 +100,12 @@ impl View {
 
         // start checking the latest version in the background. Will pop up a notification window if there is a newer version available
         // noop on wasm
-        telemetry::get_latest_version();
+        match re.ui_data.preferences.telemetry {
+            Telemetry::All | Telemetry::OnlyVersionCheck => {
+                telemetry::get_latest_version();
+            }
+            Telemetry::Nothing => {}
+        }
 
         // TODO
         // self.channel_presenter_tx
@@ -369,7 +375,12 @@ impl eframe::App for View {
             Ok(PresenterReady::WaitingForAPI) | Err(_) => {}
         }
 
-        telemetry::process_messages(&self.messages_to_server);
+        match self.ui_data.preferences.telemetry {
+            Telemetry::All => {
+                telemetry::process_messages(&self.messages_to_server);
+            }
+            Telemetry::OnlyVersionCheck | Telemetry::Nothing => {}
+        }
         self.messages_to_server = Vec::new();
 
         if !self.messages_to_view.is_empty() {

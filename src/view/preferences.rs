@@ -2,6 +2,14 @@ use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
 #[derive(Clone, Copy, Serialize, Deserialize, Default)]
+pub enum Telemetry {
+    #[default]
+    All,
+    OnlyVersionCheck,
+    Nothing,
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize, Default)]
 pub enum DarkModePref {
     #[default]
     FollowSystem,
@@ -85,6 +93,8 @@ pub struct Preferences {
     pub cache_size: CacheSize,
     #[serde(default)]
     pub language: Language,
+    #[serde(default)]
+    pub telemetry: Telemetry,
 }
 
 impl Default for Preferences {
@@ -94,6 +104,7 @@ impl Default for Preferences {
             auto_delete: AutoDeletePref::Eternity,
             cache_size: CacheSize::Normal,
             language: Language::EN,
+            telemetry: Telemetry::All,
         }
     }
 }

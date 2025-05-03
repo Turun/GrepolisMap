@@ -18,6 +18,10 @@ menu:
     normal_cache: "Cache normal"
     large_cache: "Cache large"
 
+    telemetry_all: "Activer la télémétrie"
+    telemetry_version_check: "Vérifier uniquement les nouvelles versions"
+    telemetry_nothing: "Désactiver la télémétrie"
+
     reset: "Réinitialiser les préférences"
 
   import:

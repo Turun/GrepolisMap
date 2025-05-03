@@ -18,6 +18,10 @@ menu:
     normal_cache: "Normal Cache"
     large_cache: "Large Cache"
 
+    telemetry_all: "Enable Telemetry"
+    telemetry_version_check: "Only check for new versions"
+    telemetry_nothing: "Disable Telemetry"
+
     reset: "Reset Preferences"
 
   import:
@@ -39,6 +43,3 @@ menu:
       You can get the latest version here:\n\
       https://github.com/Turun/GrepolisMap/releases/latest\n\
       For questions, feedback and bug reports message \"erstes\" on the Grepolis Forum or in Game"
-
-
-
