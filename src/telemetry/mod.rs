@@ -49,20 +49,34 @@ pub fn get_latest_version() {
             return;
         };
 
-        if user_version >= server_version {
-            return;
-        }
+        // properly compare versions. Both `user_version` and `server_version` are strings of the form xx.yy.zz
+        // parse the strings as numbers, add ".0" at the end of the shorter string if necessary and compare piece by piece
+        let user_version_parts = user_version.split('.').collect::<Vec<_>>();
+        let server_version_parts = server_version.split('.').collect::<Vec<_>>();
+        for index in 0..user_version_parts.len().max(server_version_parts.len()) {
+            let user_part = user_version_parts
+                .get(index)
+                .map(|s| s.parse().unwrap_or(0))
+                .unwrap_or(0);
+            let server_part = server_version_parts
+                .get(index)
+                .map(|s| s.parse().unwrap_or(0))
+                .unwrap_or(0);
 
-        let _result = native_dialog::MessageDialog::new()
-            .set_title(&t!("menu.update_notice.title"))
-            .set_text(&t!(
-                "menu.update_notice.content",
-                user_version = user_version,
-                server_version = server_version,
-                message = message
-            ))
-            .set_type(native_dialog::MessageType::Info)
-            .show_alert();
+            if user_part < server_part {
+                let _result = native_dialog::MessageDialog::new()
+                    .set_title(&t!("menu.update_notice.title"))
+                    .set_text(&t!(
+                        "menu.update_notice.content",
+                        user_version = user_version,
+                        server_version = server_version,
+                        message = message
+                    ))
+                    .set_type(native_dialog::MessageType::Info)
+                    .show_alert();
+                return;
+            }
+        }
     });
 }
 
