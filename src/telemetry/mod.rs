@@ -64,6 +64,7 @@ pub fn get_latest_version() {
                 .unwrap_or(0);
 
             if user_part < server_part {
+                // if the user version is smaller than the server version, show a message dialog that there is a newer one available
                 let _result = native_dialog::MessageDialog::new()
                     .set_title(&t!("menu.update_notice.title"))
                     .set_text(&t!(
@@ -74,6 +75,12 @@ pub fn get_latest_version() {
                     ))
                     .set_type(native_dialog::MessageType::Info)
                     .show_alert();
+                return;
+            } else if user_part == server_part {
+                // if the xth digit (and all preceeding ones) are identical, check the (x+1)th digit
+                continue;
+            } else if user_part > server_part {
+                // somehow the user version is bigger than the server version. I don't know how that happened, but we'll just ignore it and return.
                 return;
             }
         }
