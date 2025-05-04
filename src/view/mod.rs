@@ -126,8 +126,6 @@ impl View {
 
     #[cfg(target_arch = "wasm32")]
     pub fn new_and_start() {
-        use eframe::wasm_bindgen::JsCast as _;
-
         // Redirect `log` message to `console.log` and friends:
         eframe::WebLogger::init(log::LevelFilter::Debug).ok();
 
@@ -138,12 +136,6 @@ impl View {
                 .expect("No window")
                 .document()
                 .expect("No document");
-
-            let canvas = document
-                .get_element_by_id("the_canvas_id")
-                .expect("Failed to find the_canvas_id")
-                .dyn_into::<web_sys::HtmlCanvasElement>()
-                .expect("the_canvas_id was not a HtmlCanvasElement");
 
             let start_result = eframe::WebRunner::new()
                 .start(
@@ -156,7 +148,7 @@ impl View {
             // Remove the loading text and spinner:
             if let Some(loading_text) = document.get_element_by_id("loading_text") {
                 match start_result {
-                    Ok(_) => {
+                    Ok(()) => {
                         loading_text.remove();
                     }
                     Err(e) => {
