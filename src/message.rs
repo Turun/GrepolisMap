@@ -11,12 +11,6 @@ pub enum PresenterReady {
     NewlyReady,
 }
 
-#[allow(clippy::module_name_repetitions)]
-pub enum MessageToServer {
-    LoadServer(String),
-    StoredConfig(String),
-}
-
 #[derive(Debug, Clone)]
 // Regarding Progress::BackendCrashed: technically we don't need to remove the displayed
 // stuff yet and could the ui state as initialized. The data that is already loaded

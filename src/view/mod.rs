@@ -8,7 +8,7 @@ mod sidepanel;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToServer, PresenterReady, Progress};
+use crate::message::{PresenterReady, Progress};
 use crate::presenter::Presenter;
 use crate::selection::TownSelection;
 #[cfg(not(target_arch = "wasm32"))]
@@ -74,10 +74,7 @@ impl View {
         if let Some(storage) = cc.storage {
             re.ui_data = if let Some(text) = storage.get_string(crate::APP_KEY) {
                 // println!("{}", text);
-                telemetry::process_messages(
-                    re.ui_data.preferences.telemetry,
-                    MessageToServer::StoredConfig(text.clone()),
-                );
+                telemetry::event_stored_config(re.ui_data.preferences.telemetry, &text);
                 serde_yaml::from_str(&text).unwrap_or_else(|err| {
                     eprintln!("Failed to read saved config as YAML: {err}");
                     Data::default()
@@ -195,10 +192,7 @@ impl View {
             selection.towns = Arc::new(Vec::new());
         }
 
-        telemetry::process_messages(
-            self.ui_data.preferences.telemetry,
-            MessageToServer::LoadServer(self.ui_data.server_id.clone()),
-        );
+        telemetry::event_load_server(self.ui_data.preferences.telemetry, &self.ui_data.server_id);
         // the selections are invalidated after the backend sends "got server"
     }
 
