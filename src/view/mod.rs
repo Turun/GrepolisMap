@@ -8,7 +8,7 @@ mod sidepanel;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToServer, MessageToView, PresenterReady, Progress};
+use crate::message::{MessageToServer, PresenterReady, Progress};
 use crate::presenter::Presenter;
 use crate::selection::TownSelection;
 #[cfg(not(target_arch = "wasm32"))]
@@ -46,7 +46,6 @@ pub struct View {
     presenter: Presenter,
     ui_state: State,
     ui_data: Data,
-    messages_to_view: Vec<MessageToView>,
     messages_to_server: Vec<MessageToServer>,
 }
 
@@ -57,7 +56,6 @@ impl View {
             presenter: Presenter::new(),
             ui_state: State::Uninitialized(Progress::None),
             ui_data: Data::default(),
-            messages_to_view: Vec::new(),
             messages_to_server: Vec::new(),
         };
 
@@ -329,7 +327,31 @@ impl eframe::App for View {
             }
             Ok(PresenterReady::NewlyReady) => {
                 // trigger all the data refreshes that are required when loading new data
-                self.messages_to_view.push(MessageToView::GotServer);
+                self.ui_state = State::Show;
+                self.ui_data.ghost_towns = self.presenter.get_ghost_towns();
+                self.ui_data.all_towns = self.presenter.get_all_towns();
+
+                // ensure the towns in the selection are fetched anew after loading the data from the server.
+                // If we don't do this the selection may become stale and show towns from server ab12 on a
+                // map that is otherwise pulled from server cd34
+                let all_selections: Vec<EmptyTownSelection> = self
+                    .ui_data
+                    .selections
+                    .iter()
+                    .map(TownSelection::partial_clone)
+                    .collect();
+                for selection in &mut self.ui_data.selections {
+                    selection.towns = Arc::new(Vec::new());
+                    let result = selection.refresh_self(
+                        &mut self.presenter,
+                        &HashSet::new(),
+                        &all_selections,
+                    );
+                    if let Err(err) = result {
+                        self.ui_state =
+                            State::Uninitialized(Progress::BackendCrashed(format!("{err:?}")));
+                    }
+                }
 
                 // also refresh which SavedDBs are present. If we keep the *api response saving* in a
                 // separate thread this refresh will still miss the latest response (because it will
@@ -355,51 +377,7 @@ impl eframe::App for View {
         }
         self.messages_to_server = Vec::new();
 
-        if !self.messages_to_view.is_empty() {
-            println!("Messages to View:");
-            for msg in &self.messages_to_view {
-                println!("    {msg}");
-            }
-            ctx.request_repaint();
-        }
-
-        // process any messages that came in from the backend since the last frame
-        let messages = self.messages_to_view.clone();
-        self.messages_to_view = Vec::new();
-        for message in messages {
-            println!("Got Message from Model to View: {message}");
-            match message {
-                MessageToView::GotServer => {
-                    // I think we need to push those messages immidiately after starting the api response downloads
-                    self.ui_state = State::Show;
-                    self.ui_data.ghost_towns = self.presenter.get_ghost_towns();
-                    self.ui_data.all_towns = self.presenter.get_all_towns();
-
-                    // ensure the towns in the selection are fetched anew after loading the data from the server.
-                    // If we don't do this the selection may become stale and show towns from server ab12 on a
-                    // map that is otherwise pulled from server cd34
-                    let all_selections: Vec<EmptyTownSelection> = self
-                        .ui_data
-                        .selections
-                        .iter()
-                        .map(TownSelection::partial_clone)
-                        .collect();
-                    for selection in &mut self.ui_data.selections {
-                        selection.towns = Arc::new(Vec::new());
-                        let result = selection.refresh_self(
-                            &mut self.presenter,
-                            &HashSet::new(),
-                            &all_selections,
-                        );
-                        if let Err(err) = result {
-                            self.ui_state =
-                                State::Uninitialized(Progress::BackendCrashed(format!("{err:?}")));
-                        }
-                    }
-                }
-            }
-        }
-
+        // the above is book keeping. Now we call the rendering code.
         let state = self.ui_state.clone();
         match state {
             State::Uninitialized(progress) => self.ui_uninitialized(ctx, frame, progress),

@@ -4,7 +4,6 @@
 /// control flow, which I have given up on after switching to a completely sync code model that
 /// allows us to run in the browser. Technically I could still make it work, but it is more likely
 /// that I will drop messages fully at some point.
-use core::fmt;
 
 pub enum PresenterReady {
     AlwaysHasBeen,
@@ -16,22 +15,6 @@ pub enum PresenterReady {
 pub enum MessageToServer {
     LoadServer(String),
     StoredConfig(String),
-}
-
-#[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone)]
-pub enum MessageToView {
-    GotServer,
-}
-
-impl fmt::Display for MessageToView {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            MessageToView::GotServer => {
-                write!(f, "MessageToView::GotServer",)
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
