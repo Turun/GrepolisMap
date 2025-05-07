@@ -1,5 +1,8 @@
 /// I want to know how many users I have and what sort of request they send.
-use crate::message::MessageToServer;
+use crate::{
+    message::MessageToServer,
+    view::preferences::{self, Telemetry},
+};
 
 static SERVER_POST_LOAD_SERVER: &str = "https://gmap.turun.de/v1/load_server";
 static SERVER_POST_STORED_CONFIG: &str = "https://gmap.turun.de/v1/stored_config";
@@ -87,15 +90,22 @@ pub fn get_latest_version() {
     });
 }
 
-pub fn process_messages(messages: &[MessageToServer]) {
-    for msg in messages {
-        let (url, body) = match msg {
-            MessageToServer::LoadServer(server_id) => (SERVER_POST_LOAD_SERVER, server_id),
-            MessageToServer::StoredConfig(yaml_string) => (SERVER_POST_STORED_CONFIG, yaml_string),
-        };
+pub fn process_messages(telemetry_preferences: preferences::Telemetry, message: MessageToServer) {
+    fn call_load_server(server_id: &str) {
         ehttp::fetch(
-            ehttp::Request::post(url, body.as_bytes().to_vec()),
+            ehttp::Request::post(SERVER_POST_LOAD_SERVER, server_id.as_bytes().to_vec()),
             |_response| { /*do nothing. I don't think we send anything back anyway*/ },
         );
+    }
+    fn call_stored_config(yaml_string: &str) {
+        ehttp::fetch(
+            ehttp::Request::post(SERVER_POST_STORED_CONFIG, yaml_string.as_bytes().to_vec()),
+            |_response| { /*do nothing. I don't think we send anything back anyway*/ },
+        );
+    }
+    match (telemetry_preferences, message) {
+        (Telemetry::All, MessageToServer::LoadServer(server_id)) => call_load_server(&server_id),
+        (Telemetry::All, MessageToServer::StoredConfig(yaml)) => call_stored_config(&yaml),
+        (Telemetry::OnlyVersionCheck | Telemetry::Nothing, _) => {}
     }
 }

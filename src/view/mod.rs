@@ -46,7 +46,6 @@ pub struct View {
     presenter: Presenter,
     ui_state: State,
     ui_data: Data,
-    messages_to_server: Vec<MessageToServer>,
 }
 
 impl View {
@@ -56,7 +55,6 @@ impl View {
             presenter: Presenter::new(),
             ui_state: State::Uninitialized(Progress::None),
             ui_data: Data::default(),
-            messages_to_server: Vec::new(),
         };
 
         // include a Unicode font and make it the default
@@ -76,8 +74,10 @@ impl View {
         if let Some(storage) = cc.storage {
             re.ui_data = if let Some(text) = storage.get_string(crate::APP_KEY) {
                 // println!("{}", text);
-                re.messages_to_server
-                    .push(MessageToServer::StoredConfig(text.clone()));
+                telemetry::process_messages(
+                    re.ui_data.preferences.telemetry,
+                    MessageToServer::StoredConfig(text.clone()),
+                );
                 serde_yaml::from_str(&text).unwrap_or_else(|err| {
                     eprintln!("Failed to read saved config as YAML: {err}");
                     Data::default()
@@ -195,8 +195,10 @@ impl View {
             selection.towns = Arc::new(Vec::new());
         }
 
-        self.messages_to_server
-            .push(MessageToServer::LoadServer(self.ui_data.server_id.clone()));
+        telemetry::process_messages(
+            self.ui_data.preferences.telemetry,
+            MessageToServer::LoadServer(self.ui_data.server_id.clone()),
+        );
         // the selections are invalidated after the backend sends "got server"
     }
 
@@ -368,14 +370,6 @@ impl eframe::App for View {
                 self.ui_state = State::Uninitialized(Progress::BackendCrashed(format!("{err}")));
             }
         }
-
-        match self.ui_data.preferences.telemetry {
-            Telemetry::All => {
-                telemetry::process_messages(&self.messages_to_server);
-            }
-            Telemetry::OnlyVersionCheck | Telemetry::Nothing => {}
-        }
-        self.messages_to_server = Vec::new();
 
         // the above is book keeping. Now we call the rendering code.
         let state = self.ui_state.clone();
