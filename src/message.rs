@@ -6,8 +6,6 @@
 /// that I will drop messages fully at some point.
 use core::fmt;
 
-use crate::view::preferences::CacheSize;
-
 pub enum PresenterReady {
     AlwaysHasBeen,
     WaitingForAPI,
@@ -31,22 +29,6 @@ impl fmt::Display for MessageToView {
         match self {
             MessageToView::GotServer => {
                 write!(f, "MessageToView::GotServer",)
-            }
-        }
-    }
-}
-
-#[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone)]
-pub enum MessageToModel {
-    MaxCacheSize(CacheSize),
-}
-
-impl fmt::Display for MessageToModel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            MessageToModel::MaxCacheSize(x) => {
-                write!(f, "MessageToModel::MaxCacheSize({})", x.to_string())
             }
         }
     }

@@ -3,7 +3,7 @@ use eframe::epaint::ahash::HashMap;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToModel, PresenterReady};
+use crate::message::PresenterReady;
 use crate::model::database::DataTable;
 use crate::model::{APIResponse, Model};
 use crate::town::Town;
@@ -214,18 +214,12 @@ impl Presenter {
         }
     }
 
-    #[allow(clippy::too_many_lines)] // processing all variants of incoming messages simply needs a lot of lines
-    /// Start the service that handles incoming messages, calls the appropriate backend code and sends the resutls to the view
-    pub fn process_messages(&mut self, messages: &[MessageToModel]) {
-        for message in messages {
-            println!("Got Message from View to Model: {message}");
-            match message {
-                MessageToModel::MaxCacheSize(x) => {
-                    self.max_cache_size = *x;
-                }
-            }
+    pub fn set_max_cache_size(&mut self, cache_size: CacheSize) {
+        self.max_cache_size = cache_size;
+    }
 
-            self.model.age_cache(self.max_cache_size.value());
-        }
+    /// age the cache of the model by one, slowly forgetting the responses to old requests.
+    pub fn age_cache(&mut self) {
+        self.model.age_cache(self.max_cache_size.value());
     }
 }

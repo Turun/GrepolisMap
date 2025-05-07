@@ -4,10 +4,7 @@ use super::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 use crate::storage;
-use crate::{
-    emptyselection::EmptyTownSelection,
-    message::{MessageToModel, Progress},
-};
+use crate::{emptyselection::EmptyTownSelection, message::Progress};
 #[cfg(not(target_arch = "wasm32"))]
 use arboard::Clipboard;
 #[cfg(not(target_arch = "wasm32"))]
@@ -101,17 +98,17 @@ impl View {
 
                     if ui.button(t!("menu.preferences.no_cache")).clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::None;
-                        self.messages_to_presenter.push(MessageToModel::MaxCacheSize(CacheSize::None));
+                        self.presenter.set_max_cache_size(CacheSize::None);
                         ui.close_menu();
                     }
                     if ui.button(t!("menu.preferences.normal_cache")).clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::Normal;
-                        self.messages_to_presenter.push(MessageToModel::MaxCacheSize(CacheSize::Normal));
+                        self.presenter.set_max_cache_size(CacheSize::Normal);
                         ui.close_menu();
                     }
                     if ui.button(t!("menu.preferences.large_cache")).clicked() {
                         self.ui_data.preferences.cache_size = CacheSize::Large;
-                        self.messages_to_presenter.push(MessageToModel::MaxCacheSize(CacheSize::Large));
+                        self.presenter.set_max_cache_size(CacheSize::Large);
                         ui.close_menu();
                     }
 

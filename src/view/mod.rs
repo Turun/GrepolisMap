@@ -8,7 +8,7 @@ mod sidepanel;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{MessageToModel, MessageToServer, MessageToView, PresenterReady, Progress};
+use crate::message::{MessageToServer, MessageToView, PresenterReady, Progress};
 use crate::presenter::Presenter;
 use crate::selection::TownSelection;
 #[cfg(not(target_arch = "wasm32"))]
@@ -46,7 +46,6 @@ pub struct View {
     presenter: Presenter,
     ui_state: State,
     ui_data: Data,
-    messages_to_presenter: Vec<MessageToModel>,
     messages_to_view: Vec<MessageToView>,
     messages_to_server: Vec<MessageToServer>,
 }
@@ -58,7 +57,6 @@ impl View {
             presenter: Presenter::new(),
             ui_state: State::Uninitialized(Progress::None),
             ui_data: Data::default(),
-            messages_to_presenter: Vec::new(),
             messages_to_view: Vec::new(),
             messages_to_server: Vec::new(),
         };
@@ -94,9 +92,8 @@ impl View {
             println!("No persistence storage configured");
         }
 
-        re.messages_to_presenter.push(MessageToModel::MaxCacheSize(
-            re.ui_data.preferences.cache_size,
-        ));
+        re.presenter
+            .set_max_cache_size(re.ui_data.preferences.cache_size);
 
         // start checking the latest version in the background. Will pop up a notification window if there is a newer version available
         // noop on wasm
@@ -348,23 +345,6 @@ impl eframe::App for View {
                 eprintln!("Backend Crashed with the following error:\n{err}");
                 self.ui_state = State::Uninitialized(Progress::BackendCrashed(format!("{err}")));
             }
-        }
-
-        // should we process presenter messages?
-        match &presenter_ready_for_requests {
-            Ok(PresenterReady::AlwaysHasBeen | PresenterReady::NewlyReady) => {
-                if !self.messages_to_presenter.is_empty() {
-                    println!("Messages to Presenter:");
-                    for msg in &self.messages_to_presenter {
-                        println!("    {msg}");
-                    }
-                    ctx.request_repaint();
-                }
-
-                self.presenter.process_messages(&self.messages_to_presenter);
-                self.messages_to_presenter = Vec::new();
-            }
-            Ok(PresenterReady::WaitingForAPI) | Err(_) => {}
         }
 
         match self.ui_data.preferences.telemetry {
