@@ -11,7 +11,6 @@ i18n!("locales", fallback = "en");
 mod constraint;
 mod emptyconstraint;
 mod emptyselection;
-mod message;
 mod model;
 mod presenter;
 mod selection;

@@ -8,8 +8,8 @@ mod sidepanel;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::{PresenterReady, Progress};
 use crate::presenter::Presenter;
+use crate::presenter::PresenterReady;
 use crate::selection::TownSelection;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::storage;
@@ -37,6 +37,18 @@ pub enum Refresh {
 }
 
 #[derive(Debug, Clone)]
+// Regarding Progress::BackendCrashed: technically we don't need to remove the displayed
+// stuff yet and could keep the ui state as initialized. The data that is already loaded
+// can persist. It's just that the user can't fetch any new data from the backend, so a
+// warning about that should be fine.
+pub enum Progress {
+    None,
+    BackendCrashed(String),
+    Fetching,
+    LoadingFile,
+}
+
+#[derive(Debug, Clone)]
 pub enum State {
     Uninitialized(Progress),
     Show,
@@ -52,7 +64,7 @@ impl View {
     #[allow(clippy::needless_pass_by_value)]
     fn setup(cc: &eframe::CreationContext) -> Self {
         let mut re = Self {
-            presenter: Presenter::new(),
+            presenter: Presenter::default(),
             ui_state: State::Uninitialized(Progress::None),
             ui_data: Data::default(),
         };
@@ -188,7 +200,7 @@ impl View {
             ..self.ui_data.clone()
         };
 
-        for selection in self.ui_data.selections.iter_mut() {
+        for selection in &mut self.ui_data.selections {
             selection.towns = Arc::new(Vec::new());
         }
 

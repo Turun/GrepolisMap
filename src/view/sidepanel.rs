@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use super::Change;
+use super::Progress;
 use super::State;
 use super::View;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::Progress;
 use crate::selection::TownSelection;
 
 impl View {

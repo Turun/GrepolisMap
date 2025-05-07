@@ -3,7 +3,6 @@ use eframe::epaint::ahash::HashMap;
 
 use crate::emptyconstraint::EmptyConstraint;
 use crate::emptyselection::EmptyTownSelection;
-use crate::message::PresenterReady;
 use crate::model::database::DataTable;
 use crate::model::{APIResponse, Model};
 use crate::town::Town;
@@ -13,19 +12,28 @@ use std::sync::{Arc, Mutex};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::storage::{self, SavedDB};
 
+#[allow(clippy::module_name_repetitions)]
+pub enum PresenterReady {
+    AlwaysHasBeen,
+    WaitingForAPI,
+    NewlyReady,
+}
+
 pub struct Presenter {
     model: Model,
     max_cache_size: CacheSize,
 }
 
-impl Presenter {
-    pub fn new() -> Self {
+impl Default for Presenter {
+    fn default() -> Self {
         Self {
             model: Model::Uninitialized(Arc::new(Mutex::new(APIResponse::new(String::new())))),
             max_cache_size: CacheSize::Normal,
         }
     }
+}
 
+impl Presenter {
     /// Return all possible selection names that can be used in the `DropDownValues` for the
     /// Constraint. Returns None if the Constraint is not a IN/NOT IN type of constraint. In which
     /// case it is up to the caller to determine which drop down values are appropriate.
@@ -119,6 +127,7 @@ impl Presenter {
             .cloned()
             .collect();
 
+        #[allow(clippy::redundant_else)]
         if constraint.value.is_empty() {
             // drop down value for an empty constraint, filter the ddv list by all filled constratins
             let possible_ddv =

@@ -1,10 +1,10 @@
 use super::{
     preferences::{CacheSize, DarkModePref, Language, Preferences, Telemetry},
-    State, View,
+    Progress, State, View,
 };
+use crate::emptyselection::EmptyTownSelection;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::storage;
-use crate::{emptyselection::EmptyTownSelection, message::Progress};
 #[cfg(not(target_arch = "wasm32"))]
 use arboard::Clipboard;
 #[cfg(not(target_arch = "wasm32"))]

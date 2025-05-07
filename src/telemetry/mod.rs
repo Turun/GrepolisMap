@@ -56,13 +56,13 @@ pub fn get_latest_version() {
         for index in 0..user_version_parts.len().max(server_version_parts.len()) {
             let user_part = user_version_parts
                 .get(index)
-                .map(|s| s.parse().unwrap_or(0))
-                .unwrap_or(0);
+                .map_or(0, |s| s.parse().unwrap_or(0));
             let server_part = server_version_parts
                 .get(index)
-                .map(|s| s.parse().unwrap_or(0))
-                .unwrap_or(0);
+                .map_or(0, |s| s.parse().unwrap_or(0)); // the first 0 is for when there is not part left (turn 2.1 into 2.1.0). The second 0 is for when the number fails to parse (turn 1.two.3 into 1.0.3)
 
+            // I just like <, ==, > more than match x.cmp(&y) {Ordering::Greater => {...}}, so:
+            #[allow(clippy::comparison_chain)]
             if user_part < server_part {
                 // if the user version is smaller than the server version, show a message dialog that there is a newer one available
                 let _result = native_dialog::MessageDialog::new()

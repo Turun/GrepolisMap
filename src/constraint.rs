@@ -13,6 +13,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(Clone)]
+#[allow(clippy::struct_field_names)]
 pub struct Constraint {
     pub constraint_type: ConstraintType,
     pub comparator: Comparator,
@@ -258,6 +259,7 @@ pub enum Comparator {
 }
 
 impl Comparator {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn compare<T: PartialEq + PartialOrd>(self, a: T, b: T) -> bool {
         match self {
             Comparator::LessThan => a <= b,
@@ -287,6 +289,7 @@ impl ToString for Comparator {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub enum ConstraintTypeType {
     StringLike,
     Number,

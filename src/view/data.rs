@@ -147,6 +147,7 @@ impl CanvasData {
     }
 }
 
+#[allow(clippy::struct_field_names)]
 pub struct ViewPortFilter {
     world_l: f32,
     world_r: f32,
