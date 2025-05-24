@@ -27,7 +27,12 @@ winit = { version = "0.29.15", features = ["default"] }
 [target.'cfg(target_arch="wasm32")'.dependencies]
 getrandom = { version = "0.2.15", features = ["js"] }  # enable js feature in indirect "rand" dependency 
 wasm-bindgen-futures = "0.4"
-web-sys = "0.3.70"           # to access the DOM (to hide the loading text)
+base64 = "0.22.1"
+web-sys = { version = "0.3", features = [
+    "History",
+    "UrlSearchParams",
+    # access to the dom to hide the loading text and access to the current url 
+] }
 wasm-bindgen = "0.2.99"
 log = "0.4"
 

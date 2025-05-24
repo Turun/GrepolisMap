@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
-#[derive(Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Serialize, Deserialize, Default, Debug)]
 pub enum Telemetry {
     #[default]
     All,
@@ -9,7 +9,7 @@ pub enum Telemetry {
     Nothing,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Serialize, Deserialize, Default, Debug)]
 pub enum DarkModePref {
     #[default]
     FollowSystem,
@@ -17,7 +17,7 @@ pub enum DarkModePref {
     Light,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Serialize, Deserialize, Default, Debug)]
 pub enum AutoDeletePref {
     NoTime,
     OneDay,
@@ -27,7 +27,7 @@ pub enum AutoDeletePref {
     Eternity,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Serialize, Deserialize, Default, Debug)]
 pub enum CacheSize {
     None,
     #[default]
@@ -54,7 +54,7 @@ impl CacheSize {
     }
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Default, EnumIter)]
+#[derive(Clone, Copy, Serialize, Deserialize, Default, EnumIter, Debug)]
 pub enum Language {
     #[default]
     EN,
@@ -83,7 +83,7 @@ impl ToString for Language {
     }
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct Preferences {
     #[serde(default)]
     pub darkmode: DarkModePref,

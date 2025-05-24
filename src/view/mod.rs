@@ -15,12 +15,17 @@ use crate::selection::TownSelection;
 use crate::storage;
 use crate::telemetry;
 use crate::view::data::Data;
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_utils;
 use eframe::Storage;
 use egui::{FontData, ProgressBar, RichText, Ui};
 use preferences::Telemetry;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
+
+#[cfg(target_arch = "wasm32")]
+use log::info;
 
 #[derive(Clone, Copy)]
 pub enum Change {
@@ -120,11 +125,49 @@ impl View {
         re.ui_data
             .apply_darkmode(&cc.egui_ctx, re.ui_data.preferences.darkmode);
         re.ui_data.preferences.language.apply();
+
         //  and refresh list of saved dbs (which are not saved across app restarts)
         #[cfg(not(target_arch = "wasm32"))]
         {
             re.ui_data.saved_db = storage::get_list_of_saved_dbs();
         }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            // TODO: the native app should also be able to load and share links.
+
+            // TODO: state management - when should we save the selection state and when is it supposed to be treated
+            // as temporary? I imagine a scenario where users usually have their base map, but alliances also share
+            // interesting map filters. The users personal settings should not be overwritten just because they clicked
+            // on a link and closed their browser tabs in the wrong order (the last tab closed will overwrite). I don't
+            // want to introduce an extra screen just for that though. We could differentiate based on whether the users
+            // came on the site via a direct link, or via the gmap.turun.de blank link. Blank -> save settings, full
+            // link -> do not save settings. But that means that users would have to manually duplicate interesting
+            // filters by hand - they were shared via link so they are not persisted.
+
+            let (opt_url, opt_server_id, opt_selections) = wasm_utils::parse_current_url();
+            info!("{opt_url:?} {opt_server_id:?}, {opt_selections:?}");
+            re.ui_data.url = opt_url;
+            if let Some(selections) = opt_selections {
+                info!("URL contained info on selections, loading those");
+                re.ui_data.selections = selections.iter().map(|ets| ets.fill()).collect();
+            } else {
+                info!("URL contained no info on selections");
+            }
+            if let Some(server_id) = opt_server_id {
+                info!("URL contained info on server, loading data for it now");
+                re.ui_data.server_id = server_id;
+
+                // trigger server reload
+                re.reload_server();
+                // tell the backend to fetch data from the server
+                re.presenter.load_server(re.ui_data.server_id.clone());
+                re.ui_state = State::Uninitialized(Progress::Fetching);
+            } else {
+                info!("URL contained no info on server");
+            }
+        }
+
         re
     }
 
@@ -382,6 +425,20 @@ impl eframe::App for View {
         match state {
             State::Uninitialized(progress) => self.ui_uninitialized(ctx, frame, progress),
             State::Show => self.ui_init(ctx, frame),
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            let this_states_url = wasm_utils::state_to_url_string(
+                Some(&self.ui_data.server_id),
+                Some(&self.ui_data.selections),
+            );
+
+            if self.ui_data.url != Some(this_states_url.clone()) {
+                wasm_utils::set_current_url(&this_states_url);
+                info!("Set url to:\n{this_states_url}");
+                self.ui_data.url = Some(this_states_url);
+            }
         }
     }
 

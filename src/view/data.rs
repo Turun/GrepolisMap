@@ -15,7 +15,7 @@ use crate::view::preferences::{DarkModePref, Preferences};
 pub const ALL_TOWNS_DARK: egui::Color32 = egui::Color32::from_gray(60);
 pub const ALL_TOWNS_LIGHT: egui::Color32 = egui::Color32::from_gray(180);
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct DefaultTownGroup {
     pub enabled: bool,
@@ -23,7 +23,7 @@ pub struct DefaultTownGroup {
 }
 
 /// contains all the data required to draw the ui.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Data {
     pub server_id: String,
@@ -44,6 +44,11 @@ pub struct Data {
     #[serde(skip)]
     #[cfg(not(target_arch = "wasm32"))]
     pub saved_db: BTreeMap<String, Vec<SavedDB>>,
+
+    #[serde(skip)]
+    #[cfg(target_arch = "wasm32")]
+    pub url: Option<String>,
+
     pub preferences: Preferences,
 }
 
@@ -65,6 +70,8 @@ impl Default for Data {
             },
             #[cfg(not(target_arch = "wasm32"))]
             saved_db: BTreeMap::new(),
+            #[cfg(target_arch = "wasm32")]
+            url: None,
             preferences: Preferences::default(),
         }
     }
