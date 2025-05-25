@@ -5,6 +5,114 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+/*
+Forum threads:
+https://en.forum.grepolis.com/index.php?threads/world-data-api.52/
+https://en.forum.grepolis.com/index.php?threads/changes-to-world-data.5589/
+
+Grepolis - World Data
+
+We have written this small guide for other developers who wish to utilise the Grepolis World Data to create their own websites. A good example of what this data can be used to do is Grepo Stats. All data is currently available in the JSON format. Currently world data is updated hourly. Each world's data will be updated at a random starting minute.
+
+Note: Please use the compressed world data whenever possible.
+Player data
+- players.json
+- players.json.gz
+
+The player data contains the following information:
+
+* id - The internal ID of the player
+* name - The player's name
+* alliance_id - The player's internal alliance ID (see alliances.json)
+* points - The player's current amount of points
+* rank - The player's current rank
+* towns - The player's current amount of cities
+
+Alliance data
+- alliances.json
+- alliances.json.gz
+
+The alliance data contains the following information:
+
+* id - The internal ID of the alliance
+* name - The alliances's name
+* points - The alliance's current amount of points
+* rank - The alliance's current rank
+* towns - The alliances's current amount of cities
+* members - The alliances's current member count
+
+Town data
+- towns.json
+- towns.json.gz
+
+The town data contains the following information:
+
+* id - The internal ID of the town
+* player_id - The owner of the town. NULL if no owner
+* name - The town's name
+* island_x - The X coordinate of the island the town is on
+* island_y - The Y coordinate of the island the town is on
+* number_on_island - The position of the town on it's island
+* points - The town's points
+
+Island data *large file*
+- islands.json
+- islands.json.gz
+
+The islands data file contains the information for the world's islands. Please note that this is a large file and that once a world has started, it's contents will not change. Therefore, you do not need to keep downloading this file!
+The island data contains the following information:
+
+* id - The internal ID of the island
+* x - The X position of the island
+* y - The Y position of the island
+* island_id - The internal number of the island, or, what 'type/size/shape' of island this is. 1-10 = player islands with farm towns, 11-16 = uninhabited islands, 17-21 = rocks
+
+Player kill data
+- player_kills.json
+- player_kills.json.gz
+
+The player kill data contains information about the player 'kill' ranking. There is a record for each player who is ranked. Each record is an array of objects, with the keys 'all', 'att', 'def'. These keys mean: 'Overall', 'As attacker', 'As defender'.
+Each of the aforementioned objects contain the following data:
+
+* rank - The rank for the specific type
+* player_id - The internal ID of the player
+* points - The points/score
+
+Alliance kill data
+- alliance_kills.json
+- alliance_kills.json.gz
+
+The alliance kill data contains information about the alliance 'kill' ranking. There is a record for each alliance that is ranked. Each record is an array of objects, with the keys 'all', 'att', 'def'. These keys mean: 'Overall', 'As attacker', 'As defender'.
+Each of the aforementioned objects contain the following data:
+
+* rank - The rank for the specific type
+* alliance_id - The internal ID of the alliance
+* points - The points/score
+
+Colonisation data
+- conquers.json
+- conquers.json.gz
+
+The colonisation data contains the following information:
+
+* town_id - The town's internal ID
+* time - The UNIX timestamp of the conquer
+* new_player_id - The player who colonised the town
+* old_player_id - If involved, the player who lost the town. Otherwise, NULL
+* new_ally_id - If in an alliance, the alliance ID of the player who colonised the town. Otherwise, NULL
+* old_ally_id - If in an alliance, the alliance ID of the player who lost the town. Otherwise, NULL
+* town_points - The town's points at the time of the colonisation
+
+Building, unit and research information
+- units.json
+- units.json.gz
+- buildings.json
+- buildings.json.gz
+- researches.json
+- researches.json.gz
+
+*/
+
 impl DataTable {
     pub fn get_api_results(api_results: &Arc<Mutex<APIResponse>>) {
         let server_id = api_results.lock().unwrap().for_server.clone();

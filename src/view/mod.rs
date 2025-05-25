@@ -35,6 +35,7 @@ pub enum Change {
     MoveDown(usize),
 }
 
+// TODO: the InSitu type is no longer relevant. We need to refactor the code and get rid of it.
 pub enum Refresh {
     Complete,
     InSitu(HashSet<EmptyConstraint>),

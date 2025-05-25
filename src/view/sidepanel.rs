@@ -74,6 +74,7 @@ impl View {
                             }
                             super::Refresh::InSitu(edited_constraints) => {
                                 // println!("refresh edited constraints for {selection}");
+                                // TODO: also drop selection.towns here as well. Not dropping it is a bug!
                                 edited_constraints
                             }
                             super::Refresh::None => {
