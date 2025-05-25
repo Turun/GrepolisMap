@@ -144,6 +144,11 @@ impl View {
 
                 // DRAW SELECTED TOWS
                 for selection in &self.ui_data.selections {
+                    // if this selection if made fully transparent, skip the work
+                    if selection.color.a() == 0 {
+                        continue;
+                    }
+
                     for town in selection
                         .towns
                         .iter()
