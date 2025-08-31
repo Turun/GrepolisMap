@@ -191,33 +191,14 @@ impl Presenter {
 
                 #[cfg(not(target_arch = "wasm32"))]
                 api_response.save_to_file();
-                #[cfg(not(target_arch = "wasm32"))]
-                let db_path = api_response.filename.clone();
 
-                let db_result = DataTable::create_for_world(api_response);
-                match db_result {
-                    Ok(db) => {
-                        self.model = Model::Loaded {
-                            db,
-                            cache_strings: HashMap::default(),
-                            cache_towns: HashMap::default(),
-                        };
-                        return Ok(PresenterReady::NewlyReady);
-                    }
-                    Err(err) => {
-                        self.model = Model::Uninitialized(Arc::new(Mutex::new(APIResponse::new(
-                            String::new(),
-                        ))));
-
-                        // if we failed halfway during the creation of our db, we need to remove the unfinished db from the filesystem
-                        #[cfg(not(target_arch = "wasm32"))]
-                        if let Some(path) = db_path {
-                            let _result = storage::remove_db(&path);
-                        }
-
-                        return Err(anyhow!("{err}"));
-                    }
-                }
+                let db = DataTable::create_for_world(api_response);
+                self.model = Model::Loaded {
+                    db,
+                    cache_strings: HashMap::default(),
+                    cache_towns: HashMap::default(),
+                };
+                return Ok(PresenterReady::NewlyReady);
             }
             Model::Loaded { .. } => return Ok(PresenterReady::AlwaysHasBeen),
         }

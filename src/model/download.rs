@@ -151,16 +151,23 @@ impl DataTable {
         });
     }
 
-    pub fn create_for_world(api_response: APIResponse) -> anyhow::Result<Self> {
+    pub fn create_for_world(api_response: APIResponse) -> Self {
         // TODO: we need to massively improve the way we handle errors here. Crashing the entire backend if one line in
         // one input file is unexpected is not a good solution. We need more fine grained error handling.
         let offsets = Self::make_offsets();
-        let alliances = Self::parse_alliances(&api_response.alliances.unwrap())?;
-        let islands = Self::parse_islands(&api_response.islands.unwrap())?;
-        let players = Self::parse_players(&api_response.players.unwrap(), &alliances)?;
-        let towns = Self::parse_towns(&api_response.towns.unwrap(), &players, &islands, &offsets)?;
+        let (bl_alliances, alliances) = Self::parse_alliances(&api_response.alliances.unwrap());
+        let (bl_islands, islands) = Self::parse_islands(&api_response.islands.unwrap());
+        let (bl_players, players) = Self::parse_players(&api_response.players.unwrap(), &alliances);
+        let (bl_towns, towns) =
+            Self::parse_towns(&api_response.towns.unwrap(), &players, &islands, &offsets);
         let towns = towns.into_values().collect();
-        Ok(Self { towns })
+
+        // TODO: do something with the bad lines information
+        let total_bad_lines = bl_alliances + bl_islands + bl_players + bl_towns;
+        if total_bad_lines > 0 {
+            eprintln!("Got {total_bad_lines} bad lines in api response.");
+        }
+        Self { towns }
     }
 
     fn make_offsets() -> HashMap<(u8, u8), Rc<Offset>> {
@@ -185,7 +192,7 @@ impl DataTable {
         return re;
     }
 
-    fn parse_alliances(data: &str) -> anyhow::Result<HashMap<u32, Rc<Alliance>>> {
+    fn parse_alliances(data: &str) -> (u32, HashMap<u32, Rc<Alliance>>) {
         fn parse_line(line: &str) -> anyhow::Result<(u32, Alliance)> {
             let mut values = line.split(',');
 
@@ -236,19 +243,20 @@ impl DataTable {
             ));
         }
 
+        let mut bad_lines = 0;
         let lines: Vec<&str> = data.lines().collect();
         let mut re = HashMap::with_capacity(lines.len());
         for line in lines {
             if let Ok((id, alliance)) = parse_line(line) {
                 let _duplicate = re.insert(id, Rc::new(alliance));
             } else {
-                // TODO: take note of what lines fail maybe?
+                bad_lines += 1;
             }
         }
-        return Ok(re);
+        return (bad_lines, re);
     }
 
-    fn parse_islands(data: &str) -> anyhow::Result<HashMap<(u16, u16), Rc<Island>>> {
+    fn parse_islands(data: &str) -> (u32, HashMap<(u16, u16), Rc<Island>>) {
         fn parse_line(line: &str) -> anyhow::Result<(u16, u16, Island)> {
             let mut values = line.split(',');
 
@@ -300,22 +308,23 @@ impl DataTable {
             ));
         }
 
+        let mut bad_lines = 0;
         let lines: Vec<&str> = data.lines().collect();
         let mut re = HashMap::with_capacity(lines.len());
         for line in lines {
             if let Ok((x, y, island)) = parse_line(line) {
                 let _duplicate = re.insert((x, y), Rc::new(island));
             } else {
-                // TODO: take note of what lines fail maybe?
+                bad_lines += 1;
             }
         }
-        return Ok(re);
+        return (bad_lines, re);
     }
 
     fn parse_players(
         data: &str,
         alliances: &HashMap<u32, Rc<Alliance>>,
-    ) -> anyhow::Result<HashMap<u32, Rc<Player>>> {
+    ) -> (u32, HashMap<u32, Rc<Player>>) {
         fn parse_line(
             line: &str,
             alliances: &HashMap<u32, Rc<Alliance>>,
@@ -384,16 +393,17 @@ impl DataTable {
             ));
         }
 
+        let mut bad_lines = 0;
         let lines: Vec<&str> = data.lines().collect();
         let mut re = HashMap::with_capacity(lines.len());
         for line in lines {
             if let Ok((id, player)) = parse_line(line, alliances) {
                 let _duplicate = re.insert(id, Rc::new(player));
             } else {
-                // TODO: take note of what lines fail maybe?
+                bad_lines += 1;
             }
         }
-        return Ok(re);
+        return (bad_lines, re);
     }
 
     fn parse_towns(
@@ -401,7 +411,7 @@ impl DataTable {
         players: &HashMap<u32, Rc<Player>>,
         islands: &HashMap<(u16, u16), Rc<Island>>,
         offsets: &HashMap<(u8, u8), Rc<Offset>>,
-    ) -> anyhow::Result<HashMap<u32, Rc<BackendTown>>> {
+    ) -> (u32, HashMap<u32, Rc<BackendTown>>) {
         fn parse_line(
             line: &str,
             players: &HashMap<u32, Rc<Player>>,
@@ -510,15 +520,17 @@ impl DataTable {
             ));
         }
 
+        let mut bad_lines = 0;
         let lines: Vec<&str> = data.lines().collect();
         let mut re = HashMap::with_capacity(lines.len());
         for line in lines {
             if let Ok((id, town)) = parse_line(line, players, islands, offsets) {
                 let _duplicate = re.insert(id, Rc::new(town));
             } else {
-                // TODO: take note of what lines fail maybe?
+                // TODO: dont use a counter, use a list that contains the lines themselves
+                bad_lines += 1;
             }
         }
-        return Ok(re);
+        return (bad_lines, re);
     }
 }
