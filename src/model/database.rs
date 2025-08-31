@@ -53,9 +53,9 @@ pub struct Player {
 pub struct BackendTown {
     pub id: u32,
     pub name: String,
-    pub points: u16,
+    pub points: u16, // had a bug where a city actually had negative points in the game
     pub player: Option<(u32, Rc<Player>)>, // link town.player_id == player.id
-    pub island: (u16, u16, Rc<Island>),    // link town.x = island.x && town.y == island.y
+    pub island: (u16, u16, Rc<Island>), // link town.x = island.x && town.y == island.y
     pub offset: (u8, Rc<Offset>), // link town.slot_number = offset.slot_number && offset.type == island.type
     pub actual_x: f32,
     pub actual_y: f32, // computed from the linked island and offset

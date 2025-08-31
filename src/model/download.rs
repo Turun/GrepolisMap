@@ -186,9 +186,7 @@ impl DataTable {
     }
 
     fn parse_alliances(data: &str) -> anyhow::Result<HashMap<u32, Rc<Alliance>>> {
-        let lines: Vec<&str> = data.lines().collect();
-        let mut re = HashMap::with_capacity(lines.len());
-        for line in lines {
+        fn parse_line(line: &str) -> anyhow::Result<(u32, Alliance)> {
             let mut values = line.split(',');
 
             let id = values
@@ -225,25 +223,33 @@ impl DataTable {
                 .with_context(|| format!("No ally rank in {line}"))?
                 .parse()
                 .with_context(|| format!("No ally rank in {line} that can be parsed as int"))?;
-            let _duplicate = re.insert(
+            return Ok((
                 id,
-                Rc::new(Alliance {
+                Alliance {
                     id,
                     name,
                     points,
                     towns,
                     members,
                     rank,
-                }),
-            );
+                },
+            ));
+        }
+
+        let lines: Vec<&str> = data.lines().collect();
+        let mut re = HashMap::with_capacity(lines.len());
+        for line in lines {
+            if let Ok((id, alliance)) = parse_line(line) {
+                let _duplicate = re.insert(id, Rc::new(alliance));
+            } else {
+                // TODO: take note of what lines fail maybe?
+            }
         }
         return Ok(re);
     }
 
     fn parse_islands(data: &str) -> anyhow::Result<HashMap<(u16, u16), Rc<Island>>> {
-        let lines: Vec<&str> = data.lines().collect();
-        let mut re = HashMap::with_capacity(lines.len());
-        for line in lines {
+        fn parse_line(line: &str) -> anyhow::Result<(u16, u16, Island)> {
             let mut values = line.split(',');
 
             let id = values
@@ -279,9 +285,10 @@ impl DataTable {
                 .next()
                 .with_context(|| format!("No island res- in {line}"))?
                 .to_string();
-            let _duplicate = re.insert(
-                (x, y),
-                Rc::new(Island {
+            return Ok((
+                x,
+                y,
+                Island {
                     id,
                     x,
                     y,
@@ -289,8 +296,18 @@ impl DataTable {
                     towns,
                     ressource_plus,
                     ressource_minus,
-                }),
-            );
+                },
+            ));
+        }
+
+        let lines: Vec<&str> = data.lines().collect();
+        let mut re = HashMap::with_capacity(lines.len());
+        for line in lines {
+            if let Ok((x, y, island)) = parse_line(line) {
+                let _duplicate = re.insert((x, y), Rc::new(island));
+            } else {
+                // TODO: take note of what lines fail maybe?
+            }
         }
         return Ok(re);
     }
@@ -299,9 +316,10 @@ impl DataTable {
         data: &str,
         alliances: &HashMap<u32, Rc<Alliance>>,
     ) -> anyhow::Result<HashMap<u32, Rc<Player>>> {
-        let lines: Vec<&str> = data.lines().collect();
-        let mut re = HashMap::with_capacity(lines.len());
-        for line in lines {
+        fn parse_line(
+            line: &str,
+            alliances: &HashMap<u32, Rc<Alliance>>,
+        ) -> anyhow::Result<(u32, Player)> {
             let mut values = line.split(',');
 
             let id = values
@@ -353,17 +371,27 @@ impl DataTable {
                 None
             };
 
-            let _duplicate = re.insert(
+            return Ok((
                 id,
-                Rc::new(Player {
+                Player {
                     id,
                     name,
                     alliance: alliance_tuple,
                     points,
                     rank,
                     towns,
-                }),
-            );
+                },
+            ));
+        }
+
+        let lines: Vec<&str> = data.lines().collect();
+        let mut re = HashMap::with_capacity(lines.len());
+        for line in lines {
+            if let Ok((id, player)) = parse_line(line, alliances) {
+                let _duplicate = re.insert(id, Rc::new(player));
+            } else {
+                // TODO: take note of what lines fail maybe?
+            }
         }
         return Ok(re);
     }
@@ -374,9 +402,12 @@ impl DataTable {
         islands: &HashMap<(u16, u16), Rc<Island>>,
         offsets: &HashMap<(u8, u8), Rc<Offset>>,
     ) -> anyhow::Result<HashMap<u32, Rc<BackendTown>>> {
-        let lines: Vec<&str> = data.lines().collect();
-        let mut re = HashMap::with_capacity(lines.len());
-        for line in lines {
+        fn parse_line(
+            line: &str,
+            players: &HashMap<u32, Rc<Player>>,
+            islands: &HashMap<(u16, u16), Rc<Island>>,
+            offsets: &HashMap<(u8, u8), Rc<Offset>>,
+        ) -> anyhow::Result<(u32, BackendTown)> {
             let mut values = line.split(',');
 
             let id = values
@@ -464,9 +495,9 @@ impl DataTable {
             let actual_x = f32::from(x) + f32::from(offset_tuple.1.x) / 125f32;
             let actual_y = f32::from(y) + f32::from(offset_tuple.1.y) / 125f32;
 
-            let _duplicate = re.insert(
+            return Ok((
                 id,
-                Rc::new(BackendTown {
+                BackendTown {
                     id,
                     name,
                     points,
@@ -475,8 +506,18 @@ impl DataTable {
                     offset: offset_tuple,
                     actual_x,
                     actual_y,
-                }),
-            );
+                },
+            ));
+        }
+
+        let lines: Vec<&str> = data.lines().collect();
+        let mut re = HashMap::with_capacity(lines.len());
+        for line in lines {
+            if let Ok((id, town)) = parse_line(line, players, islands, offsets) {
+                let _duplicate = re.insert(id, Rc::new(town));
+            } else {
+                // TODO: take note of what lines fail maybe?
+            }
         }
         return Ok(re);
     }
