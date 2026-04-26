@@ -14,6 +14,7 @@ pub fn get_latest_version() {}
 #[cfg(not(target_arch = "wasm32"))]
 /// check on the server what the latest version is.
 pub fn get_latest_version() {
+    // TODO: since the webapp is a progressive web app and can be saved to the PC and used like a normal program, it would actually be useful to have this function also run on the web version.
     let user_version = env!("CARGO_PKG_VERSION");
     let mut request = ehttp::Request::get(SERVER_GET_VERSION);
     request.body = user_version.to_string().into_bytes();
