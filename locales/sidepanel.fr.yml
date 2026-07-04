@@ -2,7 +2,10 @@ sidepanel:
   header:
     server_id: "ID du serveur"
     load_data: "Charger les données pour ce serveur"
-    open_recent: "Ouvrir le fichier le plus récent : %{server_id} : %{db}"
+    open_saved: "Ouvrir un fichier enregistré :"
+    saved_file_entry: "%{server_id} : %{db}"
+    no_saved_files: "Aucun fichier enregistré trouvé"
+    history_slider: "Historique :"
   loading:
     db_crashed: "La base de données a planté. Veuillez recharger les données. Le message d'erreur est :\n%{reason}"
   town_stats:

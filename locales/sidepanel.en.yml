@@ -2,7 +2,10 @@ sidepanel:
   header:
     server_id: "Server ID"
     load_data: "Load data for this server"
-    open_recent: "Open most recent file: %{server_id}: %{db}"
+    open_saved: "Open a saved file:"
+    saved_file_entry: "%{server_id}: %{db}"
+    no_saved_files: "No saved files found"
+    history_slider: "History:"
   loading:
     db_crashed: "The database crashed. Please load the data again. The error message is:\n%{reason}"
   town_stats:
