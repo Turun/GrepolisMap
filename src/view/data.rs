@@ -45,6 +45,12 @@ pub struct Data {
     #[cfg(not(target_arch = "wasm32"))]
     pub saved_db: BTreeMap<String, Vec<SavedDB>>,
 
+    /// index into the chronologically sorted (oldest first) list of saved snapshots
+    /// for `server_id`, used by the history slider to know which snapshot is shown.
+    #[serde(skip)]
+    #[cfg(not(target_arch = "wasm32"))]
+    pub history_index: Option<usize>,
+
     #[serde(skip)]
     #[cfg(target_arch = "wasm32")]
     pub url: Option<String>,
@@ -70,6 +76,8 @@ impl Default for Data {
             },
             #[cfg(not(target_arch = "wasm32"))]
             saved_db: BTreeMap::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            history_index: None,
             #[cfg(target_arch = "wasm32")]
             url: None,
             preferences: Preferences::default(),

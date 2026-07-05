@@ -243,6 +243,10 @@ impl View {
             ghost_towns: Arc::new(Vec::new()),
             ..self.ui_data.clone()
         };
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.ui_data.history_index = None;
+        }
 
         for selection in &mut self.ui_data.selections {
             selection.towns = Arc::new(Vec::new());
@@ -273,11 +277,11 @@ impl View {
             should_load_server = true;
         }
 
-        // on native show a button to (re)load the data that was last fetched.
-        // Partially also there to serve as a note from what time the map data is from.
+        // on native show a dropdown to (re)load any previously fetched data,
+        // sorted with the most recently loaded file first.
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let most_recently_loaded = self
+            let mut saved_dbs_newest_first: Vec<(String, storage::SavedDB)> = self
                 .ui_data
                 .saved_db
                 .iter()
@@ -286,24 +290,91 @@ impl View {
                         .iter()
                         .map(|saved_db| (server_id.clone(), saved_db.clone()))
                 })
-                .max_by_key(|(_, saved_db)| saved_db.date);
+                .collect();
+            saved_dbs_newest_first.sort_by_key(|(_, saved_db)| std::cmp::Reverse(saved_db.date));
 
-            if let Some((server_id, saved_db)) = most_recently_loaded {
-                if ui
-                    .button(t!(
-                        "sidepanel.header.open_recent",
+            let selected_text = saved_dbs_newest_first.first().map_or_else(
+                || t!("sidepanel.header.no_saved_files"),
+                |(server_id, saved_db)| {
+                    t!(
+                        "sidepanel.header.saved_file_entry",
                         server_id = server_id,
                         db = saved_db
-                    ))
-                    .clicked()
-                {
-                    self.ui_data.server_id = server_id;
-                    // change self.ui_data
-                    self.reload_server();
-                    // tell the backend to fetch data from the server
-                    // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
-                    self.presenter.load_server_from_file(saved_db);
-                    self.ui_state = State::Uninitialized(Progress::LoadingFile);
+                    )
+                },
+            );
+
+            let mut clicked_saved_db = None;
+            ui.horizontal(|ui| {
+                ui.label(t!("sidepanel.header.open_saved"));
+                egui::ComboBox::from_id_source("open_saved_file")
+                    .selected_text(selected_text)
+                    .show_ui(ui, |ui| {
+                        for (server_id, saved_db) in &saved_dbs_newest_first {
+                            let text = t!(
+                                "sidepanel.header.saved_file_entry",
+                                server_id = server_id,
+                                db = saved_db
+                            );
+                            if ui.selectable_label(false, text).clicked() {
+                                clicked_saved_db = Some((server_id.clone(), saved_db.clone()));
+                            }
+                        }
+                    });
+            });
+
+            if let Some((server_id, saved_db)) = clicked_saved_db {
+                self.ui_data.server_id = server_id;
+                // change self.ui_data
+                self.reload_server();
+                // tell the backend to fetch data from the server
+                // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
+                self.presenter.load_server_from_file(saved_db);
+                self.ui_state = State::Uninitialized(Progress::LoadingFile);
+            }
+
+            // if there is more than one saved snapshot for the currently selected server,
+            // show a slider to step through them chronologically (oldest to newest), so
+            // the progression of a world over time can be visualized.
+            let mut history_for_server: Vec<storage::SavedDB> = self
+                .ui_data
+                .saved_db
+                .get(&self.ui_data.server_id)
+                .cloned()
+                .unwrap_or_default();
+            history_for_server.sort_by_key(|saved_db| saved_db.date);
+
+            if history_for_server.len() > 1 {
+                let max_index = history_for_server.len() - 1;
+                let mut index = self
+                    .ui_data
+                    .history_index
+                    .unwrap_or(max_index)
+                    .min(max_index);
+
+                let response = ui
+                    .horizontal(|ui| {
+                        ui.label(t!("sidepanel.header.history_slider"));
+                        ui.add(egui::Slider::new(&mut index, 0..=max_index).custom_formatter(
+                            |value, _range| {
+                                history_for_server
+                                    .get(value as usize)
+                                    .map_or_else(String::new, std::string::ToString::to_string)
+                            },
+                        ))
+                    })
+                    .inner;
+                self.ui_data.history_index = Some(index);
+
+                let should_jump =
+                    response.drag_released() || (response.changed() && !response.dragged());
+                if should_jump {
+                    if let Some(saved_db) = history_for_server.get(index).cloned() {
+                        self.reload_server();
+                        self.presenter.load_server_from_file(saved_db);
+                        self.ui_state = State::Uninitialized(Progress::LoadingFile);
+                        self.ui_data.history_index = Some(index);
+                    }
                 }
             }
         }
