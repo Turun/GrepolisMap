@@ -67,7 +67,7 @@ impl Default for Data {
             ghost_towns: Arc::new(Vec::new()),
             selections: vec![TownSelection::default()],
             settings_ghosts: DefaultTownGroup {
-                enabled: true,
+                enabled: false,
                 color: egui::Color32::RED,
             },
             settings_all: DefaultTownGroup {
