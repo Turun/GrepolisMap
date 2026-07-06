@@ -1,5 +1,4 @@
 selection:
-  hidden: "Versteckt"
   town_count: "%{count} Städte"
 
   constraint:

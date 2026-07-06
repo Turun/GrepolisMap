@@ -25,12 +25,12 @@ impl View {
                 ui.separator();
 
                 ui.horizontal(|ui| {
-                    ui.checkbox(&mut self.ui_data.settings_all.enabled, "");
+                    super::eye_toggle::eye_toggle(ui, &mut self.ui_data.settings_all.enabled);
                     ui.label(t!("sidepanel.town_toggle.all"));
                     ui.color_edit_button_srgba(&mut self.ui_data.settings_all.color);
                 });
                 ui.horizontal(|ui| {
-                    ui.checkbox(&mut self.ui_data.settings_ghosts.enabled, "");
+                    super::eye_toggle::eye_toggle(ui, &mut self.ui_data.settings_ghosts.enabled);
                     ui.label(t!("sidepanel.town_toggle.ghosts"));
                     ui.color_edit_button_srgba(&mut self.ui_data.settings_ghosts.color);
                 });

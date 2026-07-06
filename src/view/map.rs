@@ -98,7 +98,7 @@ impl View {
                         re.extend(visible_ghost_towns.iter().copied());
                     }
                     for selection in &self.ui_data.selections {
-                        if selection.color.a() == 0 {
+                        if selection.is_hidden() {
                             continue;
                         }
                         re.extend(
@@ -253,8 +253,8 @@ impl View {
 
                 // DRAW SELECTED TOWS
                 for selection in &self.ui_data.selections {
-                    // if this selection if made fully transparent, skip the work
-                    if selection.color.a() == 0 {
+                    // skip selections toggled off via the eye button
+                    if selection.is_hidden() {
                         continue;
                     }
 

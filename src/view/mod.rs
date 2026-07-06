@@ -1,5 +1,6 @@
 mod data;
 pub(crate) mod dropdownbox;
+pub(crate) mod eye_toggle;
 mod map;
 mod menu;
 pub(crate) mod preferences;

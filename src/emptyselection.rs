@@ -37,6 +37,13 @@ pub struct EmptyTownSelection {
 
     #[serde(default)]
     pub color: egui::Color32,
+
+    /// whether this selection is temporarily toggled off via the eye button. Kept
+    /// separate from `color`'s alpha so the user's chosen color is never lost: egui's
+    /// `Color32::from_rgba_unmultiplied` collapses straight to (0,0,0,0) once alpha
+    /// hits 0, which used to silently erase the color whenever a selection was hidden.
+    #[serde(default)]
+    pub hidden: bool,
 }
 
 impl Default for EmptyTownSelection {
@@ -47,6 +54,7 @@ impl Default for EmptyTownSelection {
             constraints: vec![EmptyConstraint::default()],
             constraint_join_mode: AndOr::default(),
             color: egui::Color32::GREEN,
+            hidden: false,
         }
     }
 }
@@ -107,9 +115,9 @@ impl Ord for EmptyTownSelection {
 }
 
 impl EmptyTownSelection {
-    /// If the color has an alpha value of 0, it is fully transparent and therefore invisible on the map
+    /// Toggled off via the eye button: temporarily invisible on the map, independent of `color`.
     pub fn is_hidden(&self) -> bool {
-        self.color.a() == 0
+        self.hidden
     }
 
     pub fn fill(&self) -> TownSelection {
@@ -120,6 +128,7 @@ impl EmptyTownSelection {
             constraints: self.constraints.iter().map(EmptyConstraint::fill).collect(),
             constraint_join_mode: self.constraint_join_mode,
             color: self.color,
+            hidden: self.hidden,
             towns: Arc::new(Vec::new()),
         }
     }

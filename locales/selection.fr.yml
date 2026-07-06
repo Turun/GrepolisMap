@@ -1,5 +1,4 @@
 selection:
-  hidden: "Caché"
   town_count: "%{count} Villes"
 
   player_id: "ID du joueur"

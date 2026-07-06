@@ -49,6 +49,7 @@ pub struct TownSelection {
     pub constraints: Vec<Constraint>,
     pub constraint_join_mode: AndOr,
     pub color: egui::Color32,
+    pub hidden: bool,
     pub towns: Arc<Vec<Town>>,
 }
 
@@ -101,9 +102,9 @@ impl fmt::Display for TownSelection {
 }
 
 impl TownSelection {
-    /// If the color has an alpha value of 0, it is fully transparent and therefore invisible on the map
+    /// Toggled off via the eye button: temporarily invisible on the map, independent of `color`.
     pub fn is_hidden(&self) -> bool {
-        self.color.a() == 0
+        self.hidden
     }
 
     /// Clone the `TownSelection`, but without the list of towns. Less memory
@@ -120,6 +121,7 @@ impl TownSelection {
                 .collect(),
             constraint_join_mode: self.constraint_join_mode,
             color: self.color, // implements copy
+            hidden: self.hidden,
         }
     }
 
@@ -245,19 +247,19 @@ impl TownSelection {
                     ],
                     egui::TextEdit::singleline(&mut self.name),
                 );
-                // Color picker. Send a new request to the DB is the hidden status changed
-                let previously_hidden = self.is_hidden();
-                if ui.color_edit_button_srgba(&mut self.color).changed()
-                    && previously_hidden != self.is_hidden()
-                {
+                // Eye toggle: a quick way to temporarily hide/show this filter. `hidden` is
+                // its own field, independent of `color`, so the chosen color is never lost:
+                // `Color32::from_rgba_unmultiplied` collapses straight to (0,0,0,0) once
+                // alpha hits 0, which used to silently erase the color when hiding.
+                let mut visible = !self.hidden;
+                if crate::view::eye_toggle::eye_toggle(ui, &mut visible).changed() {
+                    self.hidden = !visible;
                     refresh_action = Refresh::InSitu(HashSet::new());
                 }
 
-                if self.is_hidden() {
-                    ui.label(t!("selection.hidden"));
-                } else {
-                    ui.label(t!("selection.town_count", count = self.towns.len()));
-                }
+                ui.color_edit_button_srgba(&mut self.color);
+
+                ui.label(t!("selection.town_count", count = self.towns.len()));
             })
             .body(|ui| {
                 let this_selection = self.partial_clone();

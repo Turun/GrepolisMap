@@ -1,5 +1,4 @@
 selection:
-  hidden: "Hidden"
   town_count: "%{count} Towns"
 
   player_id: "PlayerID"
