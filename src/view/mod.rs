@@ -64,6 +64,12 @@ pub struct View {
     presenter: Presenter,
     ui_state: State,
     ui_data: Data,
+    /// screen-space position where the current ctrl+drag rectangle selection started.
+    /// `None` when no such drag is in progress.
+    marquee_drag_start: Option<egui::Pos2>,
+    /// ids of the towns selected via the ctrl+drag rectangle selection. Used as the
+    /// target of the map's right-click context menu.
+    selected_town_ids: HashSet<u32>,
 }
 
 impl View {
@@ -73,6 +79,8 @@ impl View {
             presenter: Presenter::default(),
             ui_state: State::Uninitialized(Progress::None),
             ui_data: Data::default(),
+            marquee_drag_start: None,
+            selected_town_ids: HashSet::new(),
         };
 
         // include a Unicode font and make it the default

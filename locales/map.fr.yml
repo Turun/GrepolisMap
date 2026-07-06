@@ -1,2 +1,4 @@
 map:
   hover: "%{name}\nPoints: %{points}\nJoueur: %{player}\nAlliance: %{alliance}"
+  context_menu:
+    placeholder: "Faire quelque chose avec la sélection (%{count}) [espace réservé]"

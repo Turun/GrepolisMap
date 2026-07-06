@@ -26,9 +26,13 @@ impl View {
                 // Some() just a line above this comment.
                 let canvas_data = self.ui_data.canvas.as_mut().unwrap();
 
-                //DRAG
-                canvas_data.world_offset_px -=
-                    canvas_data.scale_screen_to_world(response.drag_delta());
+                let ctrl_held = ctx.input(|input| input.modifiers.ctrl);
+
+                //DRAG (panning). Ctrl+drag is reserved for the rectangle town selection below.
+                if !ctrl_held {
+                    canvas_data.world_offset_px -=
+                        canvas_data.scale_screen_to_world(response.drag_delta());
+                }
 
                 // ZOOM
                 // as per https://www.youtube.com/watch?v=ZQ8qtAizis4
@@ -75,6 +79,71 @@ impl View {
                     .iter()
                     .filter(|town| filter.town_in_viewport(town))
                     .collect();
+
+                // every town that is *actually drawn as a dot* right now: respects the "all
+                // towns"/"ghost towns" toggles, the viewport, and includes towns that are only
+                // shown because they match a (non-transparent) named/colored selection. This is
+                // the set the ctrl+drag rectangle below is allowed to pick from, so the existing
+                // filters can be used to narrow down what's selectable before marquee-selecting.
+                let rendered_towns: Vec<&Town> = {
+                    let mut re: Vec<&Town> = Vec::new();
+                    if self.ui_data.settings_all.enabled {
+                        re.extend(visible_towns_all.iter().copied());
+                    }
+                    if self.ui_data.settings_ghosts.enabled {
+                        re.extend(visible_ghost_towns.iter().copied());
+                    }
+                    for selection in &self.ui_data.selections {
+                        if selection.color.a() == 0 {
+                            continue;
+                        }
+                        re.extend(
+                            selection
+                                .towns
+                                .iter()
+                                .filter(|t| filter.town_in_viewport(t)),
+                        );
+                    }
+                    re
+                };
+
+                // CTRL+DRAG RECTANGLE TOWN SELECTION
+                if ctrl_held {
+                    if response.drag_started() {
+                        self.marquee_drag_start = response.interact_pointer_pos();
+                    }
+                } else {
+                    self.marquee_drag_start = None;
+                }
+                let marquee_rect = ctrl_held.then(|| self.marquee_drag_start).flatten().and_then(
+                    |start| {
+                        response
+                            .interact_pointer_pos()
+                            .or_else(|| response.hover_pos())
+                            .map(|current| egui::Rect::from_two_pos(start, current))
+                    },
+                );
+                if let Some(rect) = marquee_rect {
+                    if response.drag_released() {
+                        self.selected_town_ids = rendered_towns
+                            .iter()
+                            .filter(|town| {
+                                rect.contains(
+                                    canvas_data.world_to_screen(egui::vec2(town.x, town.y)).to_pos2(),
+                                )
+                            })
+                            .map(|town| town.id)
+                            .collect();
+                        self.marquee_drag_start = None;
+                    }
+                }
+
+                // CLEAR THE SELECTION: a plain click on the map or pressing Escape both
+                // clear the current town selection. `clicked()` never fires for the drag
+                // that creates a new marquee rectangle above, so this can't undo it.
+                if response.clicked() || ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
+                    self.selected_town_ids.clear();
+                }
 
                 // DRAW GRID
                 for i in (0u16..=10).map(|i| f32::from(i) * 100.0) {
@@ -163,6 +232,47 @@ impl View {
                         );
                     }
                 }
+
+                // DRAW MARQUEE (CTRL+DRAG) SELECTED TOWNS as a highlighted ring
+                if !self.selected_town_ids.is_empty() {
+                    for town in rendered_towns
+                        .iter()
+                        .filter(|t| self.selected_town_ids.contains(&t.id))
+                    {
+                        painter.circle_stroke(
+                            canvas_data
+                                .world_to_screen(egui::vec2(town.x, town.y))
+                                .to_pos2(),
+                            3.0 + canvas_data.scale_world_to_screen(0.15),
+                            egui::Stroke::new(2.0, egui::Color32::YELLOW),
+                        );
+                    }
+                }
+
+                // DRAW THE LIVE CTRL+DRAG SELECTION RECTANGLE
+                if let Some(rect) = marquee_rect {
+                    painter.rect_filled(
+                        rect,
+                        0.0,
+                        egui::Color32::from_rgba_unmultiplied(255, 255, 0, 30),
+                    );
+                    painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::YELLOW));
+                }
+
+                // RIGHT CLICK MENU FOR ACTIONS ON THE (MARQUEE) SELECTION
+                response.context_menu(|ui| {
+                    // TODO: this is a placeholder. Replace with real actions once we know what
+                    // we want to do with `self.selected_town_ids`.
+                    if ui
+                        .button(t!(
+                            "map.context_menu.placeholder",
+                            count = self.selected_town_ids.len()
+                        ))
+                        .clicked()
+                    {
+                        ui.close_menu();
+                    }
+                });
 
                 // POPUP WITH TOWN INFORMATION
                 if canvas_data.zoom > 10.0 {
