@@ -256,6 +256,16 @@ impl View {
         // the selections are invalidated after the backend sends "got server"
     }
 
+    /// load an already-downloaded snapshot without hiding the current map: the old
+    /// towns/selections keep rendering as-is until the new snapshot finishes loading
+    /// and parsing, at which point `update` swaps them in automatically. This avoids
+    /// the flash of a blank map that `reload_server` + `State::Uninitialized` causes.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn switch_to_saved_db(&mut self, server_id: String, saved_db: storage::SavedDB) {
+        self.ui_data.server_id = server_id;
+        self.presenter.load_server_from_file(saved_db);
+    }
+
     fn ui_server_input(&mut self, ui: &mut Ui) {
         let mut should_load_server = false;
         ui.horizontal(|ui| {
@@ -324,13 +334,8 @@ impl View {
             });
 
             if let Some((server_id, saved_db)) = clicked_saved_db {
-                self.ui_data.server_id = server_id;
-                // change self.ui_data
-                self.reload_server();
-                // tell the backend to fetch data from the server
-                // this cannot be done in the normal chunk of messages, it needs to be triggered before the normal round of messages
-                self.presenter.load_server_from_file(saved_db);
-                self.ui_state = State::Uninitialized(Progress::LoadingFile);
+                telemetry::event_load_server(self.ui_data.preferences.telemetry, &server_id);
+                self.switch_to_saved_db(server_id, saved_db);
             }
 
             // if there is more than one saved snapshot for the currently selected server,
@@ -366,13 +371,10 @@ impl View {
                     .inner;
                 self.ui_data.history_index = Some(index);
 
-                let should_jump =
-                    response.drag_released() || (response.changed() && !response.dragged());
-                if should_jump {
+                if response.changed() {
                     if let Some(saved_db) = history_for_server.get(index).cloned() {
-                        self.reload_server();
-                        self.presenter.load_server_from_file(saved_db);
-                        self.ui_state = State::Uninitialized(Progress::LoadingFile);
+                        let server_id = self.ui_data.server_id.clone();
+                        self.switch_to_saved_db(server_id, saved_db);
                         self.ui_data.history_index = Some(index);
                     }
                 }
