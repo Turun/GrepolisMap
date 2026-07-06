@@ -360,18 +360,41 @@ impl View {
                 let response = ui
                     .horizontal(|ui| {
                         ui.label(t!("sidepanel.header.history_slider"));
-                        ui.add(egui::Slider::new(&mut index, 0..=max_index).custom_formatter(
-                            |value, _range| {
-                                history_for_server
-                                    .get(value as usize)
-                                    .map_or_else(String::new, std::string::ToString::to_string)
-                            },
-                        ))
+                        ui.add(
+                            egui::Slider::new(&mut index, 0..=max_index).custom_formatter(
+                                |value, _range| {
+                                    history_for_server
+                                        .get(value as usize)
+                                        .map_or_else(String::new, std::string::ToString::to_string)
+                                },
+                            ),
+                        )
                     })
                     .inner;
+
+                // egui::Slider already steps via left/right arrow keys once it has keyboard
+                // focus. As a convenience also let left/right step through history when the
+                // slider is *not* focused, as long as nothing else (e.g. the server id text
+                // field) is currently capturing the keyboard.
+                let mut changed = response.changed();
+                if !response.has_focus() && !ui.ctx().wants_keyboard_input() {
+                    let (pressed_left, pressed_right) = ui.ctx().input(|input| {
+                        (
+                            input.key_pressed(egui::Key::ArrowLeft),
+                            input.key_pressed(egui::Key::ArrowRight),
+                        )
+                    });
+                    if pressed_left && index > 0 {
+                        index -= 1;
+                        changed = true;
+                    } else if pressed_right && index < max_index {
+                        index += 1;
+                        changed = true;
+                    }
+                }
                 self.ui_data.history_index = Some(index);
 
-                if response.changed() {
+                if changed {
                     if let Some(saved_db) = history_for_server.get(index).cloned() {
                         let server_id = self.ui_data.server_id.clone();
                         self.switch_to_saved_db(server_id, saved_db);
