@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use eframe::epaint::ahash::HashMap;
 
 use crate::emptyconstraint::EmptyConstraint;
@@ -10,7 +9,7 @@ use crate::view::preferences::CacheSize;
 use std::sync::{Arc, Mutex};
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::storage::{self, SavedDB};
+use crate::storage::SavedDB;
 
 #[allow(clippy::module_name_repetitions)]
 pub enum PresenterReady {
