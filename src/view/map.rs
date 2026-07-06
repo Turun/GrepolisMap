@@ -7,6 +7,10 @@ use super::{
     View,
 };
 
+/// brand's lightish green (sampled from assets/grass_touchers_logo.png), used to
+/// highlight the ctrl+drag rectangle selection and the towns it picks out.
+const SELECTION_GREEN: egui::Color32 = egui::Color32::from_rgb(143, 199, 62);
+
 impl View {
     #[allow(clippy::too_many_lines)] // UI Code, am I right, hahah
     pub fn ui_map(&mut self, ctx: &egui::Context) {
@@ -138,10 +142,46 @@ impl View {
                     }
                 }
 
-                // CLEAR THE SELECTION: a plain click on the map or pressing Escape both
-                // clear the current town selection. `clicked()` never fires for the drag
-                // that creates a new marquee rectangle above, so this can't undo it.
-                if response.clicked() || ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
+                // CLICK HANDLING. `clicked()` never fires for the drag that creates a new
+                // marquee rectangle above, so neither of these can undo it.
+                if response.clicked() {
+                    if ctrl_held {
+                        // ctrl+click (no drag) toggles just the nearest rendered town under the
+                        // cursor in/out of the selection, leaving the rest of it untouched.
+                        if let Some(click_pos) = response.interact_pointer_pos() {
+                            let closest = rendered_towns.iter().min_by(|a, b| {
+                                let da = canvas_data
+                                    .world_to_screen(egui::vec2(a.x, a.y))
+                                    .to_pos2()
+                                    .distance(click_pos);
+                                let db = canvas_data
+                                    .world_to_screen(egui::vec2(b.x, b.y))
+                                    .to_pos2()
+                                    .distance(click_pos);
+                                da.total_cmp(&db)
+                            });
+                            if let Some(town) = closest {
+                                let screen_pos = canvas_data
+                                    .world_to_screen(egui::vec2(town.x, town.y))
+                                    .to_pos2();
+                                // match the actual drawn dot radius (see the "DRAW ALL/GHOST
+                                // TOWNS" sections below) plus a small constant margin, so the
+                                // clickable area always covers the visible dot instead of a
+                                // fixed pixel radius that falls inside it once zoomed in.
+                                let hit_radius_px = 4.0 + canvas_data.scale_world_to_screen(0.15);
+                                if screen_pos.distance(click_pos) <= hit_radius_px
+                                    && !self.selected_town_ids.remove(&town.id)
+                                {
+                                    self.selected_town_ids.insert(town.id);
+                                }
+                            }
+                        }
+                    } else {
+                        // a plain click (no ctrl) clears the whole selection
+                        self.selected_town_ids.clear();
+                    }
+                }
+                if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
                     self.selected_town_ids.clear();
                 }
 
@@ -244,7 +284,7 @@ impl View {
                                 .world_to_screen(egui::vec2(town.x, town.y))
                                 .to_pos2(),
                             3.0 + canvas_data.scale_world_to_screen(0.15),
-                            egui::Stroke::new(2.0, egui::Color32::YELLOW),
+                            egui::Stroke::new(2.0, SELECTION_GREEN),
                         );
                     }
                 }
@@ -254,22 +294,30 @@ impl View {
                     painter.rect_filled(
                         rect,
                         0.0,
-                        egui::Color32::from_rgba_unmultiplied(255, 255, 0, 30),
+                        egui::Color32::from_rgba_unmultiplied(143, 199, 62, 30),
                     );
-                    painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::YELLOW));
+                    painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, SELECTION_GREEN));
                 }
 
                 // RIGHT CLICK MENU FOR ACTIONS ON THE (MARQUEE) SELECTION
                 response.context_menu(|ui| {
-                    // TODO: this is a placeholder. Replace with real actions once we know what
-                    // we want to do with `self.selected_town_ids`.
                     if ui
-                        .button(t!(
-                            "map.context_menu.placeholder",
-                            count = self.selected_town_ids.len()
-                        ))
+                        .button(t!("map.context_menu.copy_mailing_list"))
                         .clicked()
                     {
+                        // unique, alphabetically sorted owners of the selected towns, joined as
+                        // "adamb; bobbydonut; lawnjittle; timbrick". Ghost/unowned towns have no
+                        // player and are skipped.
+                        let owners: std::collections::BTreeSet<&str> = self
+                            .ui_data
+                            .all_towns
+                            .iter()
+                            .chain(self.ui_data.ghost_towns.iter())
+                            .filter(|town| self.selected_town_ids.contains(&town.id))
+                            .filter_map(|town| town.player_name.as_deref())
+                            .collect();
+                        let mailing_list = owners.into_iter().collect::<Vec<_>>().join("; ");
+                        ctx.copy_text(mailing_list);
                         ui.close_menu();
                     }
                 });

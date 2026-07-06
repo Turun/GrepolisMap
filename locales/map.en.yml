@@ -1,4 +1,4 @@
 map:
   hover: "%{name}\nPoints: %{points}\nPlayer: %{player}\nAlliance: %{alliance}"
   context_menu:
-    placeholder: "Do something with selection (%{count}) [placeholder]"
+    copy_mailing_list: "Copy mailing list"
