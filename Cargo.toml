@@ -8,7 +8,8 @@ edition = "2021"
 [dependencies]
 egui = { version = "0.26", features = ["serde", "persistence"]}
 eframe = {  version = "0.26",  features = ["persistence", "accesskit", "default_fonts", "glow", "wayland", "x11"],  default-features = false}
-egui_extras = "0.26"
+egui_extras = { version = "0.26", features = ["image"] }
+image = { version = "0.24", default-features = false, features = ["png"] }
 reqwest = { version = "0.11.18", features=["gzip", "deflate", "blocking"] }
 form_urlencoded = "1.1.0"
 rand = "0.8.5"

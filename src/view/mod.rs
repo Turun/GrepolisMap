@@ -88,6 +88,9 @@ impl View {
             .push(String::from("Custom Font"));
         cc.egui_ctx.set_fonts(fonts);
 
+        // needed so egui::Image can decode and display png/jpeg bytes (e.g. the map logo overlay)
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+
         // load saved app data from disk
         if let Some(storage) = cc.storage {
             re.ui_data = if let Some(text) = storage.get_string(crate::APP_KEY) {

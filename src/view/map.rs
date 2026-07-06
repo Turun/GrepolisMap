@@ -208,6 +208,21 @@ impl View {
                     });
                 }
 
+                // LOGO OVERLAY, fixed to the top left corner of the map regardless of pan/zoom
+                let logo_max_size = egui::vec2(48.0, 48.0);
+                let logo_rect = egui::Rect::from_min_size(
+                    response.rect.left_top() + egui::vec2(8.0, 8.0),
+                    logo_max_size,
+                );
+                ui.put(
+                    logo_rect,
+                    egui::Image::new(egui::include_image!(
+                        "../../assets/grass_touchers_logo.png"
+                    ))
+                    .max_size(logo_max_size)
+                    .maintain_aspect_ratio(true),
+                );
+
                 response
             })
         });
