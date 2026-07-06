@@ -180,7 +180,7 @@ impl View {
                     if ui.button(t!("menu.import.from_file")).clicked() {
                         let files_res = FileDialog::new()
                             // .title("Choose one or more files to import selections")
-                            .add_filter("Turun Map Selections", &["tms"])
+                            .add_filter("Grass Touchers LLC Map Selections", &["tms"])
                             .show_open_multiple_file();
                         match files_res {
                             Ok(files) => {
@@ -228,7 +228,7 @@ impl View {
                     }
                     if ui.button(t!("menu.export.to_file")).clicked() {
                         let file_res = FileDialog::new()
-                            .add_filter("Turun Map Selections", &["tms"])
+                            .add_filter("Grass Touchers LLC Map Selections", &["tms"])
                             .show_save_single_file();
                         match file_res {
                             Ok(file_opt) => {
